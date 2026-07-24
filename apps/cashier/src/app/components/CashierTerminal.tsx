@@ -3,6 +3,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { openDB, IDBPDatabase } from 'idb';
+import type { ProductModel } from '@zayjar/types';
 
 interface CartItem {
   id: string;
@@ -47,6 +48,9 @@ export const CashierTerminal: React.FC<{ tenantId: string; branchId: string; api
   const [isOnline, setIsOnline] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
   const [serviceWorkerReady, setServiceWorkerReady] = useState(false);
+  const [products, setProducts] = useState<ProductModel[]>([]);
+  const [menuLoading, setMenuLoading] = useState(true);
+  const [menuError, setMenuError] = useState<string | null>(null);
 
   // Register service worker per DOC-001 1.3 Cashier Terminal PWA Offline-First
   useEffect(() => {
@@ -82,6 +86,40 @@ export const CashierTerminal: React.FC<{ tenantId: string; branchId: string; api
       window.removeEventListener('offline', handleOffline);
     };
   }, [tenantId, branchId]);
+
+  // Fetch live menu data from API on mount
+  useEffect(() => {
+    const fetchMenu = async () => {
+      setMenuLoading(true);
+      setMenuError(null);
+      try {
+        const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') || '' : '';
+        const headers: Record<string, string> = {
+          'Content-Type': 'application/json',
+        };
+        if (token) {
+          headers['Authorization'] = `Bearer ${token}`;
+        }
+        if (tenantId) {
+          headers['X-Tenant-ID'] = tenantId;
+        }
+
+        const productsRes = await fetch(`${apiUrl}/api/v1/menu/products`, { headers });
+        if (!productsRes.ok) {
+          throw new Error(`Menu fetch failed: ${productsRes.status}`);
+        }
+        const prods: ProductModel[] = await productsRes.json();
+        setProducts(prods);
+      } catch (err) {
+        console.warn('Failed to fetch menu data, showing empty catalog', err);
+        setMenuError('Unable to load menu');
+      } finally {
+        setMenuLoading(false);
+      }
+    };
+
+    fetchMenu();
+  }, [apiUrl, tenantId]);
 
   // Load offline orders from IndexedDB per DOC-001 1.3
   const loadOfflineOrders = async () => {
@@ -258,16 +296,22 @@ export const CashierTerminal: React.FC<{ tenantId: string; branchId: string; api
 
       <div className="flex flex-1">
         <main className="flex-1 p-4 grid grid-cols-2 md:grid-cols-3 gap-4">
-          {[
-            { id: 'prod_1', name: 'Truffle Burger', price: 14.5 },
-            { id: 'prod_2', name: 'Classic Burger', price: 10.0 },
-            { id: 'prod_3', name: 'Margherita Pizza', price: 12.0 },
-          ].map((product) => (
-            <button key={product.id} onClick={() => addToCart(product.id, product.name, product.price)} className="bg-white p-4 rounded shadow hover:shadow-md text-left">
-              <h3 className="font-bold text-sm">{product.name}</h3>
-              <p className="text-xs text-gray-500">${product.price.toFixed(2)}</p>
-            </button>
-          ))}
+          {menuLoading ? (
+            <p className="text-sm text-gray-500 col-span-full">Loading menu...</p>
+          ) : menuError ? (
+            <p className="text-sm text-red-500 col-span-full">{menuError}</p>
+          ) : products.filter((p) => p.isAvailable).length === 0 ? (
+            <p className="text-sm text-gray-500 col-span-full">No products available</p>
+          ) : (
+            products
+              .filter((p) => p.isAvailable)
+              .map((product) => (
+                <button key={product.id} onClick={() => addToCart(product.id, product.name, product.basePrice)} className="bg-white p-4 rounded shadow hover:shadow-md text-left">
+                  <h3 className="font-bold text-sm">{product.name}</h3>
+                  <p className="text-xs text-gray-500">${product.basePrice.toFixed(2)}</p>
+                </button>
+              ))
+          )}
         </main>
 
         <aside className="w-80 bg-white shadow-lg p-4 flex flex-col">
