@@ -6,16 +6,17 @@ services:
     image: postgres:15-alpine
     container_name: zayjar-postgres
     restart: always
+    env_file: .env
     environment:
-      POSTGRES_DB: zayjar_prod
-      POSTGRES_USER: postgres_admin
-      POSTGRES_PASSWORD: SecretPassword123!
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     ports:
       - "5432:5432"
     volumes:
       - pg-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres_admin -d zayjar_prod"]
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -27,11 +28,12 @@ services:
     restart: always
     ports:
       - "6432:6432"
+    env_file: .env
     environment:
       - DB_HOST=postgres-db
-      - DB_USER=postgres_admin
-      - DB_PASSWORD=SecretPassword123!
-      - DB_NAME=zayjar_prod
+      - DB_USER=${POSTGRES_USER}
+      - DB_PASSWORD=${POSTGRES_PASSWORD}
+      - DB_NAME=${POSTGRES_DB}
       - POOL_MODE=transaction
       - MAX_CLIENT_CONN=10000
       - DEFAULT_POOL_SIZE=50
@@ -46,11 +48,12 @@ services:
     restart: always
     ports:
       - "6379:6379"
-    command: redis-server --appendonly yes --requirepass SecretRedis123!
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}
+    env_file: .env
     volumes:
       - redis-data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "-a", "SecretRedis123!", "ping"]
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -63,13 +66,32 @@ services:
     container_name: zayjar-api
     restart: always
     ports:
-      - "8000:8000"
+      - "${PORT:-8000}:8000"
+    env_file: .env
     environment:
-      - NODE_ENV=development
-      - DATABASE_URL=postgresql://postgres_admin:SecretPassword123!@pgbouncer:6432/zayjar_prod?sslmode=disable
-      - REDIS_URL=redis://:SecretRedis123!@redis-cache:6379
-      - JWT_PRIVATE_KEY=/run/secrets/jwt_private_key
-      - JWT_PUBLIC_KEY=/run/secrets/jwt_public_key
+      - NODE_ENV=${NODE_ENV}
+      - PORT=${PORT:-8000}
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET}
+      - JWT_PRIVATE_KEY=${JWT_PRIVATE_KEY}
+      - JWT_PUBLIC_KEY=${JWT_PUBLIC_KEY}
+      - SYSTEM_PEPPER=${SYSTEM_PEPPER}
+      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
+      - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET}
+      - TAP_PAYMENTS_SECRET_KEY=${TAP_PAYMENTS_SECRET_KEY}
+      - S3_BUCKET=${S3_BUCKET}
+      - AWS_REGION=${AWS_REGION}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - TWILIO_ACCOUNT_SID=${TWILIO_ACCOUNT_SID}
+      - TWILIO_AUTH_TOKEN=${TWILIO_AUTH_TOKEN}
+      - TWILIO_FROM_NUMBER=${TWILIO_FROM_NUMBER}
+      - UNIFONIC_APP_SID=${UNIFONIC_APP_SID}
+      - UNIFONIC_SENDER_ID=${UNIFONIC_SENDER_ID}
+      - SENDGRID_API_KEY=${SENDGRID_API_KEY}
+      - SENDGRID_FROM_EMAIL=${SENDGRID_FROM_EMAIL}
     depends_on:
       pgbouncer:
         condition: service_started
@@ -84,10 +106,11 @@ services:
     container_name: zayjar-worker
     restart: always
     command: ["pnpm", "--filter", "@zayjar/api", "run", "start:worker"]
+    env_file: .env
     environment:
-      - NODE_ENV=development
-      - DATABASE_URL=postgresql://postgres_admin:SecretPassword123!@pgbouncer:6432/zayjar_prod?sslmode=disable
-      - REDIS_URL=redis://:SecretRedis123!@redis-cache:6379
+      - NODE_ENV=${NODE_ENV}
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
     depends_on:
       redis-cache:
         condition: service_healthy

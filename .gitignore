@@ -11,3 +11,5 @@ uploads
 .turbo
 *.log
 .env
+.env.*
+!.env.example
