@@ -1,16 +1,29 @@
 import { NestFactory } from '@nestjs/core';
-import { Logger } from '@nestjs/common';
+import { Logger, ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
   logger.log('Starting Zayjar platform API bootstrap sequence...');
-  
-  // Create a Nest application context to initialize modules
-  const app = await NestFactory.createApplicationContext(AppModule);
-  
-  logger.log('Nest application context successfully initialized.');
-  await app.close();
+
+  const app = await NestFactory.create(AppModule);
+
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+    }),
+  );
+
+  app.enableCors();
+
+  app.enableShutdownHooks();
+
+  const port = process.env.PORT || 8000;
+  await app.listen(port);
+
+  logger.log(`Zayjar API running on port ${port}`);
 }
 
 bootstrap();
