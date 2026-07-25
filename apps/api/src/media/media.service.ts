@@ -16,6 +16,9 @@ const ENTITY_URL_MAP: Record<string, Record<string, string>> = {
   },
 };
 
+const PG_SERIALIZATION_ERROR = '40001';
+const MAX_SERIALIZATION_RETRIES = 3;
+
 @Injectable()
 export class MediaService {
   private readonly logger = new Logger(MediaService.name);
@@ -124,65 +127,85 @@ export class MediaService {
       where: { tenantId, entityType, entityId, mediaType: mediaType as any, status: 'ready' },
     });
 
-    const { media, shouldDeleteOldFiles, oldStorageKey } = await prisma.$transaction(async (tx: any) => {
-      const created = await tx.media.create({
-        data: {
-          tenantId,
-          entityType,
-          entityId,
-          mediaType,
-          originalName: file.originalname,
-          mimeType: file.mimetype,
-          originalFileSize: file.size,
-          fileSize,
-          checksum,
-          width: width ?? null,
-          height: height ?? null,
-          storageKey,
-          storageProvider: this.storageProvider.constructor.name,
-          originalUrl: urls.originalUrl,
-          thumbnailUrl: urls.thumbnailUrl,
-          mediumUrl: urls.mediumUrl,
-          largeUrl: urls.largeUrl,
-          status: 'ready',
-        },
-      });
+    // SERIALIZABLE isolation prevents two concurrent uploads for the same
+    // entity/mediaType from both creating new records. Under READ COMMITTED,
+    // both transactions would see the same existingMedia, both create new
+    // records, and both succeed — leaving duplicate active records.
+    // SERIALIZABLE causes the second transaction to detect the conflict
+    // and fail with a serialization error, which we retry.
+    const { media, shouldDeleteOldFiles, oldStorageKey } = await this.serializableRetry(async () => {
+      return prisma.$transaction(async (tx: any) => {
+        // Re-read existingMedia INSIDE the SERIALIZABLE transaction.
+        // This ensures we see the latest committed state and lock the row
+        // for the duration of the transaction.
+        const currentExisting = existingMedia
+          ? await tx.media.findFirst({
+              where: { id: existingMedia.id, status: 'ready' },
+            })
+          : null;
 
-      const urlField = ENTITY_URL_MAP[entityType]?.[mediaType];
-      if (urlField) {
-        if (entityType === 'restaurant') {
-          await tx.tenant.update({
-            where: { id: tenantId },
-            data: { [urlField]: urls.originalUrl },
-          });
-        } else if (entityType === 'product') {
-          await tx.product.update({
-            where: { id: entityId },
-            data: { [urlField]: urls.originalUrl },
-          });
-        }
-      }
-
-      let shouldDeleteOldFiles = false;
-      let deletedStorageKey: string | undefined;
-
-      if (existingMedia) {
-        deletedStorageKey = existingMedia.storageKey;
-
-        // deleteMany is idempotent — safe for concurrent replacements
-        await tx.media.deleteMany({ where: { id: existingMedia.id } });
-
-        // Refcount check AFTER the old record is deleted, INSIDE the transaction.
-        // The new Media (created above) is visible to this query within the same tx.
-        // If new Media shares storageKey via dedup, count >= 1 → keep files.
-        // If new Media has a different key, count == 0 → delete old files.
-        const remainingCount = await tx.media.count({
-          where: { storageKey: existingMedia.storageKey, status: 'ready' },
+        const created = await tx.media.create({
+          data: {
+            tenantId,
+            entityType,
+            entityId,
+            mediaType,
+            originalName: file.originalname,
+            mimeType: file.mimetype,
+            originalFileSize: file.size,
+            fileSize,
+            checksum,
+            width: width ?? null,
+            height: height ?? null,
+            storageKey,
+            storageProvider: this.storageProvider.constructor.name,
+            originalUrl: urls.originalUrl,
+            thumbnailUrl: urls.thumbnailUrl,
+            mediumUrl: urls.mediumUrl,
+            largeUrl: urls.largeUrl,
+            status: 'ready',
+          },
         });
-        shouldDeleteOldFiles = remainingCount === 0;
-      }
 
-      return { media: created, shouldDeleteOldFiles, oldStorageKey: deletedStorageKey };
+        const urlField = ENTITY_URL_MAP[entityType]?.[mediaType];
+        if (urlField) {
+          if (entityType === 'restaurant') {
+            await tx.tenant.update({
+              where: { id: tenantId },
+              data: { [urlField]: urls.originalUrl },
+            });
+          } else if (entityType === 'product') {
+            await tx.product.update({
+              where: { id: entityId },
+              data: { [urlField]: urls.originalUrl },
+            });
+          }
+        }
+
+        let shouldDeleteOldFiles = false;
+        let deletedStorageKey: string | undefined;
+
+        if (currentExisting) {
+          deletedStorageKey = currentExisting.storageKey;
+
+          // deleteMany is idempotent — safe for concurrent replacements
+          await tx.media.deleteMany({ where: { id: currentExisting.id } });
+
+          // Refcount check AFTER the old record is deleted, INSIDE the transaction.
+          // The new Media (created above) is visible to this query within the same tx.
+          // If new Media shares storageKey via dedup, count >= 1 → keep files.
+          // If new Media has a different key, count == 0 → delete old files.
+          const remainingCount = await tx.media.count({
+            where: { storageKey: currentExisting.storageKey, status: 'ready' },
+          });
+          shouldDeleteOldFiles = remainingCount === 0;
+        }
+
+        return { media: created, shouldDeleteOldFiles, oldStorageKey: deletedStorageKey };
+      }, {
+        isolationLevel: 'Serializable' as const,
+        timeout: 10000,
+      });
     });
 
     // File deletion is always async and outside the transaction.
@@ -235,33 +258,38 @@ export class MediaService {
       throw new NotFoundException(`Media with ID "${id}" not found`);
     }
 
-    const shouldDeleteFiles = await prisma.$transaction(async (tx: any) => {
-      const urlField = ENTITY_URL_MAP[media.entityType]?.[media.mediaType];
-      if (urlField) {
-        if (media.entityType === 'restaurant') {
-          await tx.tenant.update({
-            where: { id: tenantId },
-            data: { [urlField]: null },
-          });
-        } else if (media.entityType === 'product') {
-          await tx.product.update({
-            where: { id: media.entityId },
-            data: { [urlField]: null },
-          });
+    const shouldDeleteFiles = await this.serializableRetry(async () => {
+      return prisma.$transaction(async (tx: any) => {
+        const urlField = ENTITY_URL_MAP[media.entityType]?.[media.mediaType];
+        if (urlField) {
+          if (media.entityType === 'restaurant') {
+            await tx.tenant.update({
+              where: { id: tenantId },
+              data: { [urlField]: null },
+            });
+          } else if (media.entityType === 'product') {
+            await tx.product.update({
+              where: { id: media.entityId },
+              data: { [urlField]: null },
+            });
+          }
         }
-      }
 
-      // deleteMany is idempotent — safe if record was already removed
-      await tx.media.deleteMany({ where: { id } });
+        // deleteMany is idempotent — safe if record was already removed
+        await tx.media.deleteMany({ where: { id } });
 
-      // Refcount check AFTER deletion, INSIDE the transaction.
-      // This query sees the delete above (same tx).
-      // If count == 0, no other record references these files → safe to delete.
-      // If count > 0, another record shares the storageKey → keep files.
-      const remainingCount = await tx.media.count({
-        where: { storageKey: media.storageKey, status: 'ready' },
+        // Refcount check AFTER deletion, INSIDE the transaction.
+        // This query sees the delete above (same tx).
+        // If count == 0, no other record references these files → safe to delete.
+        // If count > 0, another record shares the storageKey → keep files.
+        const remainingCount = await tx.media.count({
+          where: { storageKey: media.storageKey, status: 'ready' },
+        });
+        return remainingCount === 0;
+      }, {
+        isolationLevel: 'Serializable' as const,
+        timeout: 10000,
       });
-      return remainingCount === 0;
     });
 
     if (shouldDeleteFiles) {
@@ -274,6 +302,37 @@ export class MediaService {
       type: 'ROLLBACK',
       storageKeys,
     });
+  }
+
+  /**
+   * Executes a transaction callback with SERIALIZABLE isolation and retries
+   * on PostgreSQL serialization failures (error code 40001).
+   *
+   * Under READ COMMITTED, two concurrent uploads for the same entity/mediaType
+   * would both see the same existingMedia, both create new records, and both
+   * succeed — leaving duplicate active records. SERIALIZABLE causes the second
+   * transaction to detect the read-write conflict and fail. We retry so the
+   * second attempt sees the first transaction's committed result.
+   */
+  private async serializableRetry<T>(fn: () => Promise<T>): Promise<T> {
+    for (let attempt = 1; attempt <= MAX_SERIALIZATION_RETRIES; attempt++) {
+      try {
+        return await fn();
+      } catch (err: any) {
+        const isSerializationError =
+          err?.code === PG_SERIALIZATION_ERROR ||
+          err?.message?.includes('serialization failure');
+
+        if (!isSerializationError || attempt === MAX_SERIALIZATION_RETRIES) {
+          throw err;
+        }
+
+        this.logger.warn(
+          `Serialization conflict on attempt ${attempt}/${MAX_SERIALIZATION_RETRIES}, retrying...`,
+        );
+      }
+    }
+    throw new Error('Unreachable: serializableRetry exceeded retries');
   }
 
   private enqueueCleanup(

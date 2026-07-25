@@ -132,8 +132,9 @@ describe('MediaService', () => {
     it('should delete old media and enqueue cleanup when replacement refcount = 0 after deletion', async () => {
       const oldMedia = { id: 'old-m1', storageKey: 'old-key', originalUrl: '/old', thumbnailUrl: '/old', mediumUrl: '/old', largeUrl: '/old', width: 800, height: 600, fileSize: 100 };
       mockPrisma.media.findFirst
-        .mockResolvedValueOnce(null)
-        .mockResolvedValueOnce(oldMedia);
+        .mockResolvedValueOnce(null)    // dedup check
+        .mockResolvedValueOnce(oldMedia) // existingMedia check
+        .mockResolvedValueOnce(oldMedia); // re-read inside tx
       mockPrisma.media.count.mockResolvedValue(0);
       mockPrisma.media.create.mockResolvedValue({
         id: 'new-m1', tenantId: 't1', entityType: 'product', entityId: 'p1',
@@ -156,7 +157,8 @@ describe('MediaService', () => {
       const oldMedia = { id: 'old-m1', storageKey: 'shared-key', originalUrl: '/old', thumbnailUrl: '/old', mediumUrl: '/old', largeUrl: '/old', width: 800, height: 600, fileSize: 100 };
       mockPrisma.media.findFirst
         .mockResolvedValueOnce({ storageKey: 'shared-key', originalUrl: '/old', thumbnailUrl: '/old', mediumUrl: '/old', largeUrl: '/old', width: 800, height: 600, fileSize: 100 })
-        .mockResolvedValueOnce(oldMedia);
+        .mockResolvedValueOnce(oldMedia) // existingMedia check
+        .mockResolvedValueOnce(oldMedia); // re-read inside tx
       mockPrisma.media.count.mockResolvedValue(1);
       mockPrisma.media.create.mockResolvedValue({
         id: 'new-m1', tenantId: 't1', entityType: 'product', entityId: 'p1',
@@ -219,7 +221,8 @@ describe('MediaService', () => {
       ]);
 
       // Both complete successfully with distinct records
-      expect(findFirstCallCount).toBe(4); // 2 uploads × 2 findFirst each
+      // 2 uploads × 3 findFirst each: dedup + existingMedia + re-read inside tx
+      expect(findFirstCallCount).toBe(6);
       const ids = [resultA.id, resultB.id];
       expect(ids).toContain('new-a');
       expect(ids).toContain('new-b');
