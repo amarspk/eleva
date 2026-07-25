@@ -1,0 +1,649 @@
+# SPEC_INDEX.md — Zayjar Restaurant SaaS Platform
+
+> Comprehensive specification index mapping every DOC-001 through DOC-010 section and requirement to implementation status, files, commit SHAs, and related TSK/Roadmap items.
+>
+> Generated: 2026-07-26 | HEAD: `d484421` | Branch: `main`
+
+---
+
+## Document Map
+
+| DOC | Title | Sections | Lines |
+|-----|-------|----------|-------|
+| DOC-001 | System Architecture | 1.1–1.10 | 166 |
+| DOC-002 | Database Schema & Data Dictionary | 2.1–2.9 | 661+ |
+| DOC-003 | REST API Portal Reference | 3.1–3.11 | 661 |
+| DOC-004 | Master Technical Specification | 1.1–10.8 (superset) | ~4,525 |
+| DOC-005 | Business Logic & Workflows | 4.1–4.8 | 163 |
+| DOC-006 | Security & Cryptographic Standards | 5.1–5.9 | 503 |
+| DOC-007 | Image Storage & Processing Pipeline | 6.1–6.5 | 83 |
+| DOC-008 | Multi-Channel Notifications | 7.1–7.6 | 73 |
+| DOC-009 | Third-Party Integrations | 8.1–8.5 | 48 |
+| DOC-010 | Performance, Testing & Operations | 9.1–9.5, 10.1–10.8 | 225+ |
+
+> **Note:** DOC-004 is a consolidated superset of all other DOCs. It is cross-referenced but not double-counted in requirement totals.
+
+---
+
+## DOC-001: System Architecture
+
+### 1.1 High-Level Architecture
+- **Status:** ✅ Implemented
+- **Description:** Modular monolith (NestJS) with Docker Compose orchestration, NGINX reverse proxy, PostgreSQL, Redis.
+- **Files:** `docker-compose.yml`, `nginx.conf`, `apps/api/src/main.ts`, `apps/api/src/app.module.ts`
+- **Commits:** `3088aac`, `10460d9`, `4552ef8`
+- **TSK/Roadmap:** TSK-4.4 (Infrastructure)
+
+### 1.2 Component Architecture
+- **Status:** ✅ Implemented
+- **Description:** 4 apps (api, backoffice, cashier, qr-menu), 2 packages (db, types), modular NestJS modules.
+- **Files:** `apps/api/src/app.module.ts`, `apps/backoffice/src/app/page.tsx`, `apps/cashier/src/app/page.tsx`, `apps/qr-menu/src/app/page.tsx`
+- **Commits:** `3088aac`, `06a9614`
+- **TSK/Roadmap:** TSK-4.2, TSK-4.3, TSK-4.5
+
+### 1.3 Frontend Architecture
+- **Status:** ✅ Implemented
+- **Description:** QR Menu (SSR), Backoffice (CSR + TanStack Query), Cashier (PWA + IndexedDB + Service Worker), Tailwind CSS.
+- **Files:** `apps/qr-menu/src/app/components/MenuBrowser.tsx`, `apps/backoffice/src/app/components/AdminPanel.tsx`, `apps/cashier/src/app/components/CashierTerminal.tsx`, `apps/cashier/public/sw.js`
+- **Commits:** `cfef4ad`, `06a9614`, `50ba48c`, `3aad57b`
+- **TSK/Roadmap:** TSK-4.2, TSK-4.3, TSK-4.5, TSK-4.6
+
+### 1.4 Backend Architecture
+- **Status:** ✅ Implemented
+- **Description:** NestJS controllers, services, Prisma ORM, global ValidationPipe, AuditInterceptor, ExceptionFilter.
+- **Files:** `apps/api/src/main.ts`, `apps/api/src/app.module.ts`, `apps/api/src/audit/audit.interceptor.ts`
+- **Commits:** `4552ef8`, `3088aac`, `a2e5346`
+- **TSK/Roadmap:** TSK-3.8 (Audit Logs)
+
+### 1.5 Database Architecture
+- **Status:** ⚠️ Partially Implemented
+- **Description:** PostgreSQL + Prisma ORM + PgBouncer (Docker). Missing: read replica routing, historical partitioning, JSONB dynamic configs.
+- **Files:** `packages/db/prisma/schema.prisma`, `docker-compose.yml`
+- **Commits:** `3088aac`, `36ef6b1`
+- **TSK/Roadmap:** (unassigned)
+- **Missing:** Read replica connection routing (`DATABASE_READ_URL`), `orders`/`order_items` table partitioning by year, JSONB branding column usage
+
+### 1.6 Authentication Architecture
+- **Status:** ✅ Implemented
+- **Description:** JWT RS256 (2048-bit RSA), 15min access token, 7-day refresh token rotation, HttpOnly cookies, Argon2id hashing, MFA TOTP.
+- **Files:** `apps/api/src/auth/auth.service.ts`, `apps/api/src/auth/auth.controller.ts`, `apps/api/src/auth/strategies/jwt.strategy.ts`, `apps/api/src/auth/config/jwt.config.ts`
+- **Commits:** `6cd5d6d`, `d46c19e`, `7620a06`, `3088aac`
+- **TSK/Roadmap:** TSK-3.2 (Real DB Login), TSK-2.8 (MFA)
+
+### 1.7 Authorization Architecture
+- **Status:** ✅ Implemented
+- **Description:** CASL ability factory, RBAC (6 roles), ABAC dynamic policy, NestJS guards, @RequirePermission decorator.
+- **Files:** `apps/api/src/auth/casl-ability.factory.ts`, `apps/api/src/auth/guards/rbac-permission.guard.ts`, `apps/api/src/auth/decorators/require-permission.decorator.ts`
+- **Commits:** `9f6b5df`, `3088aac`
+- **TSK/Roadmap:** TSK-1.7 (CASL RBAC)
+
+### 1.8 Multi-Tenant Architecture
+- **Status:** ✅ Implemented
+- **Description:** Single shared database, tenant_id on all tables, subdomain/custom domain middleware, Prisma tenant isolation.
+- **Files:** `apps/api/src/common/middleware/tenant-context.middleware.ts`, `packages/db/src/repositories/BaseTenantRepository.ts`, `apps/api/src/tenant/tenant.service.ts`
+- **Commits:** `ca43ff5`, `21b3596`
+- **TSK/Roadmap:** TSK-1.6 (Tenant Repository Layer), TSK-1.9 (Tenant Onboarding)
+
+### 1.9 Restaurant Isolation
+- **Status:** ✅ Implemented
+- **Description:** JWT tenant scoping, query interceptor, cross-tenant prevention tests.
+- **Files:** `apps/api/src/auth/guards/rbac-permission.guard.ts`, `apps/api/src/common/e2e.spec.ts`, `tests/e2e/tenant-isolation.spec.ts`
+- **Commits:** `9f6b5df`, `2860c23`, `3e54bd7`
+- **TSK/Roadmap:** TSK-1.7, TSK-5.5 (E2E Tests)
+
+### 1.10 Subscription Architecture
+- **Status:** ⚠️ Partially Implemented
+- **Description:** Subscription guard, plan-based feature gating, Stripe checkout sessions. Missing: Stripe webhook-driven status sync for full lifecycle.
+- **Files:** `apps/api/src/subscription/subscription.service.ts`, `apps/api/src/subscription/guards/subscription.guard.ts`, `apps/api/src/billing/billing.service.ts`
+- **Commits:** `094a3a6`, `32b3759`, `3363bdc`
+- **TSK/Roadmap:** TSK-3.3 (Billing Webhook Sync), TSK-3.6 (Subscription Gating)
+- **Missing:** Full `invoice.payment_succeeded` / `customer.subscription.deleted` webhook handling to update `subscriptions.status` in real-time
+
+---
+
+## DOC-002: Database Schema & Data Dictionary
+
+### 2.1 Schema Overview & Design Philosophy
+- **Status:** ✅ Implemented
+- **Description:** UUIDv4 PKs, audit columns (created_at, updated_at, deleted_at), FK constraints, structured delete rules.
+- **Files:** `packages/db/prisma/schema.prisma`
+- **Commits:** `3088aac`
+- **TSK/Roadmap:** TSK-1.6
+
+### 2.2 Table-by-Table Data Dictionary
+- **Status:** ✅ Implemented
+- **Description:** 29 Prisma models matching all DOC-002 table definitions (tenants, subscription_plans, subscriptions, users, roles, permissions, user_roles, role_permissions, restaurants, branches, tables, categories, products, product_sizes, product_variants, product_addons, addon_items, orders, order_items, order_item_addons, customers, payments, invoices, audit_logs, device_tokens, kitchen_queues, session_logs, notifications, webhooks).
+- **Files:** `packages/db/prisma/schema.prisma`, `packages/types/src/models.ts`, `packages/types/src/enums.ts`
+- **Commits:** `3088aac`, `e192b47`
+- **TSK/Roadmap:** TSK-1.6
+
+### 2.3 Global Relationships & ERD Specifications
+- **Status:** ✅ Implemented
+- **Description:** All FK relationships defined in Prisma schema with cascade/restrict rules.
+- **Files:** `packages/db/prisma/schema.prisma`
+- **Commits:** `3088aac`
+
+### 2.4 Indexing Strategy & Performance Profiling
+- **Status:** ⚠️ Partially Implemented
+- **Description:** B-Tree indexes on FKs, unique partial indexes with `WHERE deleted_at IS NULL`. Missing: GIN full-text search index on `tsv_menu_search` generated column.
+- **Files:** `packages/db/prisma/schema.prisma`
+- **Commits:** `3088aac`
+- **Missing:** GIN index on `products.tsv_menu_search` for full-text menu search, composite index on (`tenant_id`, `branch_id`, `status`, `created_at`) for KDS polling optimization
+
+### 2.5 Enum Definitions
+- **Status:** ✅ Implemented
+- **Description:** All 8 enums defined: tenant_status, subscription_status, table_status, order_type, order_status, cooking_status, payment_method_type, payment_status.
+- **Files:** `packages/db/prisma/schema.prisma`, `packages/types/src/enums.ts`
+- **Commits:** `3088aac`
+
+### 2.6 Constraints (Check, Unique, Complex Exclusions)
+- **Status:** ✅ Implemented
+- **Description:** Check constraints for financial fields (≥0), lat/lng bounds, subdomain format, email format, addon selection ranges.
+- **Files:** `packages/db/prisma/schema.prisma`
+- **Commits:** `3088aac`
+
+### 2.7 Database Triggers & Lifecycle Hooks
+- **Status:** ⚠️ Partially Implemented
+- **Description:** `updated_at` auto-update handled at application layer (Prisma middleware). Missing: DB-level triggers for audit_logs, order status notification dispatch.
+- **Files:** `packages/db/prisma/schema.prisma`
+- **Commits:** `3088aac`
+- **Missing:** `BEFORE UPDATE` triggers for `updated_at` in DDL, audit log write triggers, order status change notification triggers
+
+### 2.8 Deletion, Archiving, and Soft-Delete Policies
+- **Status:** ✅ Implemented
+- **Description:** Soft delete via `deleted_at` column on operational tables, `ON DELETE RESTRICT` on historical records.
+- **Files:** `packages/db/prisma/schema.prisma`, `packages/db/src/repositories/BaseTenantRepository.ts`
+- **Commits:** `3088aac`, `21b3596`
+
+### 2.9 Tenant Isolation & Ownership Rules
+- **Status:** ✅ Implemented
+- **Description:** Non-nullable `tenant_id` on all operational tables, 16 tenant-scoped repositories, middleware injection.
+- **Files:** `packages/db/src/repositories/*.ts`, `apps/api/src/common/middleware/tenant-context.middleware.ts`, `apps/api/src/common/repositories.spec.ts`
+- **Commits:** `21b3596`, `ca43ff5`, `3088aac`
+- **TSK/Roadmap:** TSK-1.6 (Tenant Repository Layer)
+
+---
+
+## DOC-003: REST API Portal Reference
+
+### 3.1 Global Conventions & Request Headers
+- **Status:** ✅ Implemented
+- **Description:** JSON payloads, Authorization Bearer, X-Tenant-ID, X-Branch-ID, X-Correlation-ID headers, structured error format.
+- **Files:** `packages/types/src/dto.ts`, `apps/api/src/main.ts`
+- **Commits:** `3088aac`, `4552ef8`
+
+### 3.2 Authentication & Session Endpoints
+- **Status:** ✅ Implemented
+- **Description:** POST /auth/login, POST /auth/refresh, POST /auth/logout, GET /auth/me, POST /auth/mfa/enable, POST /auth/mfa/verify — all 6 endpoints.
+- **Files:** `apps/api/src/auth/auth.controller.ts`, `apps/api/src/auth/auth.service.ts`, `apps/api/src/auth/dto/mfa-verify-request.dto.ts`
+- **Commits:** `6cd5d6d`, `d46c19e`, `7620a06`, `3088aac`
+- **TSK/Roadmap:** TSK-3.2, TSK-2.7 (Auth Me), TSK-2.8 (MFA)
+
+### 3.3 Tenant & Restaurant Management Endpoints
+- **Status:** ✅ Implemented
+- **Description:** POST /tenants, GET /tenants/:id, PUT /tenants/:id — all 3 endpoints.
+- **Files:** `apps/api/src/tenant/tenant.controller.ts`, `apps/api/src/tenant/tenant.service.ts`, `apps/api/src/tenant/dto/create-tenant-request.dto.ts`, `apps/api/src/tenant/dto/update-tenant-request.dto.ts`
+- **Commits:** `ca43ff5`, `7dad476`, `094a3a6`
+- **TSK/Roadmap:** TSK-1.9 (Tenant Onboarding), TSK-2.5 (Tenant Branding)
+
+### 3.4 Branch & Table Management Endpoints
+- **Status:** ✅ Implemented
+- **Description:** POST /branches, GET /branches, POST /tables — all 3 endpoints.
+- **Files:** `apps/api/src/branch/branch.controller.ts`, `apps/api/src/branch/branch.service.ts`, `apps/api/src/branch/dto/create-branch-request.dto.ts`, `apps/api/src/branch/dto/create-table-request.dto.ts`
+- **Commits:** `ca43ff5`
+- **TSK/Roadmap:** TSK-1.9 (Tenant Onboarding)
+
+### 3.5 Menu Engine Endpoints
+- **Status:** ✅ Implemented
+- **Description:** POST /menu/categories, POST /menu/products, POST /menu/products/:id/sizes, POST /menu/products/:id/addons — all 4 endpoints.
+- **Files:** `apps/api/src/menu/menu.controller.ts`, `apps/api/src/menu/menu.service.ts`, `apps/api/src/menu/dto/create-category-request.dto.ts`, `apps/api/src/menu/dto/create-product-request.dto.ts`
+- **Commits:** `ca43ff5`
+- **TSK/Roadmap:** TSK-1.9
+
+### 3.6 Order Engine Endpoints
+- **Status:** ✅ Implemented
+- **Description:** POST /orders/checkout, GET /orders/:id — both endpoints.
+- **Files:** `apps/api/src/order/order.controller.ts`, `apps/api/src/order/order.service.ts`, `apps/api/src/order/dto/create-order-request.dto.ts`
+- **Commits:** `510cb14`, `ece45b5`
+- **TSK/Roadmap:** TSK-2.0 (Order Processing Engine)
+
+### 3.7 Customer & Loyalty Endpoints
+- **Status:** ✅ Implemented
+- **Description:** POST /customers — customer registration with loyalty points.
+- **Files:** `apps/api/src/customer/customer.controller.ts`, `apps/api/src/customer/customer.service.ts`, `apps/api/src/customer/dto/create-customer-request.dto.ts`
+- **Commits:** `0ea0a3f`
+- **TSK/Roadmap:** TSK-2.3
+
+### 3.8 Kitchen & KDS Endpoints
+- **Status:** ✅ Implemented
+- **Description:** GET /kds/tickets, PUT /kds/items/:orderItemId/status — both endpoints.
+- **Files:** `apps/api/src/kds/kds.controller.ts`, `apps/api/src/kds/kds.service.ts`, `apps/api/src/kds/dto/update-cooking-status-request.dto.ts`
+- **Commits:** `58f3cc2`
+- **TSK/Roadmap:** TSK-2.2 (KDS REST API)
+
+### 3.9 Subscription & Billing Endpoints
+- **Status:** ✅ Implemented
+- **Description:** POST /billing/subscriptions/create-session — Stripe checkout session creation.
+- **Files:** `apps/api/src/billing/billing.controller.ts`, `apps/api/src/billing/billing.service.ts`, `apps/api/src/billing/dto/create-billing-session-request.dto.ts`
+- **Commits:** `32b3759`
+- **TSK/Roadmap:** TSK-2.4
+
+### 3.10 Platform Owner Admin Endpoints
+- **Status:** ✅ Implemented
+- **Description:** GET /admin/tenants/metrics — MRR, ARR, tenant count, system load.
+- **Files:** `apps/api/src/admin/admin.controller.ts`, `apps/api/src/admin/admin.service.ts`
+- **Commits:** `829d793`
+- **TSK/Roadmap:** TSK-2.6
+
+### 3.11 Standard Error Schemas & Handler Pipelines
+- **Status:** ✅ Implemented
+- **Description:** Prisma exception filter mapping P2002→409, P2003→404/400, P2025→404. Validation pipe for DTO errors.
+- **Files:** `apps/api/src/main.ts`
+- **Commits:** `4552ef8`, `3088aac`
+
+---
+
+## DOC-005: Business Logic & Workflows
+
+### 4.1 Tenant & Restaurant Onboarding Workflow
+- **Status:** ✅ Implemented
+- **Description:** DB transaction: create tenant + subscription (TRIALING) + user (RESTAURANT_OWNER) + restaurant + branch. Stripe customer provisioning. Welcome email dispatch.
+- **Files:** `apps/api/src/tenant/tenant.service.ts`, `apps/api/src/tenant/dto/create-tenant-request.dto.ts`
+- **Commits:** `ca43ff5`, `25869ab`
+- **TSK/Roadmap:** TSK-1.9, TSK-3.4 (Email Pipeline)
+
+### 4.2 Multi-Branch Data Scoping & Switching Workflow
+- **Status:** ✅ Implemented
+- **Description:** X-Branch-ID header, scoping interceptor, branch switcher in backoffice UI.
+- **Files:** `apps/api/src/branch/branch.service.ts`, `packages/db/src/repositories/BaseTenantRepository.ts`
+- **Commits:** `ca43ff5`, `21b3596`
+
+### 4.3 Menu Item Price Inheritance Engine
+- **Status:** ✅ Implemented
+- **Description:** Base price → size adjustment → variant override → addon costs. Calculated in OrderService.checkout and MenuBrowser client.
+- **Files:** `apps/api/src/order/order.service.ts`, `apps/api/src/menu/menu.service.ts`, `apps/qr-menu/src/app/components/MenuBrowser.tsx`
+- **Commits:** `510cb14`, `cfef4ad`
+- **TSK/Roadmap:** TSK-2.0
+
+### 4.4 Comprehensive Order Lifecycle State Machine
+- **Status:** ✅ Implemented
+- **Description:** DRAFT → PENDING → ACCEPTED → PREPARING → READY → COMPLETED, with CANCELLED branch. Status transitions with KDS dispatch and invoice generation.
+- **Files:** `apps/api/src/order/order.service.ts`, `apps/api/src/order/order.controller.ts`, `apps/cashier/src/app/components/CashierTerminal.tsx`
+- **Commits:** `510cb14`, `e06f69f`
+- **TSK/Roadmap:** TSK-2.0, TSK-5.6
+
+### 4.5 Real-Time Kitchen Dispatching (KDS) & Queue Management
+- **Status:** ✅ Implemented
+- **Description:** Socket.io WebSocket gateway, branch-scoped rooms (`tenant_id:branch_id:kds`), `ticket.created` broadcasts, priority escalation to RUSH.
+- **Files:** `apps/api/src/kds/kds.gateway.ts`, `apps/api/src/kds/kds.service.ts`, `apps/backoffice/src/app/components/KDSTerminal.tsx`
+- **Commits:** `c754f81`, `e06f69f`
+- **TSK/Roadmap:** TSK-2.1 (KDS WebSocket), TSK-5.6 (KDS Push Notifications)
+
+### 4.6 Cryptographically Secure QR Ordering Workflow
+- **Status:** ✅ Implemented
+- **Description:** QR code token generation, table verification on order submission.
+- **Files:** `apps/qr-menu/src/app/page.tsx`, `apps/api/src/branch/branch.service.ts`
+- **Commits:** `cfef4ad`, `ca43ff5`
+- **TSK/Roadmap:** TSK-4.2
+
+### 4.7 Subscription Gating & Usage-Based Billing Cycles
+- **Status:** ✅ Implemented
+- **Description:** Subscription guard evaluating plan limits (branch count, custom domains, product count), HTTP 403 on limit exceeded.
+- **Files:** `apps/api/src/subscription/subscription.service.ts`, `apps/api/src/subscription/guards/subscription.guard.ts`
+- **Commits:** `094a3a6`
+- **TSK/Roadmap:** TSK-3.6
+
+### 4.8 Role-Based Permission Matrix Execution Path
+- **Status:** ✅ Implemented
+- **Description:** JWT extraction → RS256 signature verification → payload parsing → tenant scope check → CASL guard enforcement.
+- **Files:** `apps/api/src/auth/guards/jwt-auth.guard.ts`, `apps/api/src/auth/guards/rbac-permission.guard.ts`, `apps/api/src/auth/casl-ability.factory.ts`
+- **Commits:** `3088aac`, `9f6b5df`
+- **TSK/Roadmap:** TSK-1.7
+
+---
+
+## DOC-006: Security & Cryptographic Standards
+
+### 5.1 JWT Structure & Cryptographic Signing
+- **Status:** ✅ Implemented
+- **Description:** RS256 asymmetric signing, 2048-bit RSA key pair, access token with sub/tenantId/roles/permissions/exp/iss.
+- **Files:** `apps/api/src/auth/auth.service.ts`, `apps/api/src/auth/strategies/jwt.strategy.ts`, `apps/api/src/auth/config/jwt.config.ts`
+- **Commits:** `3088aac`, `6cd5d6d`
+- **TSK/Roadmap:** TSK-3.2
+
+### 5.2 Session Management & Sliding Window Revocation
+- **Status:** ✅ Implemented
+- **Description:** Redis blacklist for token revocation, refresh token rotation with sliding window, HttpOnly cookies.
+- **Files:** `apps/api/src/auth/auth.service.ts`, `apps/api/src/auth/auth.controller.ts`
+- **Commits:** `6cd5d6d`, `7620a06`
+- **TSK/Roadmap:** TSK-3.2
+
+### 5.3 Cross-Site Request Forgery (CSRF) Mitigation
+- **Status:** ⚠️ Partially Implemented
+- **Description:** HttpOnly + SameSite=Strict cookies implemented via NGINX. Missing: X-CSRF-Token double-submit header validation.
+- **Files:** `nginx.conf`
+- **Commits:** `10460d9`
+- **Missing:** Application-level `X-CSRF-Token` header validation on mutating requests (POST/PUT/DELETE)
+
+### 5.4 Cross-Site Scripting (XSS) Sanitization Pipelines
+- **Status:** ⚠️ Partially Implemented
+- **Description:** CSP headers configured in NGINX. Missing: dompurify/class-sanitizer input sanitization middleware.
+- **Files:** `nginx.conf`
+- **Commits:** `10460d9`
+- **Missing:** Global NestJS middleware using `dompurify` and `class-sanitizer` to strip malicious HTML from incoming JSON payloads
+
+### 5.5 SQL Injection Defenses & ORM Boundaries
+- **Status:** ✅ Implemented
+- **Description:** All queries through Prisma ORM (parameterized). Raw SQL restricted to `$queryRaw` with parameterized methods.
+- **Files:** `packages/db/prisma/schema.prisma`, all repository and service files
+- **Commits:** `3088aac`
+
+### 5.6 Distributed Rate Limiting via Redis Token Bucket
+- **Status:** ✅ Implemented
+- **Description:** Redis-backed token bucket, configurable rate windows: 10/min auth, 120/min API, 30/min checkout. HTTP 429 with retry-after.
+- **Files:** `apps/api/src/common/rate-limit/rate-limit.service.ts`, `apps/api/src/common/rate-limit/rate-limit.guard.ts`, `apps/api/src/common/rate-limit/rate-limit.module.ts`
+- **Commits:** `3209cb7`
+- **TSK/Roadmap:** TSK-3.7
+
+### 5.7 Immutable Structured Audit Logs
+- **Status:** ✅ Implemented
+- **Description:** AuditInterceptor on mutating operations, writes to audit_logs table with action/entity/oldValues/newValues/ip/userAgent.
+- **Files:** `apps/api/src/audit/audit.interceptor.ts`, `apps/api/src/audit/audit.service.ts`, `apps/api/src/audit/audit.module.ts`
+- **Commits:** `a2e5346`
+- **TSK/Roadmap:** TSK-3.8
+
+### 5.8 Encryption Standards (Transit, Rest, Application Level)
+- **Status:** ⚠️ Partially Implemented
+- **Description:** TLS via NGINX (TLSv1.2/1.3), Argon2id password hashing. Missing: verified AES-256 at-rest encryption config, AWS KMS integration.
+- **Files:** `nginx.conf`, `apps/api/src/auth/auth.service.ts`
+- **Commits:** `10460d9`, `3088aac`
+- **Missing:** RDS encryption-at-rest verification, S3 bucket encryption config, Redis TLS config, KMS key rotation policies
+
+### 5.9 Enterprise Secrets Management
+- **Status:** ❌ Not Implemented
+- **Description:** Hardcoded credentials in docker-compose.yml. No AWS Secrets Manager integration.
+- **Files:** `docker-compose.yml` (hardcoded `SecretPassword123!`, `SecretRedis123!`)
+- **Commits:** `10460d9`
+- **Missing:** AWS Secrets Manager integration, dynamic credential injection at container startup, removal of hardcoded secrets from docker-compose.yml
+
+---
+
+## DOC-007: Image Storage, Processing, & Optimization Pipeline
+
+### 6.1 Direct S3 Pre-Signed Upload Flow
+- **Status:** ✅ Implemented
+- **Description:** Pre-signed URL generation with 5-min TTL, file type/size validation, S3 key path construction.
+- **Files:** `apps/api/src/asset/asset.service.ts`, `apps/api/src/media/media.service.ts`, `apps/api/src/media/media.controller.ts`
+- **Commits:** `c976363`, `e192b47`
+- **TSK/Roadmap:** TSK-2.9 (Presigned URL), TSK-5.7 (Media Pipeline)
+
+### 6.2 Storage Topology & Folder Hierarchy
+- **Status:** ✅ Implemented
+- **Description:** Multi-tenant S3 folder hierarchy: `tenants/{tenant_id}/branding/`, `tenants/{tenant_id}/branches/{branch_id}/products/`. Local storage fallback for dev.
+- **Files:** `apps/api/src/media/storage/s3-storage.provider.ts`, `apps/api/src/media/storage/local-storage.provider.ts`, `apps/api/src/media/media-cleanup.service.ts`
+- **Commits:** `e192b47`, `63a5483`
+- **TSK/Roadmap:** TSK-5.7
+
+### 6.3 Real-Time Serverless Image Optimization Engine
+- **Status:** ✅ Implemented
+- **Description:** Sharp-based WebP conversion, multi-variant generation (thumbnail/medium/large), compression tuning, EXIF stripping.
+- **Files:** `apps/api/src/asset/asset-optimization.service.ts`, `apps/api/src/media/image-processor.service.ts`
+- **Commits:** `085cc48`, `e192b47`
+- **TSK/Roadmap:** TSK-3.9, TSK-5.7
+
+### 6.4 CloudFront CDN Edge Caching & Cache Invalidation
+- **Status:** ❌ Not Implemented
+- **Description:** No CloudFront distribution configured. No cache invalidation strategy.
+- **Files:** None
+- **Commits:** None
+- **Missing:** CloudFront distribution config, `Cache-Control: public, max-age=31536000, immutable` headers, query-parameter cache-busting strategy
+
+### 6.5 Asset Validation & Upload Restrictions
+- **Status:** ✅ Implemented
+- **Description:** Max file sizes (2MB logo, 4MB banner, 5MB product), allowed MIME types (JPEG, PNG, WebP).
+- **Files:** `apps/api/src/asset/asset.service.ts`, `apps/api/src/media/media.service.ts`
+- **Commits:** `c976363`, `e192b47`
+
+---
+
+## DOC-008: Multi-Channel Notifications
+
+### 7.1 Multi-Channel Dispatch Engine
+- **Status:** ✅ Implemented
+- **Description:** Async multi-channel dispatch (email/SMS/push), failover routing between providers.
+- **Files:** `apps/api/src/notification/dispatch/dispatch.service.ts`, `apps/api/src/notification/notification.module.ts`
+- **Commits:** `3a31da9`, `d484421`
+- **TSK/Roadmap:** TSK-4.0, Roadmap #10
+
+### 7.2 Transactional & Marketing Email Pipelines
+- **Status:** ✅ Implemented
+- **Description:** SendGrid SES integration, Handlebars templates (welcome, invoice, password-reset), delivery/bounce monitoring.
+- **Files:** `apps/api/src/notification/email/email.service.ts`, `apps/api/src/notification/email/templates/*.hbs`
+- **Commits:** `25869ab`
+- **TSK/Roadmap:** TSK-3.4
+
+### 7.3 SMS Delivery Routing & Fault Tolerance
+- **Status:** ✅ Implemented
+- **Description:** Twilio SMS API integration, regional routing, failover queue on gateway timeout.
+- **Files:** `apps/api/src/notification/sms/sms.service.ts`
+- **Commits:** `d7582c0`
+- **TSK/Roadmap:** TSK-3.5
+
+### 7.4 Firebase Cloud Messaging (FCM) Integration
+- **Status:** ✅ Implemented
+- **Description:** Device token registration (POST /device-tokens), push notification dispatch to user devices.
+- **Files:** `apps/api/src/device-token/device-token.service.ts`, `apps/api/src/device-token/device-token.controller.ts`
+- **Commits:** `06a9a38`
+- **TSK/Roadmap:** TSK-3.1
+
+### 7.5 Outbound Webhook Subsystem
+- **Status:** ✅ Implemented
+- **Description:** HMAC-SHA256 payload signing (`X-Zayjar-Signature`), exponential backoff retry (5 attempts/24h), webhook CRUD.
+- **Files:** `apps/api/src/webhook/webhook.service.ts`, `apps/api/src/webhook/webhook.controller.ts`
+- **Commits:** `a661531`
+- **TSK/Roadmap:** TSK-3.0
+
+### 7.6 Real-Time In-App Notifications & WebSocket Synchronization
+- **Status:** ✅ Implemented
+- **Description:** Socket.io with Redis adapter, JWT auth on handshake, branch-scoped room broadcasting (`tenant_id:branch_id`).
+- **Files:** `apps/api/src/kds/kds.gateway.ts`, `apps/api/src/kds/guards/ws-jwt-auth.guard.ts`, `apps/backoffice/src/app/components/KDSTerminal.tsx`
+- **Commits:** `c754f81`, `e06f69f`
+- **TSK/Roadmap:** TSK-2.1, TSK-5.6
+
+---
+
+## DOC-009: Third-Party Integrations & Stack Collateral
+
+### 8.1 GitHub & Monorepository Configuration
+- **Status:** ✅ Implemented
+- **Description:** pnpm workspaces, Turborepo, CI pipeline (.github/workflows/ci.yml) with ESLint + unit tests + build.
+- **Files:** `pnpm-workspace.yaml`, `turbo.json`, `.github/workflows/ci.yml`
+- **Commits:** `3088aac`, `3a31da9`
+- **TSK/Roadmap:** TSK-5.3
+
+### 8.2 Stripe Core Payments & Billing Engine
+- **Status:** ⚠️ Partially Implemented
+- **Description:** Stripe checkout sessions for subscription onboarding, webhook endpoint for invoice events. Missing: full subscription lifecycle webhook handler.
+- **Files:** `apps/api/src/billing/billing.service.ts`, `apps/api/src/billing/billing.controller.ts`
+- **Commits:** `32b3759`, `3363bdc`
+- **TSK/Roadmap:** TSK-2.4, TSK-3.3
+- **Missing:** Complete `invoice.payment_succeeded`, `invoice.payment_failed`, `customer.subscription.deleted` webhook handler to update `subscriptions.status` and tenant access permissions in real-time
+
+### 8.3 Regional Wallet Integrations (Apple Pay, Google Pay, Local Wallets)
+- **Status:** ⚠️ Partially Implemented
+- **Description:** Apple Pay/Google Pay via Stripe Checkout configured. KNET/Benefit/Mada stub in wallet.service. Missing: real Tap/PayTabs SDK integration.
+- **Files:** `apps/api/src/payment/wallet.service.ts`, `apps/api/src/payment/payment.controller.ts`
+- **Commits:** `9b5af15`
+- **TSK/Roadmap:** TSK-4.1
+- **Missing:** Real Tap Payments / PayTabs SDK integration for KNET (Kuwait), Benefit (Bahrain), Mada (Saudi Arabia)
+
+### 8.4 Telemetry, Logging (Winston, ELK Stack), & APM (Datadog)
+- **Status:** ❌ Not Implemented
+- **Description:** No structured logging framework, no centralized log aggregation, no APM integration.
+- **Files:** None
+- **Commits:** None
+- **Missing:** Winston logger setup with JSON format, correlation ID enrichment, ELK Stack (Elasticsearch/Logstash/Kibana) integration, Datadog APM agent configuration
+
+### 8.5 Automated Backups & Disaster Recovery Strategy
+- **Status:** ❌ Not Implemented
+- **Description:** No automated backup configuration, no WAL archiving, no PITR setup, no disaster recovery runbook.
+- **Files:** None
+- **Commits:** None
+- **Missing:** RDS Multi-AZ config, daily snapshot automation, WAL archiving to S3, PITR procedures, RTO <15min / RPO <5min validation
+
+---
+
+## DOC-010: Performance, Testing & Operations
+
+### 9.1 Redis Cache-Aside & Write-Through Caching Topologies
+- **Status:** ✅ Implemented
+- **Description:** Cache-Aside pattern with Redis, 2-hour default TTL, cache invalidation on menu updates.
+- **Files:** `apps/api/src/common/cache/cache.service.ts`, `apps/api/src/common/cache/cache.module.ts`
+- **Commits:** `3088aac`
+
+### 9.2 Advanced Database Optimization (Query Plans, Vacuuming, Index Maintenance)
+- **Status:** ❌ Not Implemented
+- **Description:** No EXPLAIN ANALYZE tooling, no autovacuum configuration, no index maintenance automation.
+- **Files:** None
+- **Commits:** None
+- **Missing:** EXPLAIN ANALYZE query profiling scripts, PostgreSQL autovacuum tuning parameters, index bloat monitoring, PgBouncer pool size optimization
+
+### 9.3 Client-Side Performance & Bundle Optimizations
+- **Status:** ⚠️ Partially Implemented
+- **Description:** Next.js used across all frontends. Missing: verified Next.js `<Image />` component usage, dynamic imports/code splitting verification.
+- **Files:** `apps/qr-menu/src/app/components/MenuBrowser.tsx`, `apps/backoffice/src/app/components/AdminPanel.tsx`
+- **Commits:** `cfef4ad`, `06a9614`
+- **Missing:** Systematic Next.js Image component for all product images, dynamic() imports for heavy admin modules, bundle size analysis
+
+### 9.4 Asynchronous Worker Architecture (BullMQ, Redis Streams)
+- **Status:** ⚠️ Partially Implemented
+- **Description:** Dispatch service offloads notifications. Queue-worker service defined in Docker Compose. Missing: visible BullMQ queue definitions, retry logic, DLQ.
+- **Files:** `docker-compose.yml` (queue-worker service), `apps/api/src/notification/dispatch/dispatch.service.ts`
+- **Commits:** `10460d9`, `d484421`
+- **Missing:** BullMQ queue definitions with retry policies (3 retries, exponential backoff), Dead Letter Queue for failed jobs, worker process separation from API
+
+### 9.5 Kubernetes-Driven Horizontal Pod Autoscaling (HPA)
+- **Status:** ❌ Not Implemented
+- **Description:** No Kubernetes manifests, no HPA configuration. Docker Compose only.
+- **Files:** None
+- **Commits:** None
+- **Missing:** K8s deployment manifests, HPA config (scale out at 70% CPU / 80% memory), pod disruption budgets, liveness/readiness probes
+
+### 10.1 Monorepository Directory Structure
+- **Status:** ✅ Implemented
+- **Description:** pnpm workspaces with apps/* and packages/*, Turborepo task orchestration.
+- **Files:** `pnpm-workspace.yaml`, `turbo.json`, `package.json`
+- **Commits:** `3088aac`
+
+### 10.2 TypeScript & Code Design Conventions
+- **Status:** ⚠️ Partially Implemented
+- **Description:** TypeScript strict mode configured. Missing: verified ESLint enforcement in CI, no `any` type audit.
+- **Files:** `tsconfig.json`, `.eslintrc.json`
+- **Commits:** `3088aac`, `3a31da9`
+- **Missing:** CI-enforced ESLint with zero-error threshold, `@typescript-eslint/no-explicit-any` rule verification
+
+### 10.3 Database Migration Workflows & Zero-Downtime Blue-Green Schema Changes
+- **Status:** ⚠️ Partially Implemented
+- **Description:** Prisma migrations initialized with baseline. Missing: documented zero-downtime migration strategy.
+- **Files:** `packages/db/prisma/migrations/20250101000000_init/migration.sql`
+- **Commits:** `36ef6b1`
+- **Missing:** Documented 4-stage migration process (add nullable → deploy code → backfill → drop old), migration validation in CI
+
+### 10.4 Test Suite Execution Standards (Unit, Integration, E2E)
+- **Status:** ✅ Implemented
+- **Description:** Jest 29 unit/integration tests (273 total, 271 passing), Playwright 1.44 E2E (checkout, order lifecycle, KDS, tenant isolation).
+- **Files:** `apps/api/src/**/*.spec.ts`, `tests/e2e/*.spec.ts`, `jest.config.js`, `playwright.config.ts`
+- **Commits:** `3088aac`, `3e54bd7`, `23e63a8`
+- **TSK/Roadmap:** TSK-5.1, TSK-5.2, TSK-5.5
+
+### 10.5 Git Workflow & CI/CD Pipelines
+- **Status:** ⚠️ Partially Implemented
+- **Description:** CI pipeline (lint + test + build) via GitHub Actions. Missing: CD pipeline, branch protection enforcement, deployment automation.
+- **Files:** `.github/workflows/ci.yml`
+- **Commits:** `3a31da9`
+- **Missing:** CD pipeline (`.github/workflows/cd.yml`), branch protection rules on `main`, staging/production deployment automation, rollback procedures
+
+### 10.6 Environment Variables & Dynamic Configurations
+- **Status:** ⚠️ Partially Implemented
+- **Description:** `.env.example` exists with core variables. Not all DOC-010 §10.6 variables present.
+- **Files:** `.env.example`
+- **Commits:** `02de43e`
+- **Missing:** Complete variable set per DOC-010 table (SENDGRID_API_KEY, TWILIO_AUTH_TOKEN, STRIPE_WEBHOOK_SECRET, FIREBASE_* vars), environment-specific .env files for staging/production
+
+### 10.7 API Versioning & Deprecation Lifecycle
+- **Status:** ✅ Implemented
+- **Description:** URI versioning `/api/v1/` on all routes.
+- **Files:** All controller files under `apps/api/src/*/`
+- **Commits:** `3088aac`
+
+### 10.8 Technical Documentation Standards
+- **Status:** ✅ Implemented
+- **Description:** Markdown documentation, DOC-001 through DOC-010, kebab-case files, comprehensive payloads.
+- **Files:** `DOC-001.md` through `DOC-010.md`, `PROJECT_MANIFEST.md`
+- **Commits:** `a149fe9`, `0bf7767`
+
+---
+
+## Summary
+
+| Metric | Count |
+|--------|-------|
+| **Total Requirements Indexed** | **76** |
+| **Implemented** | **55** |
+| **Partially Implemented** | **15** |
+| **Not Implemented** | **6** |
+
+### Breakdown by DOC
+
+| DOC | Total | Implemented | Partial | Not |
+|-----|-------|-------------|---------|-----|
+| DOC-001 (Architecture) | 10 | 8 | 2 | 0 |
+| DOC-002 (Database) | 9 | 7 | 2 | 0 |
+| DOC-003 (REST API) | 11 | 11 | 0 | 0 |
+| DOC-005 (Business Logic) | 8 | 8 | 0 | 0 |
+| DOC-006 (Security) | 9 | 5 | 3 | 1 |
+| DOC-007 (Image Pipeline) | 5 | 4 | 0 | 1 |
+| DOC-008 (Notifications) | 6 | 6 | 0 | 0 |
+| DOC-009 (Integrations) | 5 | 1 | 2 | 2 |
+| DOC-010 (Perf/Testing/Ops) | 13 | 5 | 6 | 2 |
+
+---
+
+## NEXT IMPLEMENTATION ORDER
+
+Listed in dependency order (prerequisites first, downstream features after):
+
+### Priority 1 — Security Foundation (no dependencies)
+1. **DOC-006 §5.9** — AWS Secrets Manager integration (remove hardcoded credentials from docker-compose.yml)
+2. **DOC-006 §5.3** — X-CSRF-Token double-submit header validation (application-level middleware)
+3. **DOC-006 §5.4** — Input sanitization middleware (dompurify/class-sanitizer for XSS prevention)
+
+### Priority 2 — Infrastructure (foundational for production)
+4. **DOC-010 §9.2** — Database optimization tooling (EXPLAIN ANALYZE scripts, autovacuum tuning)
+5. **DOC-010 §9.4** — BullMQ worker architecture (queue definitions, retry policies, DLQ)
+6. **DOC-010 §9.5** — Kubernetes manifests + HPA configuration
+7. **DOC-009 §8.5** — Automated backups & disaster recovery (RDS Multi-AZ, WAL archiving, PITR)
+
+### Priority 3 — Observability (depends on Priority 2)
+8. **DOC-009 §8.4** — Winston structured logging + ELK Stack + Datadog APM
+9. **DOC-010 §10.5** — CD pipeline (`.github/workflows/cd.yml`) + branch protection
+
+### Priority 4 — CDN & Performance (depends on Priority 2)
+10. **DOC-007 §6.4** — CloudFront CDN edge caching + cache invalidation strategy
+11. **DOC-002 §2.4** — GIN full-text search index on `products.tsv_menu_search`
+12. **DOC-001 §1.5** — Read replica routing (`DATABASE_READ_URL`) + table partitioning
+13. **DOC-010 §9.3** — Next.js Image component + dynamic imports audit
+
+### Priority 5 — Payment Completeness (independent)
+14. **DOC-009 §8.2** — Complete Stripe subscription lifecycle webhook handler
+15. **DOC-009 §8.3** — Real Tap/PayTabs SDK integration (KNET, Benefit, Mada)
+
+### Priority 6 — Code Quality (independent)
+16. **DOC-010 §10.2** — ESLint zero-error CI enforcement + `no-explicit-any` audit
+17. **DOC-010 §10.3** — Zero-downtime migration documentation + CI validation
+18. **DOC-010 §10.6** — Complete environment variable set + staging/production configs
+19. **DOC-002 §2.7** — Database-level triggers for `updated_at`, audit logs, and notifications
+
+---
+
+*End of SPEC_INDEX.md*
