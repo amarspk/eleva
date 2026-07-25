@@ -65,5 +65,33 @@ describe('MediaCleanupQueueService', () => {
 
       expect(service.pendingCount).toBe(0);
     }, 15000);
+
+    it('should handle two duplicate cleanup jobs for the same storageKey safely', async () => {
+      service.enqueue({ type: 'REPLACE', storageKeys: ['dup-key-original.webp', 'dup-key-thumbnail.webp'] });
+      service.enqueue({ type: 'REPLACE', storageKeys: ['dup-key-original.webp', 'dup-key-thumbnail.webp'] });
+
+      expect(service.pendingCount).toBe(2);
+
+      await new Promise((resolve) => setTimeout(resolve, 300));
+
+      expect(mockStorage.deleteBatch).toHaveBeenCalledTimes(2);
+      expect(mockStorage.deleteBatch).toHaveBeenCalledWith(['dup-key-original.webp', 'dup-key-thumbnail.webp']);
+      expect(service.pendingCount).toBe(0);
+    });
+
+    it('should not throw when second cleanup job deletes already-removed files', async () => {
+      let deleteCount = 0;
+      (mockStorage.deleteBatch as jest.Mock).mockImplementation(async () => {
+        deleteCount++;
+      });
+
+      service.enqueue({ type: 'DELETE', storageKeys: ['shared-key'] });
+      service.enqueue({ type: 'DELETE', storageKeys: ['shared-key'] });
+
+      await new Promise((resolve) => setTimeout(resolve, 300));
+
+      expect(deleteCount).toBe(2);
+      expect(service.pendingCount).toBe(0);
+    });
   });
 });
