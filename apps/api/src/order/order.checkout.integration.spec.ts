@@ -15,8 +15,6 @@ import {
   TenantProductRepository,
   TenantProductSizeRepository,
   TenantAddonItemRepository,
-  TenantOrderRepository,
-  TenantInvoiceRepository,
   TenantRestaurantRepository,
   prisma,
 } from '@zayjar/db';

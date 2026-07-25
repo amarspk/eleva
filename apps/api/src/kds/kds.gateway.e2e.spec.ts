@@ -57,7 +57,7 @@ describe('KdsGateway E2E WebSocket Tests - TSK-2.1', () => {
           provide: JwtService,
           useValue: {
             verifyAsync: jest.fn().mockImplementation(async (token: string) => {
-              if (token === validToken) return validUserPayload;
+              if (token === validToken) {return validUserPayload;}
               throw new Error('Invalid token');
             }),
             signAsync: jest.fn().mockResolvedValue(validToken),
@@ -85,16 +85,16 @@ describe('KdsGateway E2E WebSocket Tests - TSK-2.1', () => {
 
     kdsNamespace.on('connection', async (socket: ServerSocket) => {
       await gateway.handleConnection(socket as any);
-      if ((socket as any).disconnected) return;
+      if ((socket as any).disconnected) {return;}
 
       socket.on('joinBranch', async (payload: any, ack: any) => {
         const result = await gateway.handleJoinBranch(socket as any, payload);
-        if (typeof ack === 'function') ack(result);
+        if (typeof ack === 'function') {ack(result);}
       });
 
       socket.on('leaveBranch', async (payload: any, ack: any) => {
         const result = await gateway.handleLeaveBranch(socket as any, payload);
-        if (typeof ack === 'function') ack(result);
+        if (typeof ack === 'function') {ack(result);}
       });
 
       socket.on('disconnect', () => {
@@ -108,7 +108,7 @@ describe('KdsGateway E2E WebSocket Tests - TSK-2.1', () => {
   });
 
   afterAll(async () => {
-    if (clientSocket) clientSocket.disconnect();
+    if (clientSocket) {clientSocket.disconnect();}
     ioServer.close();
     httpServer.close();
   });
@@ -116,14 +116,14 @@ describe('KdsGateway E2E WebSocket Tests - TSK-2.1', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     jest.spyOn(jwtService, 'verifyAsync').mockImplementation(async (token: string) => {
-      if (token === validToken) return validUserPayload as any;
+      if (token === validToken) {return validUserPayload as any;}
       throw new Error('Invalid token');
     });
     jest.spyOn(authService, 'isTokenBlacklisted').mockResolvedValue(false);
   });
 
   afterEach(() => {
-    if (clientSocket && clientSocket.connected) clientSocket.disconnect();
+    if (clientSocket && clientSocket.connected) {clientSocket.disconnect();}
     jest.restoreAllMocks();
   });
 
@@ -164,8 +164,8 @@ describe('KdsGateway E2E WebSocket Tests - TSK-2.1', () => {
       if (!finished) {
         finished = true;
         unauthClient.close();
-        if (err) done(err);
-        else done();
+        if (err) {done(err);}
+        else {done();}
       }
     };
 

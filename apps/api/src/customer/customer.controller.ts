@@ -15,7 +15,7 @@ export class CustomerController {
   @Public()
   @Post()
   @HttpCode(HttpStatus.CREATED)
-  async createCustomer(@Body() dto: CreateCustomerRequestDto, @Req() req: any) {
+  async createCustomer(@Body() dto: CreateCustomerRequestDto, @Req() _req: any) {
     // Tenant context is already enforced via dbTenantContext by repository layer
     // The middleware ensures tenantId exists, but we don't accept it from body
     return this.customerService.createCustomer(dto);
@@ -23,7 +23,7 @@ export class CustomerController {
 
   @Get()
   @HttpCode(HttpStatus.OK)
-  async getCustomers(@Req() req: any) {
+  async getCustomers(@Req() _req: any) {
     // For internal use / staff, list customers under tenant
     return this.customerService.getCustomers();
   }

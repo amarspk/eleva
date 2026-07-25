@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, IsInt, Min, Max, IsOptional, IsIn } from 'class-validator';
+import { IsString, IsNotEmpty, IsInt, Min, Max, IsOptional } from 'class-validator';
 
 export class CreatePresignedUrlRequestDto {
   @IsString()

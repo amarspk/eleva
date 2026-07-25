@@ -6,6 +6,7 @@
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc && node scripts/copy-generated-client.js",
+    "lint": "eslint \"src/**/*.ts\" --ignore-pattern \"src/generated-client/**\"",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate deploy"
   },

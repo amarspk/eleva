@@ -51,7 +51,7 @@ export class SmsService {
   /**
    * Sends transactional SMS (order status updates, OTP logins) with failover per DOC-008 7.3
    */
-  async sendSms(to: string, message: string, tenantId?: string): Promise<{ success: boolean; provider: string; messageId?: string; attempts: number }> {
+  async sendSms(to: string, message: string, _tenantId?: string): Promise<{ success: boolean; provider: string; messageId?: string; attempts: number }> {
     if (!to || !message) {
       throw new Error('Recipient phone number and message are required');
     }
@@ -150,9 +150,9 @@ export class SmsService {
     }
   }
 
-  private async sendViaUnifonic(to: string, message: string): Promise<{ success: boolean; provider: string; messageId?: string; error?: string }> {
+  private async sendViaUnifonic(_to: string, _message: string): Promise<{ success: boolean; provider: string; messageId?: string; error?: string }> {
     const unifonicAppSid = process.env.UNIFONIC_APP_SID;
-    const unifonicSender = process.env.UNIFONIC_SENDER_ID || 'Zayjar';
+    const _unifonicSender = process.env.UNIFONIC_SENDER_ID || 'Zayjar';
 
     if (!unifonicAppSid) {
       this.logger.warn('Unifonic credentials not configured, using mock success for Middle East routing');

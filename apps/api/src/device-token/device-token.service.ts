@@ -61,7 +61,7 @@ export class DeviceTokenService {
 
   async listTokens(tenantId: string, userId?: string) {
     const where: any = {};
-    if (userId) where.userId = userId;
+    if (userId) {where.userId = userId;}
 
     const tokens = await dbTenantContext.run({ tenantId }, async () => {
       return this.deviceTokenRepository.findMany(where);
@@ -76,7 +76,7 @@ export class DeviceTokenService {
     }));
   }
 
-  async deleteToken(id: string, tenantId: string, requesterUserId: string) {
+  async deleteToken(id: string, tenantId: string, _requesterUserId: string) {
     const existing = await dbTenantContext.run({ tenantId }, async () => {
       return this.deviceTokenRepository.findById(id);
     });

@@ -213,7 +213,7 @@ export class KdsService {
 
     const routes = allowed[current] || [];
     // Allow same status idempotency? Not, but permit if same
-    if (current === next) return;
+    if (current === next) {return;}
 
     if (!routes.includes(next)) {
       throw new BadRequestException(

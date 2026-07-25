@@ -5,8 +5,8 @@ import { SmsService } from '../sms/sms.service';
 
 describe('DispatchService Unit Tests - DOC-008 7.1 Multi-Channel Dispatch Engine', () => {
   let service: DispatchService;
-  let emailService: EmailService;
-  let smsService: SmsService;
+  let _emailService: EmailService;
+  let _smsService: SmsService;
 
   const mockEmailService = {
     sendEmail: jest.fn().mockResolvedValue({ success: true, mocked: true }),
@@ -26,8 +26,8 @@ describe('DispatchService Unit Tests - DOC-008 7.1 Multi-Channel Dispatch Engine
     }).compile();
 
     service = module.get<DispatchService>(DispatchService);
-    emailService = module.get<EmailService>(EmailService);
-    smsService = module.get<SmsService>(SmsService);
+    _emailService = module.get<EmailService>(EmailService);
+    _smsService = module.get<SmsService>(SmsService);
     jest.clearAllMocks();
     service.clearQueues();
     delete process.env.REDIS_URL;

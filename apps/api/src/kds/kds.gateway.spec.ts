@@ -372,7 +372,7 @@ describe('KdsGateway Unit Tests - TSK-2.1 Real-Time KDS', () => {
         join: jest.fn(),
       } as unknown as Socket;
 
-      const result = await gateway.handleJoinBranch(unauthSocket, { branchId: 'branch-1' });
+      const _result = await gateway.handleJoinBranch(unauthSocket, { branchId: 'branch-1' });
 
       expect(unauthSocket.emit).toHaveBeenCalledWith('error', expect.objectContaining({ message: expect.stringContaining('Not authenticated') }));
     });
@@ -413,7 +413,7 @@ describe('KdsGateway Unit Tests - TSK-2.1 Real-Time KDS', () => {
         return cb();
       });
 
-      const result = await gateway.handleJoinBranch(socket, { branchId: 'branch-1' });
+      const _result = await gateway.handleJoinBranch(socket, { branchId: 'branch-1' });
 
       expect(socket.join).toHaveBeenCalledWith('tenant:tenant-1:branch:branch-1');
       expect(socket.emit).toHaveBeenCalledWith('joinedBranch', expect.objectContaining({ room: 'tenant:tenant-1:branch:branch-1' }));

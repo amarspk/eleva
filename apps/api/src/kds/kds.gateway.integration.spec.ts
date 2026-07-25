@@ -17,7 +17,7 @@ jest.mock('argon2', () => ({
 describe('KdsGateway Integration Tests - TSK-2.1', () => {
   let gateway: KdsGateway;
   let orderService: OrderService;
-  let jwtService: JwtService;
+  let _jwtService: JwtService;
 
   const mockServerToEmit = jest.fn();
   const mockServerTo = jest.fn().mockReturnValue({ emit: mockServerToEmit });
@@ -67,7 +67,7 @@ describe('KdsGateway Integration Tests - TSK-2.1', () => {
 
     gateway = module.get<KdsGateway>(KdsGateway);
     orderService = module.get<OrderService>(OrderService);
-    jwtService = module.get<JwtService>(JwtService);
+    _jwtService = module.get<JwtService>(JwtService);
 
     (gateway as any).server = {
       to: mockServerTo,

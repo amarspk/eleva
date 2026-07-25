@@ -58,9 +58,9 @@ export class AuditService {
    */
   async getLogs(tenantId: string, filters?: { userId?: string; entityName?: string; limit?: number }) {
     const where: any = {};
-    if (tenantId) where.tenantId = tenantId;
-    if (filters?.userId) where.userId = filters.userId;
-    if (filters?.entityName) where.entityName = filters.entityName;
+    if (tenantId) {where.tenantId = tenantId;}
+    if (filters?.userId) {where.userId = filters.userId;}
+    if (filters?.entityName) {where.entityName = filters.entityName;}
 
     const logs = await prisma.auditLog.findMany({
       where,

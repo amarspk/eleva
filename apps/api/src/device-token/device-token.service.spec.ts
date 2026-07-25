@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { DeviceTokenService } from './device-token.service';
 import { TenantDeviceTokenRepository, dbTenantContext } from '@zayjar/db';
-import { ConflictException, NotFoundException } from '@nestjs/common';
+import { ConflictException } from '@nestjs/common';
 
 jest.mock('argon2', () => ({
   hash: jest.fn().mockResolvedValue('mock-hash'),

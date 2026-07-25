@@ -45,10 +45,11 @@ export class SubscriptionGuard implements CanActivate {
       case 'branch':
         await this.subscriptionService.checkBranchLimit(tenantId);
         break;
-      case 'product':
+      case 'product': {
         const branchId = request.body?.branchId || request.query?.branchId;
         await this.subscriptionService.checkProductLimit(tenantId, branchId);
         break;
+      }
       case 'customDomain':
         await this.subscriptionService.checkCustomDomainAllowed(tenantId);
         break;

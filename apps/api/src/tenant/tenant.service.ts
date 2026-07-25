@@ -213,13 +213,13 @@ export class TenantService {
     }
 
     const data: any = {};
-    if (dto.name) data.name = dto.name;
-    if (dto.customDomain !== undefined) data.customDomain = dto.customDomain;
+    if (dto.name) {data.name = dto.name;}
+    if (dto.customDomain !== undefined) {data.customDomain = dto.customDomain;}
     if (dto.branding) {
-      if (dto.branding.logoUrl !== undefined) data.logoUrl = dto.branding.logoUrl;
-      if (dto.branding.bannerUrl !== undefined) data.bannerUrl = dto.branding.bannerUrl;
-      if (dto.branding.primaryColor !== undefined) data.primaryColor = dto.branding.primaryColor;
-      if (dto.branding.secondaryColor !== undefined) data.secondaryColor = dto.branding.secondaryColor;
+      if (dto.branding.logoUrl !== undefined) {data.logoUrl = dto.branding.logoUrl;}
+      if (dto.branding.bannerUrl !== undefined) {data.bannerUrl = dto.branding.bannerUrl;}
+      if (dto.branding.primaryColor !== undefined) {data.primaryColor = dto.branding.primaryColor;}
+      if (dto.branding.secondaryColor !== undefined) {data.secondaryColor = dto.branding.secondaryColor;}
     }
 
     const updated = await prisma.tenant.update({

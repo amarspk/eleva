@@ -4,7 +4,7 @@ import { CacheService } from '../cache/cache.service';
 
 describe('RateLimitService Unit Tests - DOC-006 5.6 Distributed Rate Limiting', () => {
   let service: RateLimitService;
-  let cacheService: CacheService;
+  let _cacheService: CacheService;
 
   const mockCacheService = {
     get: jest.fn().mockResolvedValue(null),
@@ -28,7 +28,7 @@ describe('RateLimitService Unit Tests - DOC-006 5.6 Distributed Rate Limiting', 
     }).compile();
 
     service = module.get<RateLimitService>(RateLimitService);
-    cacheService = module.get<CacheService>(CacheService);
+    _cacheService = module.get<CacheService>(CacheService);
     jest.clearAllMocks();
     // Ensure after clear, isCacheActive returns false for next tests
     mockCacheService.isCacheActive = jest.fn().mockReturnValue(false) as any;

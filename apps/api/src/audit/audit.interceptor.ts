@@ -57,7 +57,7 @@ export class AuditInterceptor implements NestInterceptor {
             this.logger.error(`Failed to write audit log for ${method} ${url}: ${(err as Error).message}`);
           }
         },
-        error: async (error) => {
+        error: async (_error) => {
           // Log failed attempts as well
           try {
             await this.auditService.log({
@@ -115,17 +115,17 @@ export class AuditInterceptor implements NestInterceptor {
 
     // Try to get ID from params or response
     let entityId: string | null = null;
-    if (params?.id) entityId = params.id;
-    else if (params?.orderItemId) entityId = params.orderItemId;
-    else if (responseData?.id) entityId = responseData.id;
-    else if (responseData?.tenant?.id) entityId = responseData.tenant.id;
-    else if (responseData?.orderId) entityId = responseData.orderId;
+    if (params?.id) {entityId = params.id;}
+    else if (params?.orderItemId) {entityId = params.orderItemId;}
+    else if (responseData?.id) {entityId = responseData.id;}
+    else if (responseData?.tenant?.id) {entityId = responseData.tenant.id;}
+    else if (responseData?.orderId) {entityId = responseData.orderId;}
 
     return { entityName, entityId };
   }
 
   private sanitizeValues(values: any): any {
-    if (!values) return null;
+    if (!values) {return null;}
     // Remove sensitive fields
     const sensitive = ['password', 'passwordHash', 'secret', 'mfaSecret', 'secretKey'];
     const sanitized = { ...values };

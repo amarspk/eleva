@@ -136,7 +136,7 @@ export class DispatchService {
   private async processInMemoryQueue() {
     while (this.queue.length > 0) {
       const job = this.queue.shift();
-      if (!job) break;
+      if (!job) {break;}
 
       job.attempts++;
 
@@ -168,7 +168,7 @@ export class DispatchService {
 
   private async processChannel(channel: NotificationChannel, event: string, payload: any, tenantId: string): Promise<{ success: boolean; provider?: string }> {
     switch (channel) {
-      case 'email':
+      case 'email': {
         // Determine email recipient from payload
         const emailTo = payload.email || payload.customerEmail || 'customer@example.com';
         const template = event.includes('invoice') ? 'invoice' : event.includes('order') ? 'order-status' : 'welcome';
@@ -180,8 +180,9 @@ export class DispatchService {
           // Failover to secondary provider is handled inside EmailService
           return { success: false };
         }
+      }
 
-      case 'sms':
+      case 'sms': {
         const phone = payload.phone || payload.customerPhone || '+12025550144';
         const smsMessage = payload.message || `Zayjar: Event ${event} for order ${payload.orderNumber || payload.id || ''}`;
         try {
@@ -190,6 +191,7 @@ export class DispatchService {
         } catch {
           return { success: false };
         }
+      }
 
       case 'push':
         // Push would use DeviceTokenService, mock here

@@ -76,7 +76,7 @@ describe('CustomerService Unit Tests - TSK-2.3', () => {
     };
 
     // Mock findMany to simulate tenant isolation: different tenants have different customers
-    const spy = jest.spyOn(TenantCustomerRepository.prototype, 'findMany').mockImplementation(async (where: any) => {
+    const spy = jest.spyOn(TenantCustomerRepository.prototype, 'findMany').mockImplementation(async (_where: any) => {
       // Repository should automatically append tenantId from context
       // Here we just ensure it was called
       return [];

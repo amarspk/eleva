@@ -152,7 +152,7 @@ export class EmailService {
     const eventType = event.event; // e.g., bounce, dropped, spamreport
     const email = event.email?.toLowerCase();
 
-    if (!email) return;
+    if (!email) {return;}
 
     if (eventType === 'bounce' && event.type === 'hard') {
       this.bouncedEmails.add(email);

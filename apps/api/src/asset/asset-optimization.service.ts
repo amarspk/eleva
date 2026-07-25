@@ -75,8 +75,8 @@ export class AssetOptimizationService {
   async optimizeImage(
     inputBuffer: Buffer,
     folder: string,
-    tenantId: string,
-    originalKey?: string,
+    _tenantId: string,
+    _originalKey?: string,
   ): Promise<{ buffer: Buffer; width: number; height: number }> {
     const dimensions = this.getDimensionsForFolder(folder);
 
@@ -119,10 +119,10 @@ export class AssetOptimizationService {
    */
   private getDimensionsForFolder(folder: string): { width: number; height: number } {
     const lower = folder.toLowerCase();
-    if (lower.includes('logo')) return this.DIMENSIONS.logo;
-    if (lower.includes('banner')) return this.DIMENSIONS.banner;
-    if (lower.includes('product')) return this.DIMENSIONS.product;
-    if (lower.includes('category')) return this.DIMENSIONS.category;
+    if (lower.includes('logo')) {return this.DIMENSIONS.logo;}
+    if (lower.includes('banner')) {return this.DIMENSIONS.banner;}
+    if (lower.includes('product')) {return this.DIMENSIONS.product;}
+    if (lower.includes('category')) {return this.DIMENSIONS.category;}
     return this.DIMENSIONS.default;
   }
 

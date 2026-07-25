@@ -1,13 +1,13 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { RateLimitGuard, RATE_LIMIT_KEY } from './rate-limit.guard';
+import { RateLimitGuard } from './rate-limit.guard';
 import { RateLimitService } from './rate-limit.service';
 import { Reflector } from '@nestjs/core';
 import { ExecutionContext, HttpStatus } from '@nestjs/common';
 
 describe('RateLimitGuard Unit Tests - DOC-006 5.6', () => {
   let guard: RateLimitGuard;
-  let rateLimitService: RateLimitService;
-  let reflector: Reflector;
+  let _rateLimitService: RateLimitService;
+  let _reflector: Reflector;
 
   const mockRateLimitService = {
     isRateLimited: jest.fn(),
@@ -28,8 +28,8 @@ describe('RateLimitGuard Unit Tests - DOC-006 5.6', () => {
     }).compile();
 
     guard = module.get<RateLimitGuard>(RateLimitGuard);
-    rateLimitService = module.get<RateLimitService>(RateLimitService);
-    reflector = module.get<Reflector>(Reflector);
+    _rateLimitService = module.get<RateLimitService>(RateLimitService);
+    _reflector = module.get<Reflector>(Reflector);
     jest.clearAllMocks();
   });
 

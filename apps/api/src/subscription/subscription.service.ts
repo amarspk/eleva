@@ -88,7 +88,7 @@ export class SubscriptionService {
     const maxProducts = plan.maxProductsPerBranch;
 
     // For simplicity, count all products under tenant, or per branch if branchId provided
-    const where: any = {};
+    const _where: any = {};
     if (branchId) {
       // Need to count products that belong to restaurant that belongs to branch? Simplified: count via category->restaurant->branch?
       // For now, count all products under tenant as proxy

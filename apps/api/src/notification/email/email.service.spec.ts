@@ -89,7 +89,7 @@ describe('EmailService Unit Tests - DOC-008 7.2 Transactional Email', () => {
   });
 
   it('should enforce tenant isolation via template variables, never trust client tenantId', async () => {
-    const tenantId = 'real-tenant';
+    const _tenantId = 'real-tenant';
     const to = 'test@example.com';
     const variables = {
       companyName: 'Real Tenant Company',

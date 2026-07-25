@@ -256,7 +256,7 @@ describe('OrderService Unit Tests', () => {
   // ==========================================
   it('should complete full lifecycle PENDING → ACCEPTED → PREPARING → READY → COMPLETED with invoice generation', async () => {
     const id = 'order-lifecycle-001';
-    const orderId = 'inv-order-001';
+    const _orderId = 'inv-order-001';
     const tenantId = 'tenant-uuid-1111';
     const branchId = 'branch-uuid-1234';
 

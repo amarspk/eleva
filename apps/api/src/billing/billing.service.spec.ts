@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { BillingService } from './billing.service';
 import { prisma } from '@zayjar/db';
-import { NotFoundException, ForbiddenException } from '@nestjs/common';
+import { NotFoundException } from '@nestjs/common';
 
 jest.mock('argon2', () => ({
   hash: jest.fn().mockResolvedValue('mock-hash'),

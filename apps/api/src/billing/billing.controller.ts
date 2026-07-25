@@ -53,14 +53,8 @@ export class BillingController {
     // In NestJS, raw body may be in req.rawBody if configured, otherwise use body
     const rawBody = (req as any).rawBody || JSON.stringify(body);
 
-    let event: any;
-    try {
-      // Verify signature if secret configured, otherwise parse as JSON
-      event = this.billingService.verifyWebhookSignature(rawBody, signature);
-    } catch (err) {
-      // If verification fails, throw
-      throw err;
-    }
+    // Verify signature if secret configured, otherwise parse as JSON
+    const event: any = this.billingService.verifyWebhookSignature(rawBody, signature);
 
     // If body is already parsed event (when no signature verification), use it
     const stripeEvent = event.type ? event : body;

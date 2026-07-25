@@ -99,15 +99,15 @@ export class AssetService {
 
   private getMaxSizeForFolder(folder: string): number {
     const lower = folder.toLowerCase();
-    if (lower.includes('logo')) return this.MAX_FILE_SIZES.logo;
-    if (lower.includes('banner')) return this.MAX_FILE_SIZES.banner;
-    if (lower.includes('product')) return this.MAX_FILE_SIZES.product;
+    if (lower.includes('logo')) {return this.MAX_FILE_SIZES.logo;}
+    if (lower.includes('banner')) {return this.MAX_FILE_SIZES.banner;}
+    if (lower.includes('product')) {return this.MAX_FILE_SIZES.product;}
     return this.MAX_FILE_SIZES.default;
   }
 
   private getExtension(fileName: string, contentType: string): string {
     const fromName = fileName.includes('.') ? `.${fileName.split('.').pop()}` : '';
-    if (fromName) return fromName;
+    if (fromName) {return fromName;}
 
     const mimeToExt: Record<string, string> = {
       'image/jpeg': '.jpg',

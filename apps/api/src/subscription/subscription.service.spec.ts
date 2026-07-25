@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { SubscriptionService } from './subscription.service';
 import { prisma, dbTenantContext } from '@zayjar/db';
-import { ForbiddenException, NotFoundException } from '@nestjs/common';
+import { ForbiddenException } from '@nestjs/common';
 import { TenantBranchRepository, TenantProductRepository } from '@zayjar/db';
 
 jest.mock('argon2', () => ({

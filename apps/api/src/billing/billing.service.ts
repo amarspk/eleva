@@ -120,14 +120,14 @@ export class BillingService {
       const tenant = await prisma.tenant.findFirst({
         where: { stripeCustomerId },
       });
-      if (tenant) tenantId = tenant.id;
+      if (tenant) {tenantId = tenant.id;}
     }
 
     if (!tenantId && stripeSubscriptionId) {
       const subscription = await prisma.subscription.findFirst({
         where: { stripeSubscriptionId },
       });
-      if (subscription) tenantId = subscription.tenantId;
+      if (subscription) {tenantId = subscription.tenantId;}
     }
 
     // Fallback: try to get tenantId from metadata
@@ -163,7 +163,7 @@ export class BillingService {
         newSubscriptionStatus = 'CANCELED';
         newTenantStatus = 'CANCELED';
         break;
-      case 'customer.subscription.updated':
+      case 'customer.subscription.updated': {
         const stripeStatus = dataObject.status;
         if (stripeStatus === 'active') {
           newSubscriptionStatus = 'ACTIVE';
@@ -179,6 +179,7 @@ export class BillingService {
           newTenantStatus = 'CANCELED';
         }
         break;
+      }
       default:
         this.logger.log(`Unhandled Stripe event type: ${eventType}, ignoring`);
         return { received: true, eventType, tenantId, action: 'ignored' };
@@ -233,7 +234,7 @@ export class BillingService {
     if (!webhookSecret) {
       this.logger.warn('STRIPE_WEBHOOK_SECRET not configured, skipping signature verification (dev mode)');
       try {
-        if (typeof rawBody === 'string') return JSON.parse(rawBody);
+        if (typeof rawBody === 'string') {return JSON.parse(rawBody);}
         return JSON.parse(rawBody.toString());
       } catch {
         return rawBody;

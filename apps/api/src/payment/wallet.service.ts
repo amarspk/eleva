@@ -1,7 +1,7 @@
 import { Injectable, Logger, BadRequestException, NotFoundException } from '@nestjs/common';
 import { CreateWalletPaymentRequestDto } from './dto/create-wallet-payment-request.dto';
 import { PaymentMethodType } from '@zayjar/types';
-import { prisma, dbTenantContext } from '@zayjar/db';
+import { dbTenantContext } from '@zayjar/db';
 import { TenantOrderRepository } from '@zayjar/db';
 
 @Injectable()
@@ -46,9 +46,9 @@ export class WalletService {
     // Determine wallet type from payment method if not explicitly provided
     let walletType = dto.walletType;
     if (!walletType) {
-      if (dto.paymentMethod === PaymentMethodType.APPLE_PAY) walletType = 'apple_pay';
-      else if (dto.paymentMethod === PaymentMethodType.LOCAL_WALLET) walletType = 'knet'; // default local wallet
-      else walletType = 'credit_card';
+      if (dto.paymentMethod === PaymentMethodType.APPLE_PAY) {walletType = 'apple_pay';}
+      else if (dto.paymentMethod === PaymentMethodType.LOCAL_WALLET) {walletType = 'knet';} // default local wallet
+      else {walletType = 'credit_card';}
     }
 
     // Validate wallet type
@@ -79,7 +79,7 @@ export class WalletService {
     provider: string,
     tenantId: string,
     userId: string,
-    order: any,
+    _order: any,
   ) {
     const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
 
@@ -144,9 +144,9 @@ export class WalletService {
     dto: CreateWalletPaymentRequestDto,
     walletType: string,
     provider: string,
-    tenantId: string,
-    userId: string,
-    order: any,
+    _tenantId: string,
+    _userId: string,
+    _order: any,
   ) {
     const tapSecretKey = process.env.TAP_PAYMENTS_SECRET_KEY;
 
@@ -191,7 +191,7 @@ export class WalletService {
     }
   }
 
-  private async createMockPayment(dto: CreateWalletPaymentRequestDto, walletType: string, provider: string, tenantId: string) {
+  private async createMockPayment(dto: CreateWalletPaymentRequestDto, walletType: string, provider: string, _tenantId: string) {
     const mockId = `mock_${walletType}_${Math.random().toString(36).substring(2, 10)}`;
     return {
       paymentId: mockId,

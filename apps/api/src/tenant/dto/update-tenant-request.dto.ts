@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsUrl, IsObject, ValidateNested, IsHexColor } from 'class-validator';
+import { IsString, IsOptional, IsUrl, IsObject, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
 
 class BrandingDto {
