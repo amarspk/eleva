@@ -158,6 +158,11 @@ export type Notification = $Result.DefaultSelection<Prisma.$NotificationPayload>
  * 
  */
 export type Webhook = $Result.DefaultSelection<Prisma.$WebhookPayload>
+/**
+ * Model Media
+ * 
+ */
+export type Media = $Result.DefaultSelection<Prisma.$MediaPayload>
 
 /**
  * Enums
@@ -247,6 +252,17 @@ export const PaymentStatus: {
 
 export type PaymentStatus = (typeof PaymentStatus)[keyof typeof PaymentStatus]
 
+
+export const MediaType: {
+  IMAGE: 'IMAGE',
+  LOGO: 'LOGO',
+  BANNER: 'BANNER',
+  AVATAR: 'AVATAR',
+  DOCUMENT: 'DOCUMENT'
+};
+
+export type MediaType = (typeof MediaType)[keyof typeof MediaType]
+
 }
 
 export type TenantStatus = $Enums.TenantStatus
@@ -280,6 +296,10 @@ export const PaymentMethodType: typeof $Enums.PaymentMethodType
 export type PaymentStatus = $Enums.PaymentStatus
 
 export const PaymentStatus: typeof $Enums.PaymentStatus
+
+export type MediaType = $Enums.MediaType
+
+export const MediaType: typeof $Enums.MediaType
 
 /**
  * ##  Prisma Client ʲˢ
@@ -693,6 +713,16 @@ export class PrismaClient<
     * ```
     */
   get webhook(): Prisma.WebhookDelegate<ExtArgs>;
+
+  /**
+   * `prisma.media`: Exposes CRUD operations for the **Media** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more Media
+    * const media = await prisma.media.findMany()
+    * ```
+    */
+  get media(): Prisma.MediaDelegate<ExtArgs>;
 }
 
 export namespace Prisma {
@@ -1162,7 +1192,8 @@ export namespace Prisma {
     KitchenQueue: 'KitchenQueue',
     SessionLog: 'SessionLog',
     Notification: 'Notification',
-    Webhook: 'Webhook'
+    Webhook: 'Webhook',
+    Media: 'Media'
   };
 
   export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -1178,7 +1209,7 @@ export namespace Prisma {
 
   export type TypeMap<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, ClientOptions = {}> = {
     meta: {
-      modelProps: "tenant" | "subscriptionPlan" | "subscription" | "user" | "role" | "permission" | "userRole" | "rolePermission" | "restaurant" | "branch" | "table" | "category" | "product" | "productSize" | "productVariant" | "productAddon" | "addonItem" | "order" | "orderItem" | "orderItemAddon" | "customer" | "payment" | "invoice" | "auditLog" | "deviceToken" | "kitchenQueue" | "sessionLog" | "notification" | "webhook"
+      modelProps: "tenant" | "subscriptionPlan" | "subscription" | "user" | "role" | "permission" | "userRole" | "rolePermission" | "restaurant" | "branch" | "table" | "category" | "product" | "productSize" | "productVariant" | "productAddon" | "addonItem" | "order" | "orderItem" | "orderItemAddon" | "customer" | "payment" | "invoice" | "auditLog" | "deviceToken" | "kitchenQueue" | "sessionLog" | "notification" | "webhook" | "media"
       txIsolationLevel: Prisma.TransactionIsolationLevel
     }
     model: {
@@ -3212,6 +3243,76 @@ export namespace Prisma {
           }
         }
       }
+      Media: {
+        payload: Prisma.$MediaPayload<ExtArgs>
+        fields: Prisma.MediaFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.MediaFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$MediaPayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.MediaFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$MediaPayload>
+          }
+          findFirst: {
+            args: Prisma.MediaFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$MediaPayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.MediaFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$MediaPayload>
+          }
+          findMany: {
+            args: Prisma.MediaFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$MediaPayload>[]
+          }
+          create: {
+            args: Prisma.MediaCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$MediaPayload>
+          }
+          createMany: {
+            args: Prisma.MediaCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.MediaCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$MediaPayload>[]
+          }
+          delete: {
+            args: Prisma.MediaDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$MediaPayload>
+          }
+          update: {
+            args: Prisma.MediaUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$MediaPayload>
+          }
+          deleteMany: {
+            args: Prisma.MediaDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.MediaUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          upsert: {
+            args: Prisma.MediaUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$MediaPayload>
+          }
+          aggregate: {
+            args: Prisma.MediaAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregateMedia>
+          }
+          groupBy: {
+            args: Prisma.MediaGroupByArgs<ExtArgs>
+            result: $Utils.Optional<MediaGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.MediaCountArgs<ExtArgs>
+            result: $Utils.Optional<MediaCountAggregateOutputType> | number
+          }
+        }
+      }
     }
   } & {
     other: {
@@ -3394,6 +3495,7 @@ export namespace Prisma {
     kitchenQueues: number
     sessionLogs: number
     webhooks: number
+    media: number
   }
 
   export type TenantCountOutputTypeSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
@@ -3418,6 +3520,7 @@ export namespace Prisma {
     kitchenQueues?: boolean | TenantCountOutputTypeCountKitchenQueuesArgs
     sessionLogs?: boolean | TenantCountOutputTypeCountSessionLogsArgs
     webhooks?: boolean | TenantCountOutputTypeCountWebhooksArgs
+    media?: boolean | TenantCountOutputTypeCountMediaArgs
   }
 
   // Custom InputTypes
@@ -3576,6 +3679,13 @@ export namespace Prisma {
    */
   export type TenantCountOutputTypeCountWebhooksArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     where?: WebhookWhereInput
+  }
+
+  /**
+   * TenantCountOutputType without action
+   */
+  export type TenantCountOutputTypeCountMediaArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: MediaWhereInput
   }
 
 
@@ -4428,6 +4538,7 @@ export namespace Prisma {
     kitchenQueues?: boolean | Tenant$kitchenQueuesArgs<ExtArgs>
     sessionLogs?: boolean | Tenant$sessionLogsArgs<ExtArgs>
     webhooks?: boolean | Tenant$webhooksArgs<ExtArgs>
+    media?: boolean | Tenant$mediaArgs<ExtArgs>
     _count?: boolean | TenantCountOutputTypeDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["tenant"]>
 
@@ -4486,6 +4597,7 @@ export namespace Prisma {
     kitchenQueues?: boolean | Tenant$kitchenQueuesArgs<ExtArgs>
     sessionLogs?: boolean | Tenant$sessionLogsArgs<ExtArgs>
     webhooks?: boolean | Tenant$webhooksArgs<ExtArgs>
+    media?: boolean | Tenant$mediaArgs<ExtArgs>
     _count?: boolean | TenantCountOutputTypeDefaultArgs<ExtArgs>
   }
   export type TenantIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {}
@@ -4515,6 +4627,7 @@ export namespace Prisma {
       kitchenQueues: Prisma.$KitchenQueuePayload<ExtArgs>[]
       sessionLogs: Prisma.$SessionLogPayload<ExtArgs>[]
       webhooks: Prisma.$WebhookPayload<ExtArgs>[]
+      media: Prisma.$MediaPayload<ExtArgs>[]
     }
     scalars: $Extensions.GetPayloadResult<{
       id: string
@@ -4916,6 +5029,7 @@ export namespace Prisma {
     kitchenQueues<T extends Tenant$kitchenQueuesArgs<ExtArgs> = {}>(args?: Subset<T, Tenant$kitchenQueuesArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$KitchenQueuePayload<ExtArgs>, T, "findMany"> | Null>
     sessionLogs<T extends Tenant$sessionLogsArgs<ExtArgs> = {}>(args?: Subset<T, Tenant$sessionLogsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$SessionLogPayload<ExtArgs>, T, "findMany"> | Null>
     webhooks<T extends Tenant$webhooksArgs<ExtArgs> = {}>(args?: Subset<T, Tenant$webhooksArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$WebhookPayload<ExtArgs>, T, "findMany"> | Null>
+    media<T extends Tenant$mediaArgs<ExtArgs> = {}>(args?: Subset<T, Tenant$mediaArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$MediaPayload<ExtArgs>, T, "findMany"> | Null>
     /**
      * Attaches callbacks for the resolution and/or rejection of the Promise.
      * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -5704,6 +5818,26 @@ export namespace Prisma {
     take?: number
     skip?: number
     distinct?: WebhookScalarFieldEnum | WebhookScalarFieldEnum[]
+  }
+
+  /**
+   * Tenant.media
+   */
+  export type Tenant$mediaArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Media
+     */
+    select?: MediaSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: MediaInclude<ExtArgs> | null
+    where?: MediaWhereInput
+    orderBy?: MediaOrderByWithRelationInput | MediaOrderByWithRelationInput[]
+    cursor?: MediaWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: MediaScalarFieldEnum | MediaScalarFieldEnum[]
   }
 
   /**
@@ -34560,6 +34694,1177 @@ export namespace Prisma {
 
 
   /**
+   * Model Media
+   */
+
+  export type AggregateMedia = {
+    _count: MediaCountAggregateOutputType | null
+    _avg: MediaAvgAggregateOutputType | null
+    _sum: MediaSumAggregateOutputType | null
+    _min: MediaMinAggregateOutputType | null
+    _max: MediaMaxAggregateOutputType | null
+  }
+
+  export type MediaAvgAggregateOutputType = {
+    originalFileSize: number | null
+    fileSize: number | null
+    width: number | null
+    height: number | null
+  }
+
+  export type MediaSumAggregateOutputType = {
+    originalFileSize: number | null
+    fileSize: number | null
+    width: number | null
+    height: number | null
+  }
+
+  export type MediaMinAggregateOutputType = {
+    id: string | null
+    tenantId: string | null
+    entityType: string | null
+    entityId: string | null
+    mediaType: $Enums.MediaType | null
+    originalName: string | null
+    mimeType: string | null
+    originalFileSize: number | null
+    fileSize: number | null
+    checksum: string | null
+    width: number | null
+    height: number | null
+    storageKey: string | null
+    storageProvider: string | null
+    originalUrl: string | null
+    thumbnailUrl: string | null
+    mediumUrl: string | null
+    largeUrl: string | null
+    status: string | null
+    createdAt: Date | null
+    updatedAt: Date | null
+  }
+
+  export type MediaMaxAggregateOutputType = {
+    id: string | null
+    tenantId: string | null
+    entityType: string | null
+    entityId: string | null
+    mediaType: $Enums.MediaType | null
+    originalName: string | null
+    mimeType: string | null
+    originalFileSize: number | null
+    fileSize: number | null
+    checksum: string | null
+    width: number | null
+    height: number | null
+    storageKey: string | null
+    storageProvider: string | null
+    originalUrl: string | null
+    thumbnailUrl: string | null
+    mediumUrl: string | null
+    largeUrl: string | null
+    status: string | null
+    createdAt: Date | null
+    updatedAt: Date | null
+  }
+
+  export type MediaCountAggregateOutputType = {
+    id: number
+    tenantId: number
+    entityType: number
+    entityId: number
+    mediaType: number
+    originalName: number
+    mimeType: number
+    originalFileSize: number
+    fileSize: number
+    checksum: number
+    width: number
+    height: number
+    storageKey: number
+    storageProvider: number
+    originalUrl: number
+    thumbnailUrl: number
+    mediumUrl: number
+    largeUrl: number
+    status: number
+    createdAt: number
+    updatedAt: number
+    _all: number
+  }
+
+
+  export type MediaAvgAggregateInputType = {
+    originalFileSize?: true
+    fileSize?: true
+    width?: true
+    height?: true
+  }
+
+  export type MediaSumAggregateInputType = {
+    originalFileSize?: true
+    fileSize?: true
+    width?: true
+    height?: true
+  }
+
+  export type MediaMinAggregateInputType = {
+    id?: true
+    tenantId?: true
+    entityType?: true
+    entityId?: true
+    mediaType?: true
+    originalName?: true
+    mimeType?: true
+    originalFileSize?: true
+    fileSize?: true
+    checksum?: true
+    width?: true
+    height?: true
+    storageKey?: true
+    storageProvider?: true
+    originalUrl?: true
+    thumbnailUrl?: true
+    mediumUrl?: true
+    largeUrl?: true
+    status?: true
+    createdAt?: true
+    updatedAt?: true
+  }
+
+  export type MediaMaxAggregateInputType = {
+    id?: true
+    tenantId?: true
+    entityType?: true
+    entityId?: true
+    mediaType?: true
+    originalName?: true
+    mimeType?: true
+    originalFileSize?: true
+    fileSize?: true
+    checksum?: true
+    width?: true
+    height?: true
+    storageKey?: true
+    storageProvider?: true
+    originalUrl?: true
+    thumbnailUrl?: true
+    mediumUrl?: true
+    largeUrl?: true
+    status?: true
+    createdAt?: true
+    updatedAt?: true
+  }
+
+  export type MediaCountAggregateInputType = {
+    id?: true
+    tenantId?: true
+    entityType?: true
+    entityId?: true
+    mediaType?: true
+    originalName?: true
+    mimeType?: true
+    originalFileSize?: true
+    fileSize?: true
+    checksum?: true
+    width?: true
+    height?: true
+    storageKey?: true
+    storageProvider?: true
+    originalUrl?: true
+    thumbnailUrl?: true
+    mediumUrl?: true
+    largeUrl?: true
+    status?: true
+    createdAt?: true
+    updatedAt?: true
+    _all?: true
+  }
+
+  export type MediaAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which Media to aggregate.
+     */
+    where?: MediaWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of Media to fetch.
+     */
+    orderBy?: MediaOrderByWithRelationInput | MediaOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: MediaWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` Media from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` Media.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned Media
+    **/
+    _count?: true | MediaCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to average
+    **/
+    _avg?: MediaAvgAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to sum
+    **/
+    _sum?: MediaSumAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: MediaMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: MediaMaxAggregateInputType
+  }
+
+  export type GetMediaAggregateType<T extends MediaAggregateArgs> = {
+        [P in keyof T & keyof AggregateMedia]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateMedia[P]>
+      : GetScalarType<T[P], AggregateMedia[P]>
+  }
+
+
+
+
+  export type MediaGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: MediaWhereInput
+    orderBy?: MediaOrderByWithAggregationInput | MediaOrderByWithAggregationInput[]
+    by: MediaScalarFieldEnum[] | MediaScalarFieldEnum
+    having?: MediaScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: MediaCountAggregateInputType | true
+    _avg?: MediaAvgAggregateInputType
+    _sum?: MediaSumAggregateInputType
+    _min?: MediaMinAggregateInputType
+    _max?: MediaMaxAggregateInputType
+  }
+
+  export type MediaGroupByOutputType = {
+    id: string
+    tenantId: string
+    entityType: string
+    entityId: string
+    mediaType: $Enums.MediaType
+    originalName: string
+    mimeType: string
+    originalFileSize: number
+    fileSize: number
+    checksum: string
+    width: number | null
+    height: number | null
+    storageKey: string
+    storageProvider: string
+    originalUrl: string
+    thumbnailUrl: string | null
+    mediumUrl: string | null
+    largeUrl: string | null
+    status: string
+    createdAt: Date
+    updatedAt: Date
+    _count: MediaCountAggregateOutputType | null
+    _avg: MediaAvgAggregateOutputType | null
+    _sum: MediaSumAggregateOutputType | null
+    _min: MediaMinAggregateOutputType | null
+    _max: MediaMaxAggregateOutputType | null
+  }
+
+  type GetMediaGroupByPayload<T extends MediaGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<MediaGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof MediaGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], MediaGroupByOutputType[P]>
+            : GetScalarType<T[P], MediaGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type MediaSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    tenantId?: boolean
+    entityType?: boolean
+    entityId?: boolean
+    mediaType?: boolean
+    originalName?: boolean
+    mimeType?: boolean
+    originalFileSize?: boolean
+    fileSize?: boolean
+    checksum?: boolean
+    width?: boolean
+    height?: boolean
+    storageKey?: boolean
+    storageProvider?: boolean
+    originalUrl?: boolean
+    thumbnailUrl?: boolean
+    mediumUrl?: boolean
+    largeUrl?: boolean
+    status?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    tenant?: boolean | TenantDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["media"]>
+
+  export type MediaSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    tenantId?: boolean
+    entityType?: boolean
+    entityId?: boolean
+    mediaType?: boolean
+    originalName?: boolean
+    mimeType?: boolean
+    originalFileSize?: boolean
+    fileSize?: boolean
+    checksum?: boolean
+    width?: boolean
+    height?: boolean
+    storageKey?: boolean
+    storageProvider?: boolean
+    originalUrl?: boolean
+    thumbnailUrl?: boolean
+    mediumUrl?: boolean
+    largeUrl?: boolean
+    status?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    tenant?: boolean | TenantDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["media"]>
+
+  export type MediaSelectScalar = {
+    id?: boolean
+    tenantId?: boolean
+    entityType?: boolean
+    entityId?: boolean
+    mediaType?: boolean
+    originalName?: boolean
+    mimeType?: boolean
+    originalFileSize?: boolean
+    fileSize?: boolean
+    checksum?: boolean
+    width?: boolean
+    height?: boolean
+    storageKey?: boolean
+    storageProvider?: boolean
+    originalUrl?: boolean
+    thumbnailUrl?: boolean
+    mediumUrl?: boolean
+    largeUrl?: boolean
+    status?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+  }
+
+  export type MediaInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    tenant?: boolean | TenantDefaultArgs<ExtArgs>
+  }
+  export type MediaIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    tenant?: boolean | TenantDefaultArgs<ExtArgs>
+  }
+
+  export type $MediaPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "Media"
+    objects: {
+      tenant: Prisma.$TenantPayload<ExtArgs>
+    }
+    scalars: $Extensions.GetPayloadResult<{
+      id: string
+      tenantId: string
+      entityType: string
+      entityId: string
+      mediaType: $Enums.MediaType
+      originalName: string
+      mimeType: string
+      originalFileSize: number
+      fileSize: number
+      checksum: string
+      width: number | null
+      height: number | null
+      storageKey: string
+      storageProvider: string
+      originalUrl: string
+      thumbnailUrl: string | null
+      mediumUrl: string | null
+      largeUrl: string | null
+      status: string
+      createdAt: Date
+      updatedAt: Date
+    }, ExtArgs["result"]["media"]>
+    composites: {}
+  }
+
+  type MediaGetPayload<S extends boolean | null | undefined | MediaDefaultArgs> = $Result.GetResult<Prisma.$MediaPayload, S>
+
+  type MediaCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = 
+    Omit<MediaFindManyArgs, 'select' | 'include' | 'distinct'> & {
+      select?: MediaCountAggregateInputType | true
+    }
+
+  export interface MediaDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['Media'], meta: { name: 'Media' } }
+    /**
+     * Find zero or one Media that matches the filter.
+     * @param {MediaFindUniqueArgs} args - Arguments to find a Media
+     * @example
+     * // Get one Media
+     * const media = await prisma.media.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends MediaFindUniqueArgs>(args: SelectSubset<T, MediaFindUniqueArgs<ExtArgs>>): Prisma__MediaClient<$Result.GetResult<Prisma.$MediaPayload<ExtArgs>, T, "findUnique"> | null, null, ExtArgs>
+
+    /**
+     * Find one Media that matches the filter or throw an error with `error.code='P2025'` 
+     * if no matches were found.
+     * @param {MediaFindUniqueOrThrowArgs} args - Arguments to find a Media
+     * @example
+     * // Get one Media
+     * const media = await prisma.media.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends MediaFindUniqueOrThrowArgs>(args: SelectSubset<T, MediaFindUniqueOrThrowArgs<ExtArgs>>): Prisma__MediaClient<$Result.GetResult<Prisma.$MediaPayload<ExtArgs>, T, "findUniqueOrThrow">, never, ExtArgs>
+
+    /**
+     * Find the first Media that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {MediaFindFirstArgs} args - Arguments to find a Media
+     * @example
+     * // Get one Media
+     * const media = await prisma.media.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends MediaFindFirstArgs>(args?: SelectSubset<T, MediaFindFirstArgs<ExtArgs>>): Prisma__MediaClient<$Result.GetResult<Prisma.$MediaPayload<ExtArgs>, T, "findFirst"> | null, null, ExtArgs>
+
+    /**
+     * Find the first Media that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {MediaFindFirstOrThrowArgs} args - Arguments to find a Media
+     * @example
+     * // Get one Media
+     * const media = await prisma.media.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends MediaFindFirstOrThrowArgs>(args?: SelectSubset<T, MediaFindFirstOrThrowArgs<ExtArgs>>): Prisma__MediaClient<$Result.GetResult<Prisma.$MediaPayload<ExtArgs>, T, "findFirstOrThrow">, never, ExtArgs>
+
+    /**
+     * Find zero or more Media that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {MediaFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all Media
+     * const media = await prisma.media.findMany()
+     * 
+     * // Get first 10 Media
+     * const media = await prisma.media.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const mediaWithIdOnly = await prisma.media.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends MediaFindManyArgs>(args?: SelectSubset<T, MediaFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$MediaPayload<ExtArgs>, T, "findMany">>
+
+    /**
+     * Create a Media.
+     * @param {MediaCreateArgs} args - Arguments to create a Media.
+     * @example
+     * // Create one Media
+     * const Media = await prisma.media.create({
+     *   data: {
+     *     // ... data to create a Media
+     *   }
+     * })
+     * 
+     */
+    create<T extends MediaCreateArgs>(args: SelectSubset<T, MediaCreateArgs<ExtArgs>>): Prisma__MediaClient<$Result.GetResult<Prisma.$MediaPayload<ExtArgs>, T, "create">, never, ExtArgs>
+
+    /**
+     * Create many Media.
+     * @param {MediaCreateManyArgs} args - Arguments to create many Media.
+     * @example
+     * // Create many Media
+     * const media = await prisma.media.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends MediaCreateManyArgs>(args?: SelectSubset<T, MediaCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many Media and returns the data saved in the database.
+     * @param {MediaCreateManyAndReturnArgs} args - Arguments to create many Media.
+     * @example
+     * // Create many Media
+     * const media = await prisma.media.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many Media and only return the `id`
+     * const mediaWithIdOnly = await prisma.media.createManyAndReturn({ 
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends MediaCreateManyAndReturnArgs>(args?: SelectSubset<T, MediaCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$MediaPayload<ExtArgs>, T, "createManyAndReturn">>
+
+    /**
+     * Delete a Media.
+     * @param {MediaDeleteArgs} args - Arguments to delete one Media.
+     * @example
+     * // Delete one Media
+     * const Media = await prisma.media.delete({
+     *   where: {
+     *     // ... filter to delete one Media
+     *   }
+     * })
+     * 
+     */
+    delete<T extends MediaDeleteArgs>(args: SelectSubset<T, MediaDeleteArgs<ExtArgs>>): Prisma__MediaClient<$Result.GetResult<Prisma.$MediaPayload<ExtArgs>, T, "delete">, never, ExtArgs>
+
+    /**
+     * Update one Media.
+     * @param {MediaUpdateArgs} args - Arguments to update one Media.
+     * @example
+     * // Update one Media
+     * const media = await prisma.media.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends MediaUpdateArgs>(args: SelectSubset<T, MediaUpdateArgs<ExtArgs>>): Prisma__MediaClient<$Result.GetResult<Prisma.$MediaPayload<ExtArgs>, T, "update">, never, ExtArgs>
+
+    /**
+     * Delete zero or more Media.
+     * @param {MediaDeleteManyArgs} args - Arguments to filter Media to delete.
+     * @example
+     * // Delete a few Media
+     * const { count } = await prisma.media.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends MediaDeleteManyArgs>(args?: SelectSubset<T, MediaDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more Media.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {MediaUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many Media
+     * const media = await prisma.media.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends MediaUpdateManyArgs>(args: SelectSubset<T, MediaUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create or update one Media.
+     * @param {MediaUpsertArgs} args - Arguments to update or create a Media.
+     * @example
+     * // Update or create a Media
+     * const media = await prisma.media.upsert({
+     *   create: {
+     *     // ... data to create a Media
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the Media we want to update
+     *   }
+     * })
+     */
+    upsert<T extends MediaUpsertArgs>(args: SelectSubset<T, MediaUpsertArgs<ExtArgs>>): Prisma__MediaClient<$Result.GetResult<Prisma.$MediaPayload<ExtArgs>, T, "upsert">, never, ExtArgs>
+
+
+    /**
+     * Count the number of Media.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {MediaCountArgs} args - Arguments to filter Media to count.
+     * @example
+     * // Count the number of Media
+     * const count = await prisma.media.count({
+     *   where: {
+     *     // ... the filter for the Media we want to count
+     *   }
+     * })
+    **/
+    count<T extends MediaCountArgs>(
+      args?: Subset<T, MediaCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], MediaCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a Media.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {MediaAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends MediaAggregateArgs>(args: Subset<T, MediaAggregateArgs>): Prisma.PrismaPromise<GetMediaAggregateType<T>>
+
+    /**
+     * Group by Media.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {MediaGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends MediaGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: MediaGroupByArgs['orderBy'] }
+        : { orderBy?: MediaGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, MediaGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetMediaGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the Media model
+   */
+  readonly fields: MediaFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for Media.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__MediaClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    tenant<T extends TenantDefaultArgs<ExtArgs> = {}>(args?: Subset<T, TenantDefaultArgs<ExtArgs>>): Prisma__TenantClient<$Result.GetResult<Prisma.$TenantPayload<ExtArgs>, T, "findUniqueOrThrow"> | Null, Null, ExtArgs>
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the Media model
+   */ 
+  interface MediaFieldRefs {
+    readonly id: FieldRef<"Media", 'String'>
+    readonly tenantId: FieldRef<"Media", 'String'>
+    readonly entityType: FieldRef<"Media", 'String'>
+    readonly entityId: FieldRef<"Media", 'String'>
+    readonly mediaType: FieldRef<"Media", 'MediaType'>
+    readonly originalName: FieldRef<"Media", 'String'>
+    readonly mimeType: FieldRef<"Media", 'String'>
+    readonly originalFileSize: FieldRef<"Media", 'Int'>
+    readonly fileSize: FieldRef<"Media", 'Int'>
+    readonly checksum: FieldRef<"Media", 'String'>
+    readonly width: FieldRef<"Media", 'Int'>
+    readonly height: FieldRef<"Media", 'Int'>
+    readonly storageKey: FieldRef<"Media", 'String'>
+    readonly storageProvider: FieldRef<"Media", 'String'>
+    readonly originalUrl: FieldRef<"Media", 'String'>
+    readonly thumbnailUrl: FieldRef<"Media", 'String'>
+    readonly mediumUrl: FieldRef<"Media", 'String'>
+    readonly largeUrl: FieldRef<"Media", 'String'>
+    readonly status: FieldRef<"Media", 'String'>
+    readonly createdAt: FieldRef<"Media", 'DateTime'>
+    readonly updatedAt: FieldRef<"Media", 'DateTime'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * Media findUnique
+   */
+  export type MediaFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Media
+     */
+    select?: MediaSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: MediaInclude<ExtArgs> | null
+    /**
+     * Filter, which Media to fetch.
+     */
+    where: MediaWhereUniqueInput
+  }
+
+  /**
+   * Media findUniqueOrThrow
+   */
+  export type MediaFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Media
+     */
+    select?: MediaSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: MediaInclude<ExtArgs> | null
+    /**
+     * Filter, which Media to fetch.
+     */
+    where: MediaWhereUniqueInput
+  }
+
+  /**
+   * Media findFirst
+   */
+  export type MediaFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Media
+     */
+    select?: MediaSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: MediaInclude<ExtArgs> | null
+    /**
+     * Filter, which Media to fetch.
+     */
+    where?: MediaWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of Media to fetch.
+     */
+    orderBy?: MediaOrderByWithRelationInput | MediaOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for Media.
+     */
+    cursor?: MediaWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` Media from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` Media.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of Media.
+     */
+    distinct?: MediaScalarFieldEnum | MediaScalarFieldEnum[]
+  }
+
+  /**
+   * Media findFirstOrThrow
+   */
+  export type MediaFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Media
+     */
+    select?: MediaSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: MediaInclude<ExtArgs> | null
+    /**
+     * Filter, which Media to fetch.
+     */
+    where?: MediaWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of Media to fetch.
+     */
+    orderBy?: MediaOrderByWithRelationInput | MediaOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for Media.
+     */
+    cursor?: MediaWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` Media from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` Media.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of Media.
+     */
+    distinct?: MediaScalarFieldEnum | MediaScalarFieldEnum[]
+  }
+
+  /**
+   * Media findMany
+   */
+  export type MediaFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Media
+     */
+    select?: MediaSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: MediaInclude<ExtArgs> | null
+    /**
+     * Filter, which Media to fetch.
+     */
+    where?: MediaWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of Media to fetch.
+     */
+    orderBy?: MediaOrderByWithRelationInput | MediaOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing Media.
+     */
+    cursor?: MediaWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` Media from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` Media.
+     */
+    skip?: number
+    distinct?: MediaScalarFieldEnum | MediaScalarFieldEnum[]
+  }
+
+  /**
+   * Media create
+   */
+  export type MediaCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Media
+     */
+    select?: MediaSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: MediaInclude<ExtArgs> | null
+    /**
+     * The data needed to create a Media.
+     */
+    data: XOR<MediaCreateInput, MediaUncheckedCreateInput>
+  }
+
+  /**
+   * Media createMany
+   */
+  export type MediaCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many Media.
+     */
+    data: MediaCreateManyInput | MediaCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * Media createManyAndReturn
+   */
+  export type MediaCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Media
+     */
+    select?: MediaSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * The data used to create many Media.
+     */
+    data: MediaCreateManyInput | MediaCreateManyInput[]
+    skipDuplicates?: boolean
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: MediaIncludeCreateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * Media update
+   */
+  export type MediaUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Media
+     */
+    select?: MediaSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: MediaInclude<ExtArgs> | null
+    /**
+     * The data needed to update a Media.
+     */
+    data: XOR<MediaUpdateInput, MediaUncheckedUpdateInput>
+    /**
+     * Choose, which Media to update.
+     */
+    where: MediaWhereUniqueInput
+  }
+
+  /**
+   * Media updateMany
+   */
+  export type MediaUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update Media.
+     */
+    data: XOR<MediaUpdateManyMutationInput, MediaUncheckedUpdateManyInput>
+    /**
+     * Filter which Media to update
+     */
+    where?: MediaWhereInput
+  }
+
+  /**
+   * Media upsert
+   */
+  export type MediaUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Media
+     */
+    select?: MediaSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: MediaInclude<ExtArgs> | null
+    /**
+     * The filter to search for the Media to update in case it exists.
+     */
+    where: MediaWhereUniqueInput
+    /**
+     * In case the Media found by the `where` argument doesn't exist, create a new Media with this data.
+     */
+    create: XOR<MediaCreateInput, MediaUncheckedCreateInput>
+    /**
+     * In case the Media was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<MediaUpdateInput, MediaUncheckedUpdateInput>
+  }
+
+  /**
+   * Media delete
+   */
+  export type MediaDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Media
+     */
+    select?: MediaSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: MediaInclude<ExtArgs> | null
+    /**
+     * Filter which Media to delete.
+     */
+    where: MediaWhereUniqueInput
+  }
+
+  /**
+   * Media deleteMany
+   */
+  export type MediaDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which Media to delete
+     */
+    where?: MediaWhereInput
+  }
+
+  /**
+   * Media without action
+   */
+  export type MediaDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Media
+     */
+    select?: MediaSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: MediaInclude<ExtArgs> | null
+  }
+
+
+  /**
    * Enums
    */
 
@@ -35011,6 +36316,33 @@ export namespace Prisma {
   export type WebhookScalarFieldEnum = (typeof WebhookScalarFieldEnum)[keyof typeof WebhookScalarFieldEnum]
 
 
+  export const MediaScalarFieldEnum: {
+    id: 'id',
+    tenantId: 'tenantId',
+    entityType: 'entityType',
+    entityId: 'entityId',
+    mediaType: 'mediaType',
+    originalName: 'originalName',
+    mimeType: 'mimeType',
+    originalFileSize: 'originalFileSize',
+    fileSize: 'fileSize',
+    checksum: 'checksum',
+    width: 'width',
+    height: 'height',
+    storageKey: 'storageKey',
+    storageProvider: 'storageProvider',
+    originalUrl: 'originalUrl',
+    thumbnailUrl: 'thumbnailUrl',
+    mediumUrl: 'mediumUrl',
+    largeUrl: 'largeUrl',
+    status: 'status',
+    createdAt: 'createdAt',
+    updatedAt: 'updatedAt'
+  };
+
+  export type MediaScalarFieldEnum = (typeof MediaScalarFieldEnum)[keyof typeof MediaScalarFieldEnum]
+
+
   export const SortOrder: {
     asc: 'asc',
     desc: 'desc'
@@ -35247,6 +36579,20 @@ export namespace Prisma {
 
 
   /**
+   * Reference to a field of type 'MediaType'
+   */
+  export type EnumMediaTypeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'MediaType'>
+    
+
+
+  /**
+   * Reference to a field of type 'MediaType[]'
+   */
+  export type ListEnumMediaTypeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'MediaType[]'>
+    
+
+
+  /**
    * Reference to a field of type 'Float'
    */
   export type FloatFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Float'>
@@ -35302,6 +36648,7 @@ export namespace Prisma {
     kitchenQueues?: KitchenQueueListRelationFilter
     sessionLogs?: SessionLogListRelationFilter
     webhooks?: WebhookListRelationFilter
+    media?: MediaListRelationFilter
   }
 
   export type TenantOrderByWithRelationInput = {
@@ -35340,6 +36687,7 @@ export namespace Prisma {
     kitchenQueues?: KitchenQueueOrderByRelationAggregateInput
     sessionLogs?: SessionLogOrderByRelationAggregateInput
     webhooks?: WebhookOrderByRelationAggregateInput
+    media?: MediaOrderByRelationAggregateInput
   }
 
   export type TenantWhereUniqueInput = Prisma.AtLeast<{
@@ -35381,6 +36729,7 @@ export namespace Prisma {
     kitchenQueues?: KitchenQueueListRelationFilter
     sessionLogs?: SessionLogListRelationFilter
     webhooks?: WebhookListRelationFilter
+    media?: MediaListRelationFilter
   }, "id" | "subdomain" | "customDomain">
 
   export type TenantOrderByWithAggregationInput = {
@@ -37702,6 +39051,143 @@ export namespace Prisma {
     createdAt?: DateTimeWithAggregatesFilter<"Webhook"> | Date | string
   }
 
+  export type MediaWhereInput = {
+    AND?: MediaWhereInput | MediaWhereInput[]
+    OR?: MediaWhereInput[]
+    NOT?: MediaWhereInput | MediaWhereInput[]
+    id?: UuidFilter<"Media"> | string
+    tenantId?: UuidFilter<"Media"> | string
+    entityType?: StringFilter<"Media"> | string
+    entityId?: StringFilter<"Media"> | string
+    mediaType?: EnumMediaTypeFilter<"Media"> | $Enums.MediaType
+    originalName?: StringFilter<"Media"> | string
+    mimeType?: StringFilter<"Media"> | string
+    originalFileSize?: IntFilter<"Media"> | number
+    fileSize?: IntFilter<"Media"> | number
+    checksum?: StringFilter<"Media"> | string
+    width?: IntNullableFilter<"Media"> | number | null
+    height?: IntNullableFilter<"Media"> | number | null
+    storageKey?: StringFilter<"Media"> | string
+    storageProvider?: StringFilter<"Media"> | string
+    originalUrl?: StringFilter<"Media"> | string
+    thumbnailUrl?: StringNullableFilter<"Media"> | string | null
+    mediumUrl?: StringNullableFilter<"Media"> | string | null
+    largeUrl?: StringNullableFilter<"Media"> | string | null
+    status?: StringFilter<"Media"> | string
+    createdAt?: DateTimeFilter<"Media"> | Date | string
+    updatedAt?: DateTimeFilter<"Media"> | Date | string
+    tenant?: XOR<TenantRelationFilter, TenantWhereInput>
+  }
+
+  export type MediaOrderByWithRelationInput = {
+    id?: SortOrder
+    tenantId?: SortOrder
+    entityType?: SortOrder
+    entityId?: SortOrder
+    mediaType?: SortOrder
+    originalName?: SortOrder
+    mimeType?: SortOrder
+    originalFileSize?: SortOrder
+    fileSize?: SortOrder
+    checksum?: SortOrder
+    width?: SortOrderInput | SortOrder
+    height?: SortOrderInput | SortOrder
+    storageKey?: SortOrder
+    storageProvider?: SortOrder
+    originalUrl?: SortOrder
+    thumbnailUrl?: SortOrderInput | SortOrder
+    mediumUrl?: SortOrderInput | SortOrder
+    largeUrl?: SortOrderInput | SortOrder
+    status?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    tenant?: TenantOrderByWithRelationInput
+  }
+
+  export type MediaWhereUniqueInput = Prisma.AtLeast<{
+    id?: string
+    AND?: MediaWhereInput | MediaWhereInput[]
+    OR?: MediaWhereInput[]
+    NOT?: MediaWhereInput | MediaWhereInput[]
+    tenantId?: UuidFilter<"Media"> | string
+    entityType?: StringFilter<"Media"> | string
+    entityId?: StringFilter<"Media"> | string
+    mediaType?: EnumMediaTypeFilter<"Media"> | $Enums.MediaType
+    originalName?: StringFilter<"Media"> | string
+    mimeType?: StringFilter<"Media"> | string
+    originalFileSize?: IntFilter<"Media"> | number
+    fileSize?: IntFilter<"Media"> | number
+    checksum?: StringFilter<"Media"> | string
+    width?: IntNullableFilter<"Media"> | number | null
+    height?: IntNullableFilter<"Media"> | number | null
+    storageKey?: StringFilter<"Media"> | string
+    storageProvider?: StringFilter<"Media"> | string
+    originalUrl?: StringFilter<"Media"> | string
+    thumbnailUrl?: StringNullableFilter<"Media"> | string | null
+    mediumUrl?: StringNullableFilter<"Media"> | string | null
+    largeUrl?: StringNullableFilter<"Media"> | string | null
+    status?: StringFilter<"Media"> | string
+    createdAt?: DateTimeFilter<"Media"> | Date | string
+    updatedAt?: DateTimeFilter<"Media"> | Date | string
+    tenant?: XOR<TenantRelationFilter, TenantWhereInput>
+  }, "id">
+
+  export type MediaOrderByWithAggregationInput = {
+    id?: SortOrder
+    tenantId?: SortOrder
+    entityType?: SortOrder
+    entityId?: SortOrder
+    mediaType?: SortOrder
+    originalName?: SortOrder
+    mimeType?: SortOrder
+    originalFileSize?: SortOrder
+    fileSize?: SortOrder
+    checksum?: SortOrder
+    width?: SortOrderInput | SortOrder
+    height?: SortOrderInput | SortOrder
+    storageKey?: SortOrder
+    storageProvider?: SortOrder
+    originalUrl?: SortOrder
+    thumbnailUrl?: SortOrderInput | SortOrder
+    mediumUrl?: SortOrderInput | SortOrder
+    largeUrl?: SortOrderInput | SortOrder
+    status?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    _count?: MediaCountOrderByAggregateInput
+    _avg?: MediaAvgOrderByAggregateInput
+    _max?: MediaMaxOrderByAggregateInput
+    _min?: MediaMinOrderByAggregateInput
+    _sum?: MediaSumOrderByAggregateInput
+  }
+
+  export type MediaScalarWhereWithAggregatesInput = {
+    AND?: MediaScalarWhereWithAggregatesInput | MediaScalarWhereWithAggregatesInput[]
+    OR?: MediaScalarWhereWithAggregatesInput[]
+    NOT?: MediaScalarWhereWithAggregatesInput | MediaScalarWhereWithAggregatesInput[]
+    id?: UuidWithAggregatesFilter<"Media"> | string
+    tenantId?: UuidWithAggregatesFilter<"Media"> | string
+    entityType?: StringWithAggregatesFilter<"Media"> | string
+    entityId?: StringWithAggregatesFilter<"Media"> | string
+    mediaType?: EnumMediaTypeWithAggregatesFilter<"Media"> | $Enums.MediaType
+    originalName?: StringWithAggregatesFilter<"Media"> | string
+    mimeType?: StringWithAggregatesFilter<"Media"> | string
+    originalFileSize?: IntWithAggregatesFilter<"Media"> | number
+    fileSize?: IntWithAggregatesFilter<"Media"> | number
+    checksum?: StringWithAggregatesFilter<"Media"> | string
+    width?: IntNullableWithAggregatesFilter<"Media"> | number | null
+    height?: IntNullableWithAggregatesFilter<"Media"> | number | null
+    storageKey?: StringWithAggregatesFilter<"Media"> | string
+    storageProvider?: StringWithAggregatesFilter<"Media"> | string
+    originalUrl?: StringWithAggregatesFilter<"Media"> | string
+    thumbnailUrl?: StringNullableWithAggregatesFilter<"Media"> | string | null
+    mediumUrl?: StringNullableWithAggregatesFilter<"Media"> | string | null
+    largeUrl?: StringNullableWithAggregatesFilter<"Media"> | string | null
+    status?: StringWithAggregatesFilter<"Media"> | string
+    createdAt?: DateTimeWithAggregatesFilter<"Media"> | Date | string
+    updatedAt?: DateTimeWithAggregatesFilter<"Media"> | Date | string
+  }
+
   export type TenantCreateInput = {
     id?: string
     name: string
@@ -37738,6 +39224,7 @@ export namespace Prisma {
     kitchenQueues?: KitchenQueueCreateNestedManyWithoutTenantInput
     sessionLogs?: SessionLogCreateNestedManyWithoutTenantInput
     webhooks?: WebhookCreateNestedManyWithoutTenantInput
+    media?: MediaCreateNestedManyWithoutTenantInput
   }
 
   export type TenantUncheckedCreateInput = {
@@ -37776,6 +39263,7 @@ export namespace Prisma {
     kitchenQueues?: KitchenQueueUncheckedCreateNestedManyWithoutTenantInput
     sessionLogs?: SessionLogUncheckedCreateNestedManyWithoutTenantInput
     webhooks?: WebhookUncheckedCreateNestedManyWithoutTenantInput
+    media?: MediaUncheckedCreateNestedManyWithoutTenantInput
   }
 
   export type TenantUpdateInput = {
@@ -37814,6 +39302,7 @@ export namespace Prisma {
     kitchenQueues?: KitchenQueueUpdateManyWithoutTenantNestedInput
     sessionLogs?: SessionLogUpdateManyWithoutTenantNestedInput
     webhooks?: WebhookUpdateManyWithoutTenantNestedInput
+    media?: MediaUpdateManyWithoutTenantNestedInput
   }
 
   export type TenantUncheckedUpdateInput = {
@@ -37852,6 +39341,7 @@ export namespace Prisma {
     kitchenQueues?: KitchenQueueUncheckedUpdateManyWithoutTenantNestedInput
     sessionLogs?: SessionLogUncheckedUpdateManyWithoutTenantNestedInput
     webhooks?: WebhookUncheckedUpdateManyWithoutTenantNestedInput
+    media?: MediaUncheckedUpdateManyWithoutTenantNestedInput
   }
 
   export type TenantCreateManyInput = {
@@ -40309,6 +41799,173 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
+  export type MediaCreateInput = {
+    id?: string
+    entityType: string
+    entityId: string
+    mediaType: $Enums.MediaType
+    originalName: string
+    mimeType: string
+    originalFileSize: number
+    fileSize: number
+    checksum: string
+    width?: number | null
+    height?: number | null
+    storageKey: string
+    storageProvider?: string
+    originalUrl: string
+    thumbnailUrl?: string | null
+    mediumUrl?: string | null
+    largeUrl?: string | null
+    status?: string
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    tenant: TenantCreateNestedOneWithoutMediaInput
+  }
+
+  export type MediaUncheckedCreateInput = {
+    id?: string
+    tenantId: string
+    entityType: string
+    entityId: string
+    mediaType: $Enums.MediaType
+    originalName: string
+    mimeType: string
+    originalFileSize: number
+    fileSize: number
+    checksum: string
+    width?: number | null
+    height?: number | null
+    storageKey: string
+    storageProvider?: string
+    originalUrl: string
+    thumbnailUrl?: string | null
+    mediumUrl?: string | null
+    largeUrl?: string | null
+    status?: string
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type MediaUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    entityType?: StringFieldUpdateOperationsInput | string
+    entityId?: StringFieldUpdateOperationsInput | string
+    mediaType?: EnumMediaTypeFieldUpdateOperationsInput | $Enums.MediaType
+    originalName?: StringFieldUpdateOperationsInput | string
+    mimeType?: StringFieldUpdateOperationsInput | string
+    originalFileSize?: IntFieldUpdateOperationsInput | number
+    fileSize?: IntFieldUpdateOperationsInput | number
+    checksum?: StringFieldUpdateOperationsInput | string
+    width?: NullableIntFieldUpdateOperationsInput | number | null
+    height?: NullableIntFieldUpdateOperationsInput | number | null
+    storageKey?: StringFieldUpdateOperationsInput | string
+    storageProvider?: StringFieldUpdateOperationsInput | string
+    originalUrl?: StringFieldUpdateOperationsInput | string
+    thumbnailUrl?: NullableStringFieldUpdateOperationsInput | string | null
+    mediumUrl?: NullableStringFieldUpdateOperationsInput | string | null
+    largeUrl?: NullableStringFieldUpdateOperationsInput | string | null
+    status?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    tenant?: TenantUpdateOneRequiredWithoutMediaNestedInput
+  }
+
+  export type MediaUncheckedUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    tenantId?: StringFieldUpdateOperationsInput | string
+    entityType?: StringFieldUpdateOperationsInput | string
+    entityId?: StringFieldUpdateOperationsInput | string
+    mediaType?: EnumMediaTypeFieldUpdateOperationsInput | $Enums.MediaType
+    originalName?: StringFieldUpdateOperationsInput | string
+    mimeType?: StringFieldUpdateOperationsInput | string
+    originalFileSize?: IntFieldUpdateOperationsInput | number
+    fileSize?: IntFieldUpdateOperationsInput | number
+    checksum?: StringFieldUpdateOperationsInput | string
+    width?: NullableIntFieldUpdateOperationsInput | number | null
+    height?: NullableIntFieldUpdateOperationsInput | number | null
+    storageKey?: StringFieldUpdateOperationsInput | string
+    storageProvider?: StringFieldUpdateOperationsInput | string
+    originalUrl?: StringFieldUpdateOperationsInput | string
+    thumbnailUrl?: NullableStringFieldUpdateOperationsInput | string | null
+    mediumUrl?: NullableStringFieldUpdateOperationsInput | string | null
+    largeUrl?: NullableStringFieldUpdateOperationsInput | string | null
+    status?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type MediaCreateManyInput = {
+    id?: string
+    tenantId: string
+    entityType: string
+    entityId: string
+    mediaType: $Enums.MediaType
+    originalName: string
+    mimeType: string
+    originalFileSize: number
+    fileSize: number
+    checksum: string
+    width?: number | null
+    height?: number | null
+    storageKey: string
+    storageProvider?: string
+    originalUrl: string
+    thumbnailUrl?: string | null
+    mediumUrl?: string | null
+    largeUrl?: string | null
+    status?: string
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type MediaUpdateManyMutationInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    entityType?: StringFieldUpdateOperationsInput | string
+    entityId?: StringFieldUpdateOperationsInput | string
+    mediaType?: EnumMediaTypeFieldUpdateOperationsInput | $Enums.MediaType
+    originalName?: StringFieldUpdateOperationsInput | string
+    mimeType?: StringFieldUpdateOperationsInput | string
+    originalFileSize?: IntFieldUpdateOperationsInput | number
+    fileSize?: IntFieldUpdateOperationsInput | number
+    checksum?: StringFieldUpdateOperationsInput | string
+    width?: NullableIntFieldUpdateOperationsInput | number | null
+    height?: NullableIntFieldUpdateOperationsInput | number | null
+    storageKey?: StringFieldUpdateOperationsInput | string
+    storageProvider?: StringFieldUpdateOperationsInput | string
+    originalUrl?: StringFieldUpdateOperationsInput | string
+    thumbnailUrl?: NullableStringFieldUpdateOperationsInput | string | null
+    mediumUrl?: NullableStringFieldUpdateOperationsInput | string | null
+    largeUrl?: NullableStringFieldUpdateOperationsInput | string | null
+    status?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type MediaUncheckedUpdateManyInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    tenantId?: StringFieldUpdateOperationsInput | string
+    entityType?: StringFieldUpdateOperationsInput | string
+    entityId?: StringFieldUpdateOperationsInput | string
+    mediaType?: EnumMediaTypeFieldUpdateOperationsInput | $Enums.MediaType
+    originalName?: StringFieldUpdateOperationsInput | string
+    mimeType?: StringFieldUpdateOperationsInput | string
+    originalFileSize?: IntFieldUpdateOperationsInput | number
+    fileSize?: IntFieldUpdateOperationsInput | number
+    checksum?: StringFieldUpdateOperationsInput | string
+    width?: NullableIntFieldUpdateOperationsInput | number | null
+    height?: NullableIntFieldUpdateOperationsInput | number | null
+    storageKey?: StringFieldUpdateOperationsInput | string
+    storageProvider?: StringFieldUpdateOperationsInput | string
+    originalUrl?: StringFieldUpdateOperationsInput | string
+    thumbnailUrl?: NullableStringFieldUpdateOperationsInput | string | null
+    mediumUrl?: NullableStringFieldUpdateOperationsInput | string | null
+    largeUrl?: NullableStringFieldUpdateOperationsInput | string | null
+    status?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
   export type UuidFilter<$PrismaModel = never> = {
     equals?: string | StringFieldRefInput<$PrismaModel>
     in?: string[] | ListStringFieldRefInput<$PrismaModel>
@@ -40511,6 +42168,12 @@ export namespace Prisma {
     none?: WebhookWhereInput
   }
 
+  export type MediaListRelationFilter = {
+    every?: MediaWhereInput
+    some?: MediaWhereInput
+    none?: MediaWhereInput
+  }
+
   export type SortOrderInput = {
     sort: SortOrder
     nulls?: NullsOrder
@@ -40597,6 +42260,10 @@ export namespace Prisma {
   }
 
   export type WebhookOrderByRelationAggregateInput = {
+    _count?: SortOrder
+  }
+
+  export type MediaOrderByRelationAggregateInput = {
     _count?: SortOrder
   }
 
@@ -42408,6 +44075,109 @@ export namespace Prisma {
     createdAt?: SortOrder
   }
 
+  export type EnumMediaTypeFilter<$PrismaModel = never> = {
+    equals?: $Enums.MediaType | EnumMediaTypeFieldRefInput<$PrismaModel>
+    in?: $Enums.MediaType[] | ListEnumMediaTypeFieldRefInput<$PrismaModel>
+    notIn?: $Enums.MediaType[] | ListEnumMediaTypeFieldRefInput<$PrismaModel>
+    not?: NestedEnumMediaTypeFilter<$PrismaModel> | $Enums.MediaType
+  }
+
+  export type MediaCountOrderByAggregateInput = {
+    id?: SortOrder
+    tenantId?: SortOrder
+    entityType?: SortOrder
+    entityId?: SortOrder
+    mediaType?: SortOrder
+    originalName?: SortOrder
+    mimeType?: SortOrder
+    originalFileSize?: SortOrder
+    fileSize?: SortOrder
+    checksum?: SortOrder
+    width?: SortOrder
+    height?: SortOrder
+    storageKey?: SortOrder
+    storageProvider?: SortOrder
+    originalUrl?: SortOrder
+    thumbnailUrl?: SortOrder
+    mediumUrl?: SortOrder
+    largeUrl?: SortOrder
+    status?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type MediaAvgOrderByAggregateInput = {
+    originalFileSize?: SortOrder
+    fileSize?: SortOrder
+    width?: SortOrder
+    height?: SortOrder
+  }
+
+  export type MediaMaxOrderByAggregateInput = {
+    id?: SortOrder
+    tenantId?: SortOrder
+    entityType?: SortOrder
+    entityId?: SortOrder
+    mediaType?: SortOrder
+    originalName?: SortOrder
+    mimeType?: SortOrder
+    originalFileSize?: SortOrder
+    fileSize?: SortOrder
+    checksum?: SortOrder
+    width?: SortOrder
+    height?: SortOrder
+    storageKey?: SortOrder
+    storageProvider?: SortOrder
+    originalUrl?: SortOrder
+    thumbnailUrl?: SortOrder
+    mediumUrl?: SortOrder
+    largeUrl?: SortOrder
+    status?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type MediaMinOrderByAggregateInput = {
+    id?: SortOrder
+    tenantId?: SortOrder
+    entityType?: SortOrder
+    entityId?: SortOrder
+    mediaType?: SortOrder
+    originalName?: SortOrder
+    mimeType?: SortOrder
+    originalFileSize?: SortOrder
+    fileSize?: SortOrder
+    checksum?: SortOrder
+    width?: SortOrder
+    height?: SortOrder
+    storageKey?: SortOrder
+    storageProvider?: SortOrder
+    originalUrl?: SortOrder
+    thumbnailUrl?: SortOrder
+    mediumUrl?: SortOrder
+    largeUrl?: SortOrder
+    status?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type MediaSumOrderByAggregateInput = {
+    originalFileSize?: SortOrder
+    fileSize?: SortOrder
+    width?: SortOrder
+    height?: SortOrder
+  }
+
+  export type EnumMediaTypeWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: $Enums.MediaType | EnumMediaTypeFieldRefInput<$PrismaModel>
+    in?: $Enums.MediaType[] | ListEnumMediaTypeFieldRefInput<$PrismaModel>
+    notIn?: $Enums.MediaType[] | ListEnumMediaTypeFieldRefInput<$PrismaModel>
+    not?: NestedEnumMediaTypeWithAggregatesFilter<$PrismaModel> | $Enums.MediaType
+    _count?: NestedIntFilter<$PrismaModel>
+    _min?: NestedEnumMediaTypeFilter<$PrismaModel>
+    _max?: NestedEnumMediaTypeFilter<$PrismaModel>
+  }
+
   export type SubscriptionCreateNestedOneWithoutTenantInput = {
     create?: XOR<SubscriptionCreateWithoutTenantInput, SubscriptionUncheckedCreateWithoutTenantInput>
     connectOrCreate?: SubscriptionCreateOrConnectWithoutTenantInput
@@ -42561,6 +44331,13 @@ export namespace Prisma {
     connect?: WebhookWhereUniqueInput | WebhookWhereUniqueInput[]
   }
 
+  export type MediaCreateNestedManyWithoutTenantInput = {
+    create?: XOR<MediaCreateWithoutTenantInput, MediaUncheckedCreateWithoutTenantInput> | MediaCreateWithoutTenantInput[] | MediaUncheckedCreateWithoutTenantInput[]
+    connectOrCreate?: MediaCreateOrConnectWithoutTenantInput | MediaCreateOrConnectWithoutTenantInput[]
+    createMany?: MediaCreateManyTenantInputEnvelope
+    connect?: MediaWhereUniqueInput | MediaWhereUniqueInput[]
+  }
+
   export type SubscriptionUncheckedCreateNestedOneWithoutTenantInput = {
     create?: XOR<SubscriptionCreateWithoutTenantInput, SubscriptionUncheckedCreateWithoutTenantInput>
     connectOrCreate?: SubscriptionCreateOrConnectWithoutTenantInput
@@ -42712,6 +44489,13 @@ export namespace Prisma {
     connectOrCreate?: WebhookCreateOrConnectWithoutTenantInput | WebhookCreateOrConnectWithoutTenantInput[]
     createMany?: WebhookCreateManyTenantInputEnvelope
     connect?: WebhookWhereUniqueInput | WebhookWhereUniqueInput[]
+  }
+
+  export type MediaUncheckedCreateNestedManyWithoutTenantInput = {
+    create?: XOR<MediaCreateWithoutTenantInput, MediaUncheckedCreateWithoutTenantInput> | MediaCreateWithoutTenantInput[] | MediaUncheckedCreateWithoutTenantInput[]
+    connectOrCreate?: MediaCreateOrConnectWithoutTenantInput | MediaCreateOrConnectWithoutTenantInput[]
+    createMany?: MediaCreateManyTenantInputEnvelope
+    connect?: MediaWhereUniqueInput | MediaWhereUniqueInput[]
   }
 
   export type StringFieldUpdateOperationsInput = {
@@ -43038,6 +44822,20 @@ export namespace Prisma {
     deleteMany?: WebhookScalarWhereInput | WebhookScalarWhereInput[]
   }
 
+  export type MediaUpdateManyWithoutTenantNestedInput = {
+    create?: XOR<MediaCreateWithoutTenantInput, MediaUncheckedCreateWithoutTenantInput> | MediaCreateWithoutTenantInput[] | MediaUncheckedCreateWithoutTenantInput[]
+    connectOrCreate?: MediaCreateOrConnectWithoutTenantInput | MediaCreateOrConnectWithoutTenantInput[]
+    upsert?: MediaUpsertWithWhereUniqueWithoutTenantInput | MediaUpsertWithWhereUniqueWithoutTenantInput[]
+    createMany?: MediaCreateManyTenantInputEnvelope
+    set?: MediaWhereUniqueInput | MediaWhereUniqueInput[]
+    disconnect?: MediaWhereUniqueInput | MediaWhereUniqueInput[]
+    delete?: MediaWhereUniqueInput | MediaWhereUniqueInput[]
+    connect?: MediaWhereUniqueInput | MediaWhereUniqueInput[]
+    update?: MediaUpdateWithWhereUniqueWithoutTenantInput | MediaUpdateWithWhereUniqueWithoutTenantInput[]
+    updateMany?: MediaUpdateManyWithWhereWithoutTenantInput | MediaUpdateManyWithWhereWithoutTenantInput[]
+    deleteMany?: MediaScalarWhereInput | MediaScalarWhereInput[]
+  }
+
   export type SubscriptionUncheckedUpdateOneWithoutTenantNestedInput = {
     create?: XOR<SubscriptionCreateWithoutTenantInput, SubscriptionUncheckedCreateWithoutTenantInput>
     connectOrCreate?: SubscriptionCreateOrConnectWithoutTenantInput
@@ -43340,6 +45138,20 @@ export namespace Prisma {
     update?: WebhookUpdateWithWhereUniqueWithoutTenantInput | WebhookUpdateWithWhereUniqueWithoutTenantInput[]
     updateMany?: WebhookUpdateManyWithWhereWithoutTenantInput | WebhookUpdateManyWithWhereWithoutTenantInput[]
     deleteMany?: WebhookScalarWhereInput | WebhookScalarWhereInput[]
+  }
+
+  export type MediaUncheckedUpdateManyWithoutTenantNestedInput = {
+    create?: XOR<MediaCreateWithoutTenantInput, MediaUncheckedCreateWithoutTenantInput> | MediaCreateWithoutTenantInput[] | MediaUncheckedCreateWithoutTenantInput[]
+    connectOrCreate?: MediaCreateOrConnectWithoutTenantInput | MediaCreateOrConnectWithoutTenantInput[]
+    upsert?: MediaUpsertWithWhereUniqueWithoutTenantInput | MediaUpsertWithWhereUniqueWithoutTenantInput[]
+    createMany?: MediaCreateManyTenantInputEnvelope
+    set?: MediaWhereUniqueInput | MediaWhereUniqueInput[]
+    disconnect?: MediaWhereUniqueInput | MediaWhereUniqueInput[]
+    delete?: MediaWhereUniqueInput | MediaWhereUniqueInput[]
+    connect?: MediaWhereUniqueInput | MediaWhereUniqueInput[]
+    update?: MediaUpdateWithWhereUniqueWithoutTenantInput | MediaUpdateWithWhereUniqueWithoutTenantInput[]
+    updateMany?: MediaUpdateManyWithWhereWithoutTenantInput | MediaUpdateManyWithWhereWithoutTenantInput[]
+    deleteMany?: MediaScalarWhereInput | MediaScalarWhereInput[]
   }
 
   export type SubscriptionCreateNestedManyWithoutPlanInput = {
@@ -45295,6 +47107,24 @@ export namespace Prisma {
     update?: XOR<XOR<TenantUpdateToOneWithWhereWithoutWebhooksInput, TenantUpdateWithoutWebhooksInput>, TenantUncheckedUpdateWithoutWebhooksInput>
   }
 
+  export type TenantCreateNestedOneWithoutMediaInput = {
+    create?: XOR<TenantCreateWithoutMediaInput, TenantUncheckedCreateWithoutMediaInput>
+    connectOrCreate?: TenantCreateOrConnectWithoutMediaInput
+    connect?: TenantWhereUniqueInput
+  }
+
+  export type EnumMediaTypeFieldUpdateOperationsInput = {
+    set?: $Enums.MediaType
+  }
+
+  export type TenantUpdateOneRequiredWithoutMediaNestedInput = {
+    create?: XOR<TenantCreateWithoutMediaInput, TenantUncheckedCreateWithoutMediaInput>
+    connectOrCreate?: TenantCreateOrConnectWithoutMediaInput
+    upsert?: TenantUpsertWithoutMediaInput
+    connect?: TenantWhereUniqueInput
+    update?: XOR<XOR<TenantUpdateToOneWithWhereWithoutMediaInput, TenantUpdateWithoutMediaInput>, TenantUncheckedUpdateWithoutMediaInput>
+  }
+
   export type NestedUuidFilter<$PrismaModel = never> = {
     equals?: string | StringFieldRefInput<$PrismaModel>
     in?: string[] | ListStringFieldRefInput<$PrismaModel>
@@ -45778,6 +47608,23 @@ export namespace Prisma {
     gt?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
     gte?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
     not?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | JsonNullValueFilter
+  }
+
+  export type NestedEnumMediaTypeFilter<$PrismaModel = never> = {
+    equals?: $Enums.MediaType | EnumMediaTypeFieldRefInput<$PrismaModel>
+    in?: $Enums.MediaType[] | ListEnumMediaTypeFieldRefInput<$PrismaModel>
+    notIn?: $Enums.MediaType[] | ListEnumMediaTypeFieldRefInput<$PrismaModel>
+    not?: NestedEnumMediaTypeFilter<$PrismaModel> | $Enums.MediaType
+  }
+
+  export type NestedEnumMediaTypeWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: $Enums.MediaType | EnumMediaTypeFieldRefInput<$PrismaModel>
+    in?: $Enums.MediaType[] | ListEnumMediaTypeFieldRefInput<$PrismaModel>
+    notIn?: $Enums.MediaType[] | ListEnumMediaTypeFieldRefInput<$PrismaModel>
+    not?: NestedEnumMediaTypeWithAggregatesFilter<$PrismaModel> | $Enums.MediaType
+    _count?: NestedIntFilter<$PrismaModel>
+    _min?: NestedEnumMediaTypeFilter<$PrismaModel>
+    _max?: NestedEnumMediaTypeFilter<$PrismaModel>
   }
 
   export type SubscriptionCreateWithoutTenantInput = {
@@ -46547,6 +48394,62 @@ export namespace Prisma {
     skipDuplicates?: boolean
   }
 
+  export type MediaCreateWithoutTenantInput = {
+    id?: string
+    entityType: string
+    entityId: string
+    mediaType: $Enums.MediaType
+    originalName: string
+    mimeType: string
+    originalFileSize: number
+    fileSize: number
+    checksum: string
+    width?: number | null
+    height?: number | null
+    storageKey: string
+    storageProvider?: string
+    originalUrl: string
+    thumbnailUrl?: string | null
+    mediumUrl?: string | null
+    largeUrl?: string | null
+    status?: string
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type MediaUncheckedCreateWithoutTenantInput = {
+    id?: string
+    entityType: string
+    entityId: string
+    mediaType: $Enums.MediaType
+    originalName: string
+    mimeType: string
+    originalFileSize: number
+    fileSize: number
+    checksum: string
+    width?: number | null
+    height?: number | null
+    storageKey: string
+    storageProvider?: string
+    originalUrl: string
+    thumbnailUrl?: string | null
+    mediumUrl?: string | null
+    largeUrl?: string | null
+    status?: string
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type MediaCreateOrConnectWithoutTenantInput = {
+    where: MediaWhereUniqueInput
+    create: XOR<MediaCreateWithoutTenantInput, MediaUncheckedCreateWithoutTenantInput>
+  }
+
+  export type MediaCreateManyTenantInputEnvelope = {
+    data: MediaCreateManyTenantInput | MediaCreateManyTenantInput[]
+    skipDuplicates?: boolean
+  }
+
   export type SubscriptionUpsertWithoutTenantInput = {
     update: XOR<SubscriptionUpdateWithoutTenantInput, SubscriptionUncheckedUpdateWithoutTenantInput>
     create: XOR<SubscriptionCreateWithoutTenantInput, SubscriptionUncheckedCreateWithoutTenantInput>
@@ -47243,6 +49146,49 @@ export namespace Prisma {
     createdAt?: DateTimeFilter<"Webhook"> | Date | string
   }
 
+  export type MediaUpsertWithWhereUniqueWithoutTenantInput = {
+    where: MediaWhereUniqueInput
+    update: XOR<MediaUpdateWithoutTenantInput, MediaUncheckedUpdateWithoutTenantInput>
+    create: XOR<MediaCreateWithoutTenantInput, MediaUncheckedCreateWithoutTenantInput>
+  }
+
+  export type MediaUpdateWithWhereUniqueWithoutTenantInput = {
+    where: MediaWhereUniqueInput
+    data: XOR<MediaUpdateWithoutTenantInput, MediaUncheckedUpdateWithoutTenantInput>
+  }
+
+  export type MediaUpdateManyWithWhereWithoutTenantInput = {
+    where: MediaScalarWhereInput
+    data: XOR<MediaUpdateManyMutationInput, MediaUncheckedUpdateManyWithoutTenantInput>
+  }
+
+  export type MediaScalarWhereInput = {
+    AND?: MediaScalarWhereInput | MediaScalarWhereInput[]
+    OR?: MediaScalarWhereInput[]
+    NOT?: MediaScalarWhereInput | MediaScalarWhereInput[]
+    id?: UuidFilter<"Media"> | string
+    tenantId?: UuidFilter<"Media"> | string
+    entityType?: StringFilter<"Media"> | string
+    entityId?: StringFilter<"Media"> | string
+    mediaType?: EnumMediaTypeFilter<"Media"> | $Enums.MediaType
+    originalName?: StringFilter<"Media"> | string
+    mimeType?: StringFilter<"Media"> | string
+    originalFileSize?: IntFilter<"Media"> | number
+    fileSize?: IntFilter<"Media"> | number
+    checksum?: StringFilter<"Media"> | string
+    width?: IntNullableFilter<"Media"> | number | null
+    height?: IntNullableFilter<"Media"> | number | null
+    storageKey?: StringFilter<"Media"> | string
+    storageProvider?: StringFilter<"Media"> | string
+    originalUrl?: StringFilter<"Media"> | string
+    thumbnailUrl?: StringNullableFilter<"Media"> | string | null
+    mediumUrl?: StringNullableFilter<"Media"> | string | null
+    largeUrl?: StringNullableFilter<"Media"> | string | null
+    status?: StringFilter<"Media"> | string
+    createdAt?: DateTimeFilter<"Media"> | Date | string
+    updatedAt?: DateTimeFilter<"Media"> | Date | string
+  }
+
   export type SubscriptionCreateWithoutPlanInput = {
     id?: string
     stripeSubscriptionId?: string | null
@@ -47353,6 +49299,7 @@ export namespace Prisma {
     kitchenQueues?: KitchenQueueCreateNestedManyWithoutTenantInput
     sessionLogs?: SessionLogCreateNestedManyWithoutTenantInput
     webhooks?: WebhookCreateNestedManyWithoutTenantInput
+    media?: MediaCreateNestedManyWithoutTenantInput
   }
 
   export type TenantUncheckedCreateWithoutSubscriptionsInput = {
@@ -47390,6 +49337,7 @@ export namespace Prisma {
     kitchenQueues?: KitchenQueueUncheckedCreateNestedManyWithoutTenantInput
     sessionLogs?: SessionLogUncheckedCreateNestedManyWithoutTenantInput
     webhooks?: WebhookUncheckedCreateNestedManyWithoutTenantInput
+    media?: MediaUncheckedCreateNestedManyWithoutTenantInput
   }
 
   export type TenantCreateOrConnectWithoutSubscriptionsInput = {
@@ -47482,6 +49430,7 @@ export namespace Prisma {
     kitchenQueues?: KitchenQueueUpdateManyWithoutTenantNestedInput
     sessionLogs?: SessionLogUpdateManyWithoutTenantNestedInput
     webhooks?: WebhookUpdateManyWithoutTenantNestedInput
+    media?: MediaUpdateManyWithoutTenantNestedInput
   }
 
   export type TenantUncheckedUpdateWithoutSubscriptionsInput = {
@@ -47519,6 +49468,7 @@ export namespace Prisma {
     kitchenQueues?: KitchenQueueUncheckedUpdateManyWithoutTenantNestedInput
     sessionLogs?: SessionLogUncheckedUpdateManyWithoutTenantNestedInput
     webhooks?: WebhookUncheckedUpdateManyWithoutTenantNestedInput
+    media?: MediaUncheckedUpdateManyWithoutTenantNestedInput
   }
 
   export type SubscriptionPlanUpsertWithoutSubscriptionsInput = {
@@ -47601,6 +49551,7 @@ export namespace Prisma {
     kitchenQueues?: KitchenQueueCreateNestedManyWithoutTenantInput
     sessionLogs?: SessionLogCreateNestedManyWithoutTenantInput
     webhooks?: WebhookCreateNestedManyWithoutTenantInput
+    media?: MediaCreateNestedManyWithoutTenantInput
   }
 
   export type TenantUncheckedCreateWithoutUsersInput = {
@@ -47638,6 +49589,7 @@ export namespace Prisma {
     kitchenQueues?: KitchenQueueUncheckedCreateNestedManyWithoutTenantInput
     sessionLogs?: SessionLogUncheckedCreateNestedManyWithoutTenantInput
     webhooks?: WebhookUncheckedCreateNestedManyWithoutTenantInput
+    media?: MediaUncheckedCreateNestedManyWithoutTenantInput
   }
 
   export type TenantCreateOrConnectWithoutUsersInput = {
@@ -47767,6 +49719,7 @@ export namespace Prisma {
     kitchenQueues?: KitchenQueueUpdateManyWithoutTenantNestedInput
     sessionLogs?: SessionLogUpdateManyWithoutTenantNestedInput
     webhooks?: WebhookUpdateManyWithoutTenantNestedInput
+    media?: MediaUpdateManyWithoutTenantNestedInput
   }
 
   export type TenantUncheckedUpdateWithoutUsersInput = {
@@ -47804,6 +49757,7 @@ export namespace Prisma {
     kitchenQueues?: KitchenQueueUncheckedUpdateManyWithoutTenantNestedInput
     sessionLogs?: SessionLogUncheckedUpdateManyWithoutTenantNestedInput
     webhooks?: WebhookUncheckedUpdateManyWithoutTenantNestedInput
+    media?: MediaUncheckedUpdateManyWithoutTenantNestedInput
   }
 
   export type UserRoleUpsertWithWhereUniqueWithoutUserInput = {
@@ -47898,6 +49852,7 @@ export namespace Prisma {
     kitchenQueues?: KitchenQueueCreateNestedManyWithoutTenantInput
     sessionLogs?: SessionLogCreateNestedManyWithoutTenantInput
     webhooks?: WebhookCreateNestedManyWithoutTenantInput
+    media?: MediaCreateNestedManyWithoutTenantInput
   }
 
   export type TenantUncheckedCreateWithoutRolesInput = {
@@ -47935,6 +49890,7 @@ export namespace Prisma {
     kitchenQueues?: KitchenQueueUncheckedCreateNestedManyWithoutTenantInput
     sessionLogs?: SessionLogUncheckedCreateNestedManyWithoutTenantInput
     webhooks?: WebhookUncheckedCreateNestedManyWithoutTenantInput
+    media?: MediaUncheckedCreateNestedManyWithoutTenantInput
   }
 
   export type TenantCreateOrConnectWithoutRolesInput = {
@@ -48028,6 +49984,7 @@ export namespace Prisma {
     kitchenQueues?: KitchenQueueUpdateManyWithoutTenantNestedInput
     sessionLogs?: SessionLogUpdateManyWithoutTenantNestedInput
     webhooks?: WebhookUpdateManyWithoutTenantNestedInput
+    media?: MediaUpdateManyWithoutTenantNestedInput
   }
 
   export type TenantUncheckedUpdateWithoutRolesInput = {
@@ -48065,6 +50022,7 @@ export namespace Prisma {
     kitchenQueues?: KitchenQueueUncheckedUpdateManyWithoutTenantNestedInput
     sessionLogs?: SessionLogUncheckedUpdateManyWithoutTenantNestedInput
     webhooks?: WebhookUncheckedUpdateManyWithoutTenantNestedInput
+    media?: MediaUncheckedUpdateManyWithoutTenantNestedInput
   }
 
   export type UserRoleUpsertWithWhereUniqueWithoutRoleInput = {
@@ -48439,6 +50397,7 @@ export namespace Prisma {
     kitchenQueues?: KitchenQueueCreateNestedManyWithoutTenantInput
     sessionLogs?: SessionLogCreateNestedManyWithoutTenantInput
     webhooks?: WebhookCreateNestedManyWithoutTenantInput
+    media?: MediaCreateNestedManyWithoutTenantInput
   }
 
   export type TenantUncheckedCreateWithoutRestaurantsInput = {
@@ -48476,6 +50435,7 @@ export namespace Prisma {
     kitchenQueues?: KitchenQueueUncheckedCreateNestedManyWithoutTenantInput
     sessionLogs?: SessionLogUncheckedCreateNestedManyWithoutTenantInput
     webhooks?: WebhookUncheckedCreateNestedManyWithoutTenantInput
+    media?: MediaUncheckedCreateNestedManyWithoutTenantInput
   }
 
   export type TenantCreateOrConnectWithoutRestaurantsInput = {
@@ -48609,6 +50569,7 @@ export namespace Prisma {
     kitchenQueues?: KitchenQueueUpdateManyWithoutTenantNestedInput
     sessionLogs?: SessionLogUpdateManyWithoutTenantNestedInput
     webhooks?: WebhookUpdateManyWithoutTenantNestedInput
+    media?: MediaUpdateManyWithoutTenantNestedInput
   }
 
   export type TenantUncheckedUpdateWithoutRestaurantsInput = {
@@ -48646,6 +50607,7 @@ export namespace Prisma {
     kitchenQueues?: KitchenQueueUncheckedUpdateManyWithoutTenantNestedInput
     sessionLogs?: SessionLogUncheckedUpdateManyWithoutTenantNestedInput
     webhooks?: WebhookUncheckedUpdateManyWithoutTenantNestedInput
+    media?: MediaUncheckedUpdateManyWithoutTenantNestedInput
   }
 
   export type BranchUpsertWithWhereUniqueWithoutRestaurantInput = {
@@ -48715,6 +50677,7 @@ export namespace Prisma {
     kitchenQueues?: KitchenQueueCreateNestedManyWithoutTenantInput
     sessionLogs?: SessionLogCreateNestedManyWithoutTenantInput
     webhooks?: WebhookCreateNestedManyWithoutTenantInput
+    media?: MediaCreateNestedManyWithoutTenantInput
   }
 
   export type TenantUncheckedCreateWithoutBranchesInput = {
@@ -48752,6 +50715,7 @@ export namespace Prisma {
     kitchenQueues?: KitchenQueueUncheckedCreateNestedManyWithoutTenantInput
     sessionLogs?: SessionLogUncheckedCreateNestedManyWithoutTenantInput
     webhooks?: WebhookUncheckedCreateNestedManyWithoutTenantInput
+    media?: MediaUncheckedCreateNestedManyWithoutTenantInput
   }
 
   export type TenantCreateOrConnectWithoutBranchesInput = {
@@ -48956,6 +50920,7 @@ export namespace Prisma {
     kitchenQueues?: KitchenQueueUpdateManyWithoutTenantNestedInput
     sessionLogs?: SessionLogUpdateManyWithoutTenantNestedInput
     webhooks?: WebhookUpdateManyWithoutTenantNestedInput
+    media?: MediaUpdateManyWithoutTenantNestedInput
   }
 
   export type TenantUncheckedUpdateWithoutBranchesInput = {
@@ -48993,6 +50958,7 @@ export namespace Prisma {
     kitchenQueues?: KitchenQueueUncheckedUpdateManyWithoutTenantNestedInput
     sessionLogs?: SessionLogUncheckedUpdateManyWithoutTenantNestedInput
     webhooks?: WebhookUncheckedUpdateManyWithoutTenantNestedInput
+    media?: MediaUncheckedUpdateManyWithoutTenantNestedInput
   }
 
   export type RestaurantUpsertWithoutBranchesInput = {
@@ -49115,6 +51081,7 @@ export namespace Prisma {
     kitchenQueues?: KitchenQueueCreateNestedManyWithoutTenantInput
     sessionLogs?: SessionLogCreateNestedManyWithoutTenantInput
     webhooks?: WebhookCreateNestedManyWithoutTenantInput
+    media?: MediaCreateNestedManyWithoutTenantInput
   }
 
   export type TenantUncheckedCreateWithoutTablesInput = {
@@ -49152,6 +51119,7 @@ export namespace Prisma {
     kitchenQueues?: KitchenQueueUncheckedCreateNestedManyWithoutTenantInput
     sessionLogs?: SessionLogUncheckedCreateNestedManyWithoutTenantInput
     webhooks?: WebhookUncheckedCreateNestedManyWithoutTenantInput
+    media?: MediaUncheckedCreateNestedManyWithoutTenantInput
   }
 
   export type TenantCreateOrConnectWithoutTablesInput = {
@@ -49300,6 +51268,7 @@ export namespace Prisma {
     kitchenQueues?: KitchenQueueUpdateManyWithoutTenantNestedInput
     sessionLogs?: SessionLogUpdateManyWithoutTenantNestedInput
     webhooks?: WebhookUpdateManyWithoutTenantNestedInput
+    media?: MediaUpdateManyWithoutTenantNestedInput
   }
 
   export type TenantUncheckedUpdateWithoutTablesInput = {
@@ -49337,6 +51306,7 @@ export namespace Prisma {
     kitchenQueues?: KitchenQueueUncheckedUpdateManyWithoutTenantNestedInput
     sessionLogs?: SessionLogUncheckedUpdateManyWithoutTenantNestedInput
     webhooks?: WebhookUncheckedUpdateManyWithoutTenantNestedInput
+    media?: MediaUncheckedUpdateManyWithoutTenantNestedInput
   }
 
   export type BranchUpsertWithoutTablesInput = {
@@ -49437,6 +51407,7 @@ export namespace Prisma {
     kitchenQueues?: KitchenQueueCreateNestedManyWithoutTenantInput
     sessionLogs?: SessionLogCreateNestedManyWithoutTenantInput
     webhooks?: WebhookCreateNestedManyWithoutTenantInput
+    media?: MediaCreateNestedManyWithoutTenantInput
   }
 
   export type TenantUncheckedCreateWithoutCategoriesInput = {
@@ -49474,6 +51445,7 @@ export namespace Prisma {
     kitchenQueues?: KitchenQueueUncheckedCreateNestedManyWithoutTenantInput
     sessionLogs?: SessionLogUncheckedCreateNestedManyWithoutTenantInput
     webhooks?: WebhookUncheckedCreateNestedManyWithoutTenantInput
+    media?: MediaUncheckedCreateNestedManyWithoutTenantInput
   }
 
   export type TenantCreateOrConnectWithoutCategoriesInput = {
@@ -49606,6 +51578,7 @@ export namespace Prisma {
     kitchenQueues?: KitchenQueueUpdateManyWithoutTenantNestedInput
     sessionLogs?: SessionLogUpdateManyWithoutTenantNestedInput
     webhooks?: WebhookUpdateManyWithoutTenantNestedInput
+    media?: MediaUpdateManyWithoutTenantNestedInput
   }
 
   export type TenantUncheckedUpdateWithoutCategoriesInput = {
@@ -49643,6 +51616,7 @@ export namespace Prisma {
     kitchenQueues?: KitchenQueueUncheckedUpdateManyWithoutTenantNestedInput
     sessionLogs?: SessionLogUncheckedUpdateManyWithoutTenantNestedInput
     webhooks?: WebhookUncheckedUpdateManyWithoutTenantNestedInput
+    media?: MediaUncheckedUpdateManyWithoutTenantNestedInput
   }
 
   export type RestaurantUpsertWithoutCategoriesInput = {
@@ -49733,6 +51707,7 @@ export namespace Prisma {
     kitchenQueues?: KitchenQueueCreateNestedManyWithoutTenantInput
     sessionLogs?: SessionLogCreateNestedManyWithoutTenantInput
     webhooks?: WebhookCreateNestedManyWithoutTenantInput
+    media?: MediaCreateNestedManyWithoutTenantInput
   }
 
   export type TenantUncheckedCreateWithoutProductsInput = {
@@ -49770,6 +51745,7 @@ export namespace Prisma {
     kitchenQueues?: KitchenQueueUncheckedCreateNestedManyWithoutTenantInput
     sessionLogs?: SessionLogUncheckedCreateNestedManyWithoutTenantInput
     webhooks?: WebhookUncheckedCreateNestedManyWithoutTenantInput
+    media?: MediaUncheckedCreateNestedManyWithoutTenantInput
   }
 
   export type TenantCreateOrConnectWithoutProductsInput = {
@@ -49986,6 +51962,7 @@ export namespace Prisma {
     kitchenQueues?: KitchenQueueUpdateManyWithoutTenantNestedInput
     sessionLogs?: SessionLogUpdateManyWithoutTenantNestedInput
     webhooks?: WebhookUpdateManyWithoutTenantNestedInput
+    media?: MediaUpdateManyWithoutTenantNestedInput
   }
 
   export type TenantUncheckedUpdateWithoutProductsInput = {
@@ -50023,6 +52000,7 @@ export namespace Prisma {
     kitchenQueues?: KitchenQueueUncheckedUpdateManyWithoutTenantNestedInput
     sessionLogs?: SessionLogUncheckedUpdateManyWithoutTenantNestedInput
     webhooks?: WebhookUncheckedUpdateManyWithoutTenantNestedInput
+    media?: MediaUncheckedUpdateManyWithoutTenantNestedInput
   }
 
   export type CategoryUpsertWithoutProductsInput = {
@@ -50159,6 +52137,7 @@ export namespace Prisma {
     kitchenQueues?: KitchenQueueCreateNestedManyWithoutTenantInput
     sessionLogs?: SessionLogCreateNestedManyWithoutTenantInput
     webhooks?: WebhookCreateNestedManyWithoutTenantInput
+    media?: MediaCreateNestedManyWithoutTenantInput
   }
 
   export type TenantUncheckedCreateWithoutProductSizesInput = {
@@ -50196,6 +52175,7 @@ export namespace Prisma {
     kitchenQueues?: KitchenQueueUncheckedCreateNestedManyWithoutTenantInput
     sessionLogs?: SessionLogUncheckedCreateNestedManyWithoutTenantInput
     webhooks?: WebhookUncheckedCreateNestedManyWithoutTenantInput
+    media?: MediaUncheckedCreateNestedManyWithoutTenantInput
   }
 
   export type TenantCreateOrConnectWithoutProductSizesInput = {
@@ -50330,6 +52310,7 @@ export namespace Prisma {
     kitchenQueues?: KitchenQueueUpdateManyWithoutTenantNestedInput
     sessionLogs?: SessionLogUpdateManyWithoutTenantNestedInput
     webhooks?: WebhookUpdateManyWithoutTenantNestedInput
+    media?: MediaUpdateManyWithoutTenantNestedInput
   }
 
   export type TenantUncheckedUpdateWithoutProductSizesInput = {
@@ -50367,6 +52348,7 @@ export namespace Prisma {
     kitchenQueues?: KitchenQueueUncheckedUpdateManyWithoutTenantNestedInput
     sessionLogs?: SessionLogUncheckedUpdateManyWithoutTenantNestedInput
     webhooks?: WebhookUncheckedUpdateManyWithoutTenantNestedInput
+    media?: MediaUncheckedUpdateManyWithoutTenantNestedInput
   }
 
   export type ProductUpsertWithoutProductSizesInput = {
@@ -50469,6 +52451,7 @@ export namespace Prisma {
     kitchenQueues?: KitchenQueueCreateNestedManyWithoutTenantInput
     sessionLogs?: SessionLogCreateNestedManyWithoutTenantInput
     webhooks?: WebhookCreateNestedManyWithoutTenantInput
+    media?: MediaCreateNestedManyWithoutTenantInput
   }
 
   export type TenantUncheckedCreateWithoutProductVariantsInput = {
@@ -50506,6 +52489,7 @@ export namespace Prisma {
     kitchenQueues?: KitchenQueueUncheckedCreateNestedManyWithoutTenantInput
     sessionLogs?: SessionLogUncheckedCreateNestedManyWithoutTenantInput
     webhooks?: WebhookUncheckedCreateNestedManyWithoutTenantInput
+    media?: MediaUncheckedCreateNestedManyWithoutTenantInput
   }
 
   export type TenantCreateOrConnectWithoutProductVariantsInput = {
@@ -50640,6 +52624,7 @@ export namespace Prisma {
     kitchenQueues?: KitchenQueueUpdateManyWithoutTenantNestedInput
     sessionLogs?: SessionLogUpdateManyWithoutTenantNestedInput
     webhooks?: WebhookUpdateManyWithoutTenantNestedInput
+    media?: MediaUpdateManyWithoutTenantNestedInput
   }
 
   export type TenantUncheckedUpdateWithoutProductVariantsInput = {
@@ -50677,6 +52662,7 @@ export namespace Prisma {
     kitchenQueues?: KitchenQueueUncheckedUpdateManyWithoutTenantNestedInput
     sessionLogs?: SessionLogUncheckedUpdateManyWithoutTenantNestedInput
     webhooks?: WebhookUncheckedUpdateManyWithoutTenantNestedInput
+    media?: MediaUncheckedUpdateManyWithoutTenantNestedInput
   }
 
   export type ProductUpsertWithoutProductVariantsInput = {
@@ -50779,6 +52765,7 @@ export namespace Prisma {
     kitchenQueues?: KitchenQueueCreateNestedManyWithoutTenantInput
     sessionLogs?: SessionLogCreateNestedManyWithoutTenantInput
     webhooks?: WebhookCreateNestedManyWithoutTenantInput
+    media?: MediaCreateNestedManyWithoutTenantInput
   }
 
   export type TenantUncheckedCreateWithoutProductAddonsInput = {
@@ -50816,6 +52803,7 @@ export namespace Prisma {
     kitchenQueues?: KitchenQueueUncheckedCreateNestedManyWithoutTenantInput
     sessionLogs?: SessionLogUncheckedCreateNestedManyWithoutTenantInput
     webhooks?: WebhookUncheckedCreateNestedManyWithoutTenantInput
+    media?: MediaUncheckedCreateNestedManyWithoutTenantInput
   }
 
   export type TenantCreateOrConnectWithoutProductAddonsInput = {
@@ -50944,6 +52932,7 @@ export namespace Prisma {
     kitchenQueues?: KitchenQueueUpdateManyWithoutTenantNestedInput
     sessionLogs?: SessionLogUpdateManyWithoutTenantNestedInput
     webhooks?: WebhookUpdateManyWithoutTenantNestedInput
+    media?: MediaUpdateManyWithoutTenantNestedInput
   }
 
   export type TenantUncheckedUpdateWithoutProductAddonsInput = {
@@ -50981,6 +52970,7 @@ export namespace Prisma {
     kitchenQueues?: KitchenQueueUncheckedUpdateManyWithoutTenantNestedInput
     sessionLogs?: SessionLogUncheckedUpdateManyWithoutTenantNestedInput
     webhooks?: WebhookUncheckedUpdateManyWithoutTenantNestedInput
+    media?: MediaUncheckedUpdateManyWithoutTenantNestedInput
   }
 
   export type ProductUpsertWithoutProductAddonsInput = {
@@ -51083,6 +53073,7 @@ export namespace Prisma {
     kitchenQueues?: KitchenQueueCreateNestedManyWithoutTenantInput
     sessionLogs?: SessionLogCreateNestedManyWithoutTenantInput
     webhooks?: WebhookCreateNestedManyWithoutTenantInput
+    media?: MediaCreateNestedManyWithoutTenantInput
   }
 
   export type TenantUncheckedCreateWithoutAddonItemsInput = {
@@ -51120,6 +53111,7 @@ export namespace Prisma {
     kitchenQueues?: KitchenQueueUncheckedCreateNestedManyWithoutTenantInput
     sessionLogs?: SessionLogUncheckedCreateNestedManyWithoutTenantInput
     webhooks?: WebhookUncheckedCreateNestedManyWithoutTenantInput
+    media?: MediaUncheckedCreateNestedManyWithoutTenantInput
   }
 
   export type TenantCreateOrConnectWithoutAddonItemsInput = {
@@ -51224,6 +53216,7 @@ export namespace Prisma {
     kitchenQueues?: KitchenQueueUpdateManyWithoutTenantNestedInput
     sessionLogs?: SessionLogUpdateManyWithoutTenantNestedInput
     webhooks?: WebhookUpdateManyWithoutTenantNestedInput
+    media?: MediaUpdateManyWithoutTenantNestedInput
   }
 
   export type TenantUncheckedUpdateWithoutAddonItemsInput = {
@@ -51261,6 +53254,7 @@ export namespace Prisma {
     kitchenQueues?: KitchenQueueUncheckedUpdateManyWithoutTenantNestedInput
     sessionLogs?: SessionLogUncheckedUpdateManyWithoutTenantNestedInput
     webhooks?: WebhookUncheckedUpdateManyWithoutTenantNestedInput
+    media?: MediaUncheckedUpdateManyWithoutTenantNestedInput
   }
 
   export type ProductAddonUpsertWithoutAddonItemsInput = {
@@ -51347,6 +53341,7 @@ export namespace Prisma {
     kitchenQueues?: KitchenQueueCreateNestedManyWithoutTenantInput
     sessionLogs?: SessionLogCreateNestedManyWithoutTenantInput
     webhooks?: WebhookCreateNestedManyWithoutTenantInput
+    media?: MediaCreateNestedManyWithoutTenantInput
   }
 
   export type TenantUncheckedCreateWithoutOrdersInput = {
@@ -51384,6 +53379,7 @@ export namespace Prisma {
     kitchenQueues?: KitchenQueueUncheckedCreateNestedManyWithoutTenantInput
     sessionLogs?: SessionLogUncheckedCreateNestedManyWithoutTenantInput
     webhooks?: WebhookUncheckedCreateNestedManyWithoutTenantInput
+    media?: MediaUncheckedCreateNestedManyWithoutTenantInput
   }
 
   export type TenantCreateOrConnectWithoutOrdersInput = {
@@ -51661,6 +53657,7 @@ export namespace Prisma {
     kitchenQueues?: KitchenQueueUpdateManyWithoutTenantNestedInput
     sessionLogs?: SessionLogUpdateManyWithoutTenantNestedInput
     webhooks?: WebhookUpdateManyWithoutTenantNestedInput
+    media?: MediaUpdateManyWithoutTenantNestedInput
   }
 
   export type TenantUncheckedUpdateWithoutOrdersInput = {
@@ -51698,6 +53695,7 @@ export namespace Prisma {
     kitchenQueues?: KitchenQueueUncheckedUpdateManyWithoutTenantNestedInput
     sessionLogs?: SessionLogUncheckedUpdateManyWithoutTenantNestedInput
     webhooks?: WebhookUncheckedUpdateManyWithoutTenantNestedInput
+    media?: MediaUncheckedUpdateManyWithoutTenantNestedInput
   }
 
   export type BranchUpsertWithoutOrdersInput = {
@@ -51931,6 +53929,7 @@ export namespace Prisma {
     kitchenQueues?: KitchenQueueCreateNestedManyWithoutTenantInput
     sessionLogs?: SessionLogCreateNestedManyWithoutTenantInput
     webhooks?: WebhookCreateNestedManyWithoutTenantInput
+    media?: MediaCreateNestedManyWithoutTenantInput
   }
 
   export type TenantUncheckedCreateWithoutOrderItemsInput = {
@@ -51968,6 +53967,7 @@ export namespace Prisma {
     kitchenQueues?: KitchenQueueUncheckedCreateNestedManyWithoutTenantInput
     sessionLogs?: SessionLogUncheckedCreateNestedManyWithoutTenantInput
     webhooks?: WebhookUncheckedCreateNestedManyWithoutTenantInput
+    media?: MediaUncheckedCreateNestedManyWithoutTenantInput
   }
 
   export type TenantCreateOrConnectWithoutOrderItemsInput = {
@@ -52191,6 +54191,7 @@ export namespace Prisma {
     kitchenQueues?: KitchenQueueUpdateManyWithoutTenantNestedInput
     sessionLogs?: SessionLogUpdateManyWithoutTenantNestedInput
     webhooks?: WebhookUpdateManyWithoutTenantNestedInput
+    media?: MediaUpdateManyWithoutTenantNestedInput
   }
 
   export type TenantUncheckedUpdateWithoutOrderItemsInput = {
@@ -52228,6 +54229,7 @@ export namespace Prisma {
     kitchenQueues?: KitchenQueueUncheckedUpdateManyWithoutTenantNestedInput
     sessionLogs?: SessionLogUncheckedUpdateManyWithoutTenantNestedInput
     webhooks?: WebhookUncheckedUpdateManyWithoutTenantNestedInput
+    media?: MediaUncheckedUpdateManyWithoutTenantNestedInput
   }
 
   export type OrderUpsertWithoutOrderItemsInput = {
@@ -52451,6 +54453,7 @@ export namespace Prisma {
     kitchenQueues?: KitchenQueueCreateNestedManyWithoutTenantInput
     sessionLogs?: SessionLogCreateNestedManyWithoutTenantInput
     webhooks?: WebhookCreateNestedManyWithoutTenantInput
+    media?: MediaCreateNestedManyWithoutTenantInput
   }
 
   export type TenantUncheckedCreateWithoutOrderItemAddonsInput = {
@@ -52488,6 +54491,7 @@ export namespace Prisma {
     kitchenQueues?: KitchenQueueUncheckedCreateNestedManyWithoutTenantInput
     sessionLogs?: SessionLogUncheckedCreateNestedManyWithoutTenantInput
     webhooks?: WebhookUncheckedCreateNestedManyWithoutTenantInput
+    media?: MediaUncheckedCreateNestedManyWithoutTenantInput
   }
 
   export type TenantCreateOrConnectWithoutOrderItemAddonsInput = {
@@ -52601,6 +54605,7 @@ export namespace Prisma {
     kitchenQueues?: KitchenQueueUpdateManyWithoutTenantNestedInput
     sessionLogs?: SessionLogUpdateManyWithoutTenantNestedInput
     webhooks?: WebhookUpdateManyWithoutTenantNestedInput
+    media?: MediaUpdateManyWithoutTenantNestedInput
   }
 
   export type TenantUncheckedUpdateWithoutOrderItemAddonsInput = {
@@ -52638,6 +54643,7 @@ export namespace Prisma {
     kitchenQueues?: KitchenQueueUncheckedUpdateManyWithoutTenantNestedInput
     sessionLogs?: SessionLogUncheckedUpdateManyWithoutTenantNestedInput
     webhooks?: WebhookUncheckedUpdateManyWithoutTenantNestedInput
+    media?: MediaUncheckedUpdateManyWithoutTenantNestedInput
   }
 
   export type OrderItemUpsertWithoutOrderItemAddonsInput = {
@@ -52747,6 +54753,7 @@ export namespace Prisma {
     kitchenQueues?: KitchenQueueCreateNestedManyWithoutTenantInput
     sessionLogs?: SessionLogCreateNestedManyWithoutTenantInput
     webhooks?: WebhookCreateNestedManyWithoutTenantInput
+    media?: MediaCreateNestedManyWithoutTenantInput
   }
 
   export type TenantUncheckedCreateWithoutCustomersInput = {
@@ -52784,6 +54791,7 @@ export namespace Prisma {
     kitchenQueues?: KitchenQueueUncheckedCreateNestedManyWithoutTenantInput
     sessionLogs?: SessionLogUncheckedCreateNestedManyWithoutTenantInput
     webhooks?: WebhookUncheckedCreateNestedManyWithoutTenantInput
+    media?: MediaUncheckedCreateNestedManyWithoutTenantInput
   }
 
   export type TenantCreateOrConnectWithoutCustomersInput = {
@@ -52891,6 +54899,7 @@ export namespace Prisma {
     kitchenQueues?: KitchenQueueUpdateManyWithoutTenantNestedInput
     sessionLogs?: SessionLogUpdateManyWithoutTenantNestedInput
     webhooks?: WebhookUpdateManyWithoutTenantNestedInput
+    media?: MediaUpdateManyWithoutTenantNestedInput
   }
 
   export type TenantUncheckedUpdateWithoutCustomersInput = {
@@ -52928,6 +54937,7 @@ export namespace Prisma {
     kitchenQueues?: KitchenQueueUncheckedUpdateManyWithoutTenantNestedInput
     sessionLogs?: SessionLogUncheckedUpdateManyWithoutTenantNestedInput
     webhooks?: WebhookUncheckedUpdateManyWithoutTenantNestedInput
+    media?: MediaUncheckedUpdateManyWithoutTenantNestedInput
   }
 
   export type OrderUpsertWithWhereUniqueWithoutCustomerInput = {
@@ -52981,6 +54991,7 @@ export namespace Prisma {
     kitchenQueues?: KitchenQueueCreateNestedManyWithoutTenantInput
     sessionLogs?: SessionLogCreateNestedManyWithoutTenantInput
     webhooks?: WebhookCreateNestedManyWithoutTenantInput
+    media?: MediaCreateNestedManyWithoutTenantInput
   }
 
   export type TenantUncheckedCreateWithoutPaymentsInput = {
@@ -53018,6 +55029,7 @@ export namespace Prisma {
     kitchenQueues?: KitchenQueueUncheckedCreateNestedManyWithoutTenantInput
     sessionLogs?: SessionLogUncheckedCreateNestedManyWithoutTenantInput
     webhooks?: WebhookUncheckedCreateNestedManyWithoutTenantInput
+    media?: MediaUncheckedCreateNestedManyWithoutTenantInput
   }
 
   export type TenantCreateOrConnectWithoutPaymentsInput = {
@@ -53120,6 +55132,7 @@ export namespace Prisma {
     kitchenQueues?: KitchenQueueUpdateManyWithoutTenantNestedInput
     sessionLogs?: SessionLogUpdateManyWithoutTenantNestedInput
     webhooks?: WebhookUpdateManyWithoutTenantNestedInput
+    media?: MediaUpdateManyWithoutTenantNestedInput
   }
 
   export type TenantUncheckedUpdateWithoutPaymentsInput = {
@@ -53157,6 +55170,7 @@ export namespace Prisma {
     kitchenQueues?: KitchenQueueUncheckedUpdateManyWithoutTenantNestedInput
     sessionLogs?: SessionLogUncheckedUpdateManyWithoutTenantNestedInput
     webhooks?: WebhookUncheckedUpdateManyWithoutTenantNestedInput
+    media?: MediaUncheckedUpdateManyWithoutTenantNestedInput
   }
 
   export type OrderUpsertWithoutPaymentsInput = {
@@ -53249,6 +55263,7 @@ export namespace Prisma {
     kitchenQueues?: KitchenQueueCreateNestedManyWithoutTenantInput
     sessionLogs?: SessionLogCreateNestedManyWithoutTenantInput
     webhooks?: WebhookCreateNestedManyWithoutTenantInput
+    media?: MediaCreateNestedManyWithoutTenantInput
   }
 
   export type TenantUncheckedCreateWithoutInvoicesInput = {
@@ -53286,6 +55301,7 @@ export namespace Prisma {
     kitchenQueues?: KitchenQueueUncheckedCreateNestedManyWithoutTenantInput
     sessionLogs?: SessionLogUncheckedCreateNestedManyWithoutTenantInput
     webhooks?: WebhookUncheckedCreateNestedManyWithoutTenantInput
+    media?: MediaUncheckedCreateNestedManyWithoutTenantInput
   }
 
   export type TenantCreateOrConnectWithoutInvoicesInput = {
@@ -53388,6 +55404,7 @@ export namespace Prisma {
     kitchenQueues?: KitchenQueueUpdateManyWithoutTenantNestedInput
     sessionLogs?: SessionLogUpdateManyWithoutTenantNestedInput
     webhooks?: WebhookUpdateManyWithoutTenantNestedInput
+    media?: MediaUpdateManyWithoutTenantNestedInput
   }
 
   export type TenantUncheckedUpdateWithoutInvoicesInput = {
@@ -53425,6 +55442,7 @@ export namespace Prisma {
     kitchenQueues?: KitchenQueueUncheckedUpdateManyWithoutTenantNestedInput
     sessionLogs?: SessionLogUncheckedUpdateManyWithoutTenantNestedInput
     webhooks?: WebhookUncheckedUpdateManyWithoutTenantNestedInput
+    media?: MediaUncheckedUpdateManyWithoutTenantNestedInput
   }
 
   export type OrderUpsertWithoutInvoicesInput = {
@@ -53517,6 +55535,7 @@ export namespace Prisma {
     kitchenQueues?: KitchenQueueCreateNestedManyWithoutTenantInput
     sessionLogs?: SessionLogCreateNestedManyWithoutTenantInput
     webhooks?: WebhookCreateNestedManyWithoutTenantInput
+    media?: MediaCreateNestedManyWithoutTenantInput
   }
 
   export type TenantUncheckedCreateWithoutDeviceTokensInput = {
@@ -53554,6 +55573,7 @@ export namespace Prisma {
     kitchenQueues?: KitchenQueueUncheckedCreateNestedManyWithoutTenantInput
     sessionLogs?: SessionLogUncheckedCreateNestedManyWithoutTenantInput
     webhooks?: WebhookUncheckedCreateNestedManyWithoutTenantInput
+    media?: MediaUncheckedCreateNestedManyWithoutTenantInput
   }
 
   export type TenantCreateOrConnectWithoutDeviceTokensInput = {
@@ -53650,6 +55670,7 @@ export namespace Prisma {
     kitchenQueues?: KitchenQueueUpdateManyWithoutTenantNestedInput
     sessionLogs?: SessionLogUpdateManyWithoutTenantNestedInput
     webhooks?: WebhookUpdateManyWithoutTenantNestedInput
+    media?: MediaUpdateManyWithoutTenantNestedInput
   }
 
   export type TenantUncheckedUpdateWithoutDeviceTokensInput = {
@@ -53687,6 +55708,7 @@ export namespace Prisma {
     kitchenQueues?: KitchenQueueUncheckedUpdateManyWithoutTenantNestedInput
     sessionLogs?: SessionLogUncheckedUpdateManyWithoutTenantNestedInput
     webhooks?: WebhookUncheckedUpdateManyWithoutTenantNestedInput
+    media?: MediaUncheckedUpdateManyWithoutTenantNestedInput
   }
 
   export type UserUpsertWithoutDeviceTokensInput = {
@@ -53773,6 +55795,7 @@ export namespace Prisma {
     deviceTokens?: DeviceTokenCreateNestedManyWithoutTenantInput
     sessionLogs?: SessionLogCreateNestedManyWithoutTenantInput
     webhooks?: WebhookCreateNestedManyWithoutTenantInput
+    media?: MediaCreateNestedManyWithoutTenantInput
   }
 
   export type TenantUncheckedCreateWithoutKitchenQueuesInput = {
@@ -53810,6 +55833,7 @@ export namespace Prisma {
     deviceTokens?: DeviceTokenUncheckedCreateNestedManyWithoutTenantInput
     sessionLogs?: SessionLogUncheckedCreateNestedManyWithoutTenantInput
     webhooks?: WebhookUncheckedCreateNestedManyWithoutTenantInput
+    media?: MediaUncheckedCreateNestedManyWithoutTenantInput
   }
 
   export type TenantCreateOrConnectWithoutKitchenQueuesInput = {
@@ -53953,6 +55977,7 @@ export namespace Prisma {
     deviceTokens?: DeviceTokenUpdateManyWithoutTenantNestedInput
     sessionLogs?: SessionLogUpdateManyWithoutTenantNestedInput
     webhooks?: WebhookUpdateManyWithoutTenantNestedInput
+    media?: MediaUpdateManyWithoutTenantNestedInput
   }
 
   export type TenantUncheckedUpdateWithoutKitchenQueuesInput = {
@@ -53990,6 +56015,7 @@ export namespace Prisma {
     deviceTokens?: DeviceTokenUncheckedUpdateManyWithoutTenantNestedInput
     sessionLogs?: SessionLogUncheckedUpdateManyWithoutTenantNestedInput
     webhooks?: WebhookUncheckedUpdateManyWithoutTenantNestedInput
+    media?: MediaUncheckedUpdateManyWithoutTenantNestedInput
   }
 
   export type BranchUpsertWithoutKitchenQueuesInput = {
@@ -54129,6 +56155,7 @@ export namespace Prisma {
     deviceTokens?: DeviceTokenCreateNestedManyWithoutTenantInput
     kitchenQueues?: KitchenQueueCreateNestedManyWithoutTenantInput
     webhooks?: WebhookCreateNestedManyWithoutTenantInput
+    media?: MediaCreateNestedManyWithoutTenantInput
   }
 
   export type TenantUncheckedCreateWithoutSessionLogsInput = {
@@ -54166,6 +56193,7 @@ export namespace Prisma {
     deviceTokens?: DeviceTokenUncheckedCreateNestedManyWithoutTenantInput
     kitchenQueues?: KitchenQueueUncheckedCreateNestedManyWithoutTenantInput
     webhooks?: WebhookUncheckedCreateNestedManyWithoutTenantInput
+    media?: MediaUncheckedCreateNestedManyWithoutTenantInput
   }
 
   export type TenantCreateOrConnectWithoutSessionLogsInput = {
@@ -54262,6 +56290,7 @@ export namespace Prisma {
     deviceTokens?: DeviceTokenUpdateManyWithoutTenantNestedInput
     kitchenQueues?: KitchenQueueUpdateManyWithoutTenantNestedInput
     webhooks?: WebhookUpdateManyWithoutTenantNestedInput
+    media?: MediaUpdateManyWithoutTenantNestedInput
   }
 
   export type TenantUncheckedUpdateWithoutSessionLogsInput = {
@@ -54299,6 +56328,7 @@ export namespace Prisma {
     deviceTokens?: DeviceTokenUncheckedUpdateManyWithoutTenantNestedInput
     kitchenQueues?: KitchenQueueUncheckedUpdateManyWithoutTenantNestedInput
     webhooks?: WebhookUncheckedUpdateManyWithoutTenantNestedInput
+    media?: MediaUncheckedUpdateManyWithoutTenantNestedInput
   }
 
   export type UserUpsertWithoutSessionLogsInput = {
@@ -54385,6 +56415,7 @@ export namespace Prisma {
     deviceTokens?: DeviceTokenCreateNestedManyWithoutTenantInput
     kitchenQueues?: KitchenQueueCreateNestedManyWithoutTenantInput
     sessionLogs?: SessionLogCreateNestedManyWithoutTenantInput
+    media?: MediaCreateNestedManyWithoutTenantInput
   }
 
   export type TenantUncheckedCreateWithoutWebhooksInput = {
@@ -54422,6 +56453,7 @@ export namespace Prisma {
     deviceTokens?: DeviceTokenUncheckedCreateNestedManyWithoutTenantInput
     kitchenQueues?: KitchenQueueUncheckedCreateNestedManyWithoutTenantInput
     sessionLogs?: SessionLogUncheckedCreateNestedManyWithoutTenantInput
+    media?: MediaUncheckedCreateNestedManyWithoutTenantInput
   }
 
   export type TenantCreateOrConnectWithoutWebhooksInput = {
@@ -54475,6 +56507,7 @@ export namespace Prisma {
     deviceTokens?: DeviceTokenUpdateManyWithoutTenantNestedInput
     kitchenQueues?: KitchenQueueUpdateManyWithoutTenantNestedInput
     sessionLogs?: SessionLogUpdateManyWithoutTenantNestedInput
+    media?: MediaUpdateManyWithoutTenantNestedInput
   }
 
   export type TenantUncheckedUpdateWithoutWebhooksInput = {
@@ -54512,6 +56545,175 @@ export namespace Prisma {
     deviceTokens?: DeviceTokenUncheckedUpdateManyWithoutTenantNestedInput
     kitchenQueues?: KitchenQueueUncheckedUpdateManyWithoutTenantNestedInput
     sessionLogs?: SessionLogUncheckedUpdateManyWithoutTenantNestedInput
+    media?: MediaUncheckedUpdateManyWithoutTenantNestedInput
+  }
+
+  export type TenantCreateWithoutMediaInput = {
+    id?: string
+    name: string
+    subdomain: string
+    customDomain?: string | null
+    status?: $Enums.TenantStatus
+    logoUrl?: string | null
+    bannerUrl?: string | null
+    primaryColor?: string
+    secondaryColor?: string
+    stripeCustomerId?: string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    deletedAt?: Date | string | null
+    subscriptions?: SubscriptionCreateNestedOneWithoutTenantInput
+    users?: UserCreateNestedManyWithoutTenantInput
+    roles?: RoleCreateNestedManyWithoutTenantInput
+    restaurants?: RestaurantCreateNestedManyWithoutTenantInput
+    branches?: BranchCreateNestedManyWithoutTenantInput
+    tables?: TableCreateNestedManyWithoutTenantInput
+    categories?: CategoryCreateNestedManyWithoutTenantInput
+    products?: ProductCreateNestedManyWithoutTenantInput
+    productSizes?: ProductSizeCreateNestedManyWithoutTenantInput
+    productVariants?: ProductVariantCreateNestedManyWithoutTenantInput
+    productAddons?: ProductAddonCreateNestedManyWithoutTenantInput
+    addonItems?: AddonItemCreateNestedManyWithoutTenantInput
+    orders?: OrderCreateNestedManyWithoutTenantInput
+    orderItems?: OrderItemCreateNestedManyWithoutTenantInput
+    orderItemAddons?: OrderItemAddonCreateNestedManyWithoutTenantInput
+    customers?: CustomerCreateNestedManyWithoutTenantInput
+    payments?: PaymentCreateNestedManyWithoutTenantInput
+    invoices?: InvoiceCreateNestedManyWithoutTenantInput
+    deviceTokens?: DeviceTokenCreateNestedManyWithoutTenantInput
+    kitchenQueues?: KitchenQueueCreateNestedManyWithoutTenantInput
+    sessionLogs?: SessionLogCreateNestedManyWithoutTenantInput
+    webhooks?: WebhookCreateNestedManyWithoutTenantInput
+  }
+
+  export type TenantUncheckedCreateWithoutMediaInput = {
+    id?: string
+    name: string
+    subdomain: string
+    customDomain?: string | null
+    status?: $Enums.TenantStatus
+    logoUrl?: string | null
+    bannerUrl?: string | null
+    primaryColor?: string
+    secondaryColor?: string
+    stripeCustomerId?: string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    deletedAt?: Date | string | null
+    subscriptions?: SubscriptionUncheckedCreateNestedOneWithoutTenantInput
+    users?: UserUncheckedCreateNestedManyWithoutTenantInput
+    roles?: RoleUncheckedCreateNestedManyWithoutTenantInput
+    restaurants?: RestaurantUncheckedCreateNestedManyWithoutTenantInput
+    branches?: BranchUncheckedCreateNestedManyWithoutTenantInput
+    tables?: TableUncheckedCreateNestedManyWithoutTenantInput
+    categories?: CategoryUncheckedCreateNestedManyWithoutTenantInput
+    products?: ProductUncheckedCreateNestedManyWithoutTenantInput
+    productSizes?: ProductSizeUncheckedCreateNestedManyWithoutTenantInput
+    productVariants?: ProductVariantUncheckedCreateNestedManyWithoutTenantInput
+    productAddons?: ProductAddonUncheckedCreateNestedManyWithoutTenantInput
+    addonItems?: AddonItemUncheckedCreateNestedManyWithoutTenantInput
+    orders?: OrderUncheckedCreateNestedManyWithoutTenantInput
+    orderItems?: OrderItemUncheckedCreateNestedManyWithoutTenantInput
+    orderItemAddons?: OrderItemAddonUncheckedCreateNestedManyWithoutTenantInput
+    customers?: CustomerUncheckedCreateNestedManyWithoutTenantInput
+    payments?: PaymentUncheckedCreateNestedManyWithoutTenantInput
+    invoices?: InvoiceUncheckedCreateNestedManyWithoutTenantInput
+    deviceTokens?: DeviceTokenUncheckedCreateNestedManyWithoutTenantInput
+    kitchenQueues?: KitchenQueueUncheckedCreateNestedManyWithoutTenantInput
+    sessionLogs?: SessionLogUncheckedCreateNestedManyWithoutTenantInput
+    webhooks?: WebhookUncheckedCreateNestedManyWithoutTenantInput
+  }
+
+  export type TenantCreateOrConnectWithoutMediaInput = {
+    where: TenantWhereUniqueInput
+    create: XOR<TenantCreateWithoutMediaInput, TenantUncheckedCreateWithoutMediaInput>
+  }
+
+  export type TenantUpsertWithoutMediaInput = {
+    update: XOR<TenantUpdateWithoutMediaInput, TenantUncheckedUpdateWithoutMediaInput>
+    create: XOR<TenantCreateWithoutMediaInput, TenantUncheckedCreateWithoutMediaInput>
+    where?: TenantWhereInput
+  }
+
+  export type TenantUpdateToOneWithWhereWithoutMediaInput = {
+    where?: TenantWhereInput
+    data: XOR<TenantUpdateWithoutMediaInput, TenantUncheckedUpdateWithoutMediaInput>
+  }
+
+  export type TenantUpdateWithoutMediaInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    subdomain?: StringFieldUpdateOperationsInput | string
+    customDomain?: NullableStringFieldUpdateOperationsInput | string | null
+    status?: EnumTenantStatusFieldUpdateOperationsInput | $Enums.TenantStatus
+    logoUrl?: NullableStringFieldUpdateOperationsInput | string | null
+    bannerUrl?: NullableStringFieldUpdateOperationsInput | string | null
+    primaryColor?: StringFieldUpdateOperationsInput | string
+    secondaryColor?: StringFieldUpdateOperationsInput | string
+    stripeCustomerId?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    subscriptions?: SubscriptionUpdateOneWithoutTenantNestedInput
+    users?: UserUpdateManyWithoutTenantNestedInput
+    roles?: RoleUpdateManyWithoutTenantNestedInput
+    restaurants?: RestaurantUpdateManyWithoutTenantNestedInput
+    branches?: BranchUpdateManyWithoutTenantNestedInput
+    tables?: TableUpdateManyWithoutTenantNestedInput
+    categories?: CategoryUpdateManyWithoutTenantNestedInput
+    products?: ProductUpdateManyWithoutTenantNestedInput
+    productSizes?: ProductSizeUpdateManyWithoutTenantNestedInput
+    productVariants?: ProductVariantUpdateManyWithoutTenantNestedInput
+    productAddons?: ProductAddonUpdateManyWithoutTenantNestedInput
+    addonItems?: AddonItemUpdateManyWithoutTenantNestedInput
+    orders?: OrderUpdateManyWithoutTenantNestedInput
+    orderItems?: OrderItemUpdateManyWithoutTenantNestedInput
+    orderItemAddons?: OrderItemAddonUpdateManyWithoutTenantNestedInput
+    customers?: CustomerUpdateManyWithoutTenantNestedInput
+    payments?: PaymentUpdateManyWithoutTenantNestedInput
+    invoices?: InvoiceUpdateManyWithoutTenantNestedInput
+    deviceTokens?: DeviceTokenUpdateManyWithoutTenantNestedInput
+    kitchenQueues?: KitchenQueueUpdateManyWithoutTenantNestedInput
+    sessionLogs?: SessionLogUpdateManyWithoutTenantNestedInput
+    webhooks?: WebhookUpdateManyWithoutTenantNestedInput
+  }
+
+  export type TenantUncheckedUpdateWithoutMediaInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    subdomain?: StringFieldUpdateOperationsInput | string
+    customDomain?: NullableStringFieldUpdateOperationsInput | string | null
+    status?: EnumTenantStatusFieldUpdateOperationsInput | $Enums.TenantStatus
+    logoUrl?: NullableStringFieldUpdateOperationsInput | string | null
+    bannerUrl?: NullableStringFieldUpdateOperationsInput | string | null
+    primaryColor?: StringFieldUpdateOperationsInput | string
+    secondaryColor?: StringFieldUpdateOperationsInput | string
+    stripeCustomerId?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    subscriptions?: SubscriptionUncheckedUpdateOneWithoutTenantNestedInput
+    users?: UserUncheckedUpdateManyWithoutTenantNestedInput
+    roles?: RoleUncheckedUpdateManyWithoutTenantNestedInput
+    restaurants?: RestaurantUncheckedUpdateManyWithoutTenantNestedInput
+    branches?: BranchUncheckedUpdateManyWithoutTenantNestedInput
+    tables?: TableUncheckedUpdateManyWithoutTenantNestedInput
+    categories?: CategoryUncheckedUpdateManyWithoutTenantNestedInput
+    products?: ProductUncheckedUpdateManyWithoutTenantNestedInput
+    productSizes?: ProductSizeUncheckedUpdateManyWithoutTenantNestedInput
+    productVariants?: ProductVariantUncheckedUpdateManyWithoutTenantNestedInput
+    productAddons?: ProductAddonUncheckedUpdateManyWithoutTenantNestedInput
+    addonItems?: AddonItemUncheckedUpdateManyWithoutTenantNestedInput
+    orders?: OrderUncheckedUpdateManyWithoutTenantNestedInput
+    orderItems?: OrderItemUncheckedUpdateManyWithoutTenantNestedInput
+    orderItemAddons?: OrderItemAddonUncheckedUpdateManyWithoutTenantNestedInput
+    customers?: CustomerUncheckedUpdateManyWithoutTenantNestedInput
+    payments?: PaymentUncheckedUpdateManyWithoutTenantNestedInput
+    invoices?: InvoiceUncheckedUpdateManyWithoutTenantNestedInput
+    deviceTokens?: DeviceTokenUncheckedUpdateManyWithoutTenantNestedInput
+    kitchenQueues?: KitchenQueueUncheckedUpdateManyWithoutTenantNestedInput
+    sessionLogs?: SessionLogUncheckedUpdateManyWithoutTenantNestedInput
+    webhooks?: WebhookUncheckedUpdateManyWithoutTenantNestedInput
   }
 
   export type UserCreateManyTenantInput = {
@@ -54747,6 +56949,29 @@ export namespace Prisma {
     events?: WebhookCreateeventsInput | string[]
     isActive?: boolean
     createdAt?: Date | string
+  }
+
+  export type MediaCreateManyTenantInput = {
+    id?: string
+    entityType: string
+    entityId: string
+    mediaType: $Enums.MediaType
+    originalName: string
+    mimeType: string
+    originalFileSize: number
+    fileSize: number
+    checksum: string
+    width?: number | null
+    height?: number | null
+    storageKey: string
+    storageProvider?: string
+    originalUrl: string
+    thumbnailUrl?: string | null
+    mediumUrl?: string | null
+    largeUrl?: string | null
+    status?: string
+    createdAt?: Date | string
+    updatedAt?: Date | string
   }
 
   export type UserUpdateWithoutTenantInput = {
@@ -55504,6 +57729,75 @@ export namespace Prisma {
     events?: WebhookUpdateeventsInput | string[]
     isActive?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type MediaUpdateWithoutTenantInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    entityType?: StringFieldUpdateOperationsInput | string
+    entityId?: StringFieldUpdateOperationsInput | string
+    mediaType?: EnumMediaTypeFieldUpdateOperationsInput | $Enums.MediaType
+    originalName?: StringFieldUpdateOperationsInput | string
+    mimeType?: StringFieldUpdateOperationsInput | string
+    originalFileSize?: IntFieldUpdateOperationsInput | number
+    fileSize?: IntFieldUpdateOperationsInput | number
+    checksum?: StringFieldUpdateOperationsInput | string
+    width?: NullableIntFieldUpdateOperationsInput | number | null
+    height?: NullableIntFieldUpdateOperationsInput | number | null
+    storageKey?: StringFieldUpdateOperationsInput | string
+    storageProvider?: StringFieldUpdateOperationsInput | string
+    originalUrl?: StringFieldUpdateOperationsInput | string
+    thumbnailUrl?: NullableStringFieldUpdateOperationsInput | string | null
+    mediumUrl?: NullableStringFieldUpdateOperationsInput | string | null
+    largeUrl?: NullableStringFieldUpdateOperationsInput | string | null
+    status?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type MediaUncheckedUpdateWithoutTenantInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    entityType?: StringFieldUpdateOperationsInput | string
+    entityId?: StringFieldUpdateOperationsInput | string
+    mediaType?: EnumMediaTypeFieldUpdateOperationsInput | $Enums.MediaType
+    originalName?: StringFieldUpdateOperationsInput | string
+    mimeType?: StringFieldUpdateOperationsInput | string
+    originalFileSize?: IntFieldUpdateOperationsInput | number
+    fileSize?: IntFieldUpdateOperationsInput | number
+    checksum?: StringFieldUpdateOperationsInput | string
+    width?: NullableIntFieldUpdateOperationsInput | number | null
+    height?: NullableIntFieldUpdateOperationsInput | number | null
+    storageKey?: StringFieldUpdateOperationsInput | string
+    storageProvider?: StringFieldUpdateOperationsInput | string
+    originalUrl?: StringFieldUpdateOperationsInput | string
+    thumbnailUrl?: NullableStringFieldUpdateOperationsInput | string | null
+    mediumUrl?: NullableStringFieldUpdateOperationsInput | string | null
+    largeUrl?: NullableStringFieldUpdateOperationsInput | string | null
+    status?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type MediaUncheckedUpdateManyWithoutTenantInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    entityType?: StringFieldUpdateOperationsInput | string
+    entityId?: StringFieldUpdateOperationsInput | string
+    mediaType?: EnumMediaTypeFieldUpdateOperationsInput | $Enums.MediaType
+    originalName?: StringFieldUpdateOperationsInput | string
+    mimeType?: StringFieldUpdateOperationsInput | string
+    originalFileSize?: IntFieldUpdateOperationsInput | number
+    fileSize?: IntFieldUpdateOperationsInput | number
+    checksum?: StringFieldUpdateOperationsInput | string
+    width?: NullableIntFieldUpdateOperationsInput | number | null
+    height?: NullableIntFieldUpdateOperationsInput | number | null
+    storageKey?: StringFieldUpdateOperationsInput | string
+    storageProvider?: StringFieldUpdateOperationsInput | string
+    originalUrl?: StringFieldUpdateOperationsInput | string
+    thumbnailUrl?: NullableStringFieldUpdateOperationsInput | string | null
+    mediumUrl?: NullableStringFieldUpdateOperationsInput | string | null
+    largeUrl?: NullableStringFieldUpdateOperationsInput | string | null
+    status?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
   export type SubscriptionCreateManyPlanInput = {
@@ -56941,6 +59235,10 @@ export namespace Prisma {
      * @deprecated Use WebhookDefaultArgs instead
      */
     export type WebhookArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = WebhookDefaultArgs<ExtArgs>
+    /**
+     * @deprecated Use MediaDefaultArgs instead
+     */
+    export type MediaArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = MediaDefaultArgs<ExtArgs>
 
   /**
    * Batch Payload for updateMany & deleteMany & createMany

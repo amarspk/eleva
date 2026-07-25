@@ -74,6 +74,14 @@ enum PaymentStatus {
   REFUNDED
 }
 
+enum MediaType {
+  IMAGE
+  LOGO
+  BANNER
+  AVATAR
+  DOCUMENT
+}
+
 // ==========================================
 // 2. MODEL DEFINITIONS (ALL 29 MODELS)
 // ==========================================
@@ -116,6 +124,7 @@ model Tenant {
   kitchenQueues   KitchenQueue[]
   sessionLogs     SessionLog[]
   webhooks        Webhook[]
+  media           Media[]
 
   @@unique([subdomain], map: "idx_tenants_subdomain")
   @@unique([customDomain], map: "idx_tenants_custom_domain")
@@ -658,4 +667,36 @@ model Webhook {
 
   @@index([tenantId], map: "idx_webhooks_tenant")
   @@map("webhooks")
+}
+
+model Media {
+  id               String    @id @default(uuid()) @db.Uuid
+  tenantId         String    @db.Uuid
+  entityType       String    @db.VarChar(50)
+  entityId         String    @db.VarChar(255)
+  mediaType        MediaType
+  originalName     String    @db.VarChar(255)
+  mimeType         String    @db.VarChar(100)
+  originalFileSize Int
+  fileSize         Int
+  checksum         String    @db.VarChar(64)
+  width            Int?
+  height           Int?
+  storageKey       String    @db.VarChar(1024)
+  storageProvider  String    @default("local") @db.VarChar(50)
+  originalUrl      String    @db.VarChar(2048)
+  thumbnailUrl     String?   @db.VarChar(2048)
+  mediumUrl        String?   @db.VarChar(2048)
+  largeUrl         String?   @db.VarChar(2048)
+  status           String    @default("ready") @db.VarChar(20)
+  createdAt        DateTime  @default(now()) @db.Timestamptz
+  updatedAt        DateTime  @updatedAt @db.Timestamptz
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, entityType, entityId])
+  @@index([tenantId, mediaType])
+  @@index([tenantId, checksum])
+  @@index([storageKey])
+  @@map("media")
 }

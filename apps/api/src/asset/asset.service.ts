@@ -3,6 +3,7 @@ import { CreatePresignedUrlRequestDto } from './dto/create-presigned-url-request
 import { randomUUID } from 'crypto';
 
 @Injectable()
+/** @deprecated Use MediaService from MediaModule instead */
 export class AssetService {
   private readonly logger = new Logger(AssetService.name);
 

@@ -473,6 +473,30 @@ exports.Prisma.WebhookScalarFieldEnum = {
   createdAt: 'createdAt'
 };
 
+exports.Prisma.MediaScalarFieldEnum = {
+  id: 'id',
+  tenantId: 'tenantId',
+  entityType: 'entityType',
+  entityId: 'entityId',
+  mediaType: 'mediaType',
+  originalName: 'originalName',
+  mimeType: 'mimeType',
+  originalFileSize: 'originalFileSize',
+  fileSize: 'fileSize',
+  checksum: 'checksum',
+  width: 'width',
+  height: 'height',
+  storageKey: 'storageKey',
+  storageProvider: 'storageProvider',
+  originalUrl: 'originalUrl',
+  thumbnailUrl: 'thumbnailUrl',
+  mediumUrl: 'mediumUrl',
+  largeUrl: 'largeUrl',
+  status: 'status',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
 exports.Prisma.SortOrder = {
   asc: 'asc',
   desc: 'desc'
@@ -563,6 +587,14 @@ exports.PaymentStatus = exports.$Enums.PaymentStatus = {
   REFUNDED: 'REFUNDED'
 };
 
+exports.MediaType = exports.$Enums.MediaType = {
+  IMAGE: 'IMAGE',
+  LOGO: 'LOGO',
+  BANNER: 'BANNER',
+  AVATAR: 'AVATAR',
+  DOCUMENT: 'DOCUMENT'
+};
+
 exports.Prisma.ModelName = {
   Tenant: 'Tenant',
   SubscriptionPlan: 'SubscriptionPlan',
@@ -592,7 +624,8 @@ exports.Prisma.ModelName = {
   KitchenQueue: 'KitchenQueue',
   SessionLog: 'SessionLog',
   Notification: 'Notification',
-  Webhook: 'Webhook'
+  Webhook: 'Webhook',
+  Media: 'Media'
 };
 
 /**

@@ -16,11 +16,12 @@ import { DeviceTokenModule } from './device-token/device-token.module';
 import { SubscriptionModule } from './subscription/subscription.module';
 import { AuditModule } from './audit/audit.module';
 import { PaymentModule } from './payment/payment.module';
+import { MediaModule } from './media/media.module';
 import { AuditInterceptor } from './audit/audit.interceptor';
 import { TenantContextMiddleware } from './common/middleware/tenant-context.middleware';
 
 @Module({
-  imports: [CacheModule, AuthModule, TenantModule, BranchModule, MenuModule, OrderModule, KdsModule, CustomerModule, BillingModule, AdminModule, AssetModule, WebhookModule, DeviceTokenModule, SubscriptionModule, AuditModule, PaymentModule],
+  imports: [CacheModule, AuthModule, TenantModule, BranchModule, MenuModule, OrderModule, KdsModule, CustomerModule, BillingModule, AdminModule, AssetModule, WebhookModule, DeviceTokenModule, SubscriptionModule, AuditModule, PaymentModule, MediaModule],
   providers: [
     {
       provide: APP_INTERCEPTOR,
