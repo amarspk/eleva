@@ -4,17 +4,22 @@
   "private": true,
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "prisma": {
+    "seed": "ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed.ts"
+  },
   "scripts": {
     "build": "tsc && node scripts/copy-generated-client.js",
-    "lint": "eslint \"src/**/*.ts\" --ignore-pattern \"src/generated-client/**\"",
+    "lint": "eslint \"src/**/*.ts\" \"prisma/**/*.ts\" --ignore-pattern \"src/generated-client/**\"",
     "prisma:generate": "prisma generate",
-    "prisma:migrate": "prisma migrate deploy"
+    "prisma:migrate": "prisma migrate deploy",
+    "prisma:seed": "prisma db seed"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0"
   },
   "devDependencies": {
     "prisma": "^5.22.0",
+    "ts-node": "^10.9.2",
     "typescript": "^5.4.5"
   }
 }
