@@ -172,6 +172,73 @@ describe('MediaService', () => {
       expect(mockPrisma.media.deleteMany).toHaveBeenCalledWith({ where: { id: 'old-m1' } });
       expect(mockQueue.enqueue).not.toHaveBeenCalled();
     });
+
+    it('should handle two concurrent replacements for the same entity/mediaType correctly', async () => {
+      const oldMedia = { id: 'old-m1', storageKey: 'old-key', originalUrl: '/old', thumbnailUrl: '/old', mediumUrl: '/old', largeUrl: '/old', width: 800, height: 600, fileSize: 100 };
+
+      // Each upload() makes two findFirst calls:
+      //   1. Dedup check by checksum → always null (no existing checksum match)
+      //   2. Existing media check by entityType/entityId/mediaType → oldMedia
+      // Use mockImplementation to route correctly regardless of call order.
+      let findFirstCallCount = 0;
+      mockPrisma.media.findFirst.mockImplementation(async (args: any) => {
+        findFirstCallCount++;
+        if (args.where?.checksum) {
+          return null; // dedup check
+        }
+        return oldMedia; // existingMedia check
+      });
+
+      // Both create new records with different storageKeys
+      mockPrisma.media.create
+        .mockResolvedValueOnce({
+          id: 'new-a', tenantId: 't1', entityType: 'product', entityId: 'p1',
+          mediaType: 'IMAGE', originalName: 'a.jpg', mimeType: 'image/jpeg',
+          originalFileSize: 1024, fileSize: 200, checksum: 'checksum-a',
+          width: 800, height: 600, storageKey: 'new-key-a', storageProvider: 'LocalStorageProvider',
+          originalUrl: '/new-a', thumbnailUrl: '/new-a', mediumUrl: '/new-a', largeUrl: '/new-a',
+          status: 'ready', createdAt: new Date(), updatedAt: new Date(),
+        })
+        .mockResolvedValueOnce({
+          id: 'new-b', tenantId: 't1', entityType: 'product', entityId: 'p1',
+          mediaType: 'IMAGE', originalName: 'b.jpg', mimeType: 'image/jpeg',
+          originalFileSize: 1024, fileSize: 200, checksum: 'checksum-b',
+          width: 800, height: 600, storageKey: 'new-key-b', storageProvider: 'LocalStorageProvider',
+          originalUrl: '/new-b', thumbnailUrl: '/new-b', mediumUrl: '/new-b', largeUrl: '/new-b',
+          status: 'ready', createdAt: new Date(), updatedAt: new Date(),
+        });
+
+      // Both transactions check refcount after deletion: 0 = no remaining refs → enqueue cleanup
+      mockPrisma.media.count
+        .mockResolvedValueOnce(0)
+        .mockResolvedValueOnce(0);
+
+      const [resultA, resultB] = await Promise.all([
+        service.upload(mockFile, 'product', 'p1', 'IMAGE', 't1'),
+        service.upload(mockFile, 'product', 'p1', 'IMAGE', 't1'),
+      ]);
+
+      // Both complete successfully with distinct records
+      expect(findFirstCallCount).toBe(4); // 2 uploads × 2 findFirst each
+      const ids = [resultA.id, resultB.id];
+      expect(ids).toContain('new-a');
+      expect(ids).toContain('new-b');
+      expect(resultA.id).not.toBe(resultB.id);
+
+      // Both transactions called deleteMany for the old record (second is idempotent no-op)
+      expect(mockPrisma.media.deleteMany).toHaveBeenCalledTimes(2);
+      expect(mockPrisma.media.deleteMany).toHaveBeenCalledWith({ where: { id: 'old-m1' } });
+
+      // Both transactions checked refcount after deletion
+      expect(mockPrisma.media.count).toHaveBeenCalledTimes(2);
+
+      // Both enqueued cleanup for old storageKey (both see refcount = 0)
+      // Cleanup queue re-verifies refcount before actual file deletion
+      expect(mockQueue.enqueue).toHaveBeenCalledTimes(2);
+      expect(mockQueue.enqueue).toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'REPLACE', storageKeys: expect.arrayContaining(['old-key-original.webp']) }),
+      );
+    });
   });
 
   describe('findAll', () => {
