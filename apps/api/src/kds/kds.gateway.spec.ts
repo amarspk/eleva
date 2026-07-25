@@ -180,6 +180,36 @@ describe('KdsGateway Unit Tests - TSK-2.1 Real-Time KDS', () => {
       gateway.broadcastOrderEvent('tenant-1', '', 'order.created', { id: '1' });
       expect(mockServerTo).not.toHaveBeenCalled();
     });
+
+    it('should emit ticket.created with spec-compliant payload via emitTicketCreated', () => {
+      const spy = jest.spyOn(gateway, 'broadcastOrderEvent');
+      const tenantId = 't1';
+      const branchId = 'b1';
+      const ticket = {
+        ticketId: 'kq-1',
+        ticketNumber: '045',
+        priority: 'NORMAL',
+        items: [{ orderItemId: 'oi-1', name: 'Burger', quantity: 2 }],
+      };
+
+      gateway.emitTicketCreated(tenantId, branchId, ticket);
+
+      expect(spy).toHaveBeenCalledWith(tenantId, branchId, 'ticket.created', ticket);
+    });
+
+    it('should emit ticket.priority_changed via emitTicketPriorityChanged', () => {
+      const spy = jest.spyOn(gateway, 'broadcastOrderEvent');
+      const tenantId = 't1';
+      const branchId = 'b1';
+
+      gateway.emitTicketPriorityChanged(tenantId, 'b1', 'kq-1', 'NORMAL', 'RUSH');
+
+      expect(spy).toHaveBeenCalledWith(tenantId, branchId, 'ticket.priority_changed', {
+        ticketId: 'kq-1',
+        oldPriority: 'NORMAL',
+        newPriority: 'RUSH',
+      });
+    });
   });
 
   // ==========================================

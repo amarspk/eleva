@@ -84,6 +84,9 @@ describe('OrderService Unit Tests', () => {
       order: {
         create: jest.fn().mockResolvedValue(mockOrderResult),
       },
+      kitchenQueue: {
+        create: jest.fn().mockResolvedValue({ id: 'kq-1', ticketNumber: '12345', priority: 'NORMAL' }),
+      },
     };
     jest.spyOn(prisma, '$transaction').mockImplementation(async (cb: any) => cb(txMock));
 
@@ -395,7 +398,7 @@ describe('OrderService Unit Tests', () => {
   // ==========================================
   it('should broadcast KDS events on status transitions', async () => {
     const id = 'order-kds-test';
-    const kdsGateway = { broadcastOrderEvent: jest.fn() };
+    const kdsGateway = { broadcastOrderEvent: jest.fn(), emitTicketCreated: jest.fn() };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -423,7 +426,7 @@ describe('OrderService Unit Tests', () => {
   // ==========================================
   it('should broadcast order.cancelled KDS event on cancellation', async () => {
     const id = 'order-cancel-kds';
-    const kdsGateway = { broadcastOrderEvent: jest.fn() };
+    const kdsGateway = { broadcastOrderEvent: jest.fn(), emitTicketCreated: jest.fn() };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [

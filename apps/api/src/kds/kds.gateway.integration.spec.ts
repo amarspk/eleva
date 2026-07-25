@@ -119,12 +119,26 @@ describe('KdsGateway Integration Tests - TSK-2.1', () => {
       taxAmount: 2,
       total: 22,
       status: 'PENDING',
+      orderItems: [
+        {
+          id: 'item-integ-1',
+          productId,
+          quantity: 1,
+          cookingStatus: 'PENDING',
+          product: { name: 'Test Product' },
+          size: null,
+          orderItemAddons: [],
+        },
+      ],
     };
 
     jest.spyOn(prisma, '$transaction').mockImplementation(async (cb: any) =>
       cb({
         order: {
           create: jest.fn().mockResolvedValue(mockOrder),
+        },
+        kitchenQueue: {
+          create: jest.fn().mockResolvedValue({ id: 'kq-1', ticketNumber: '999', priority: 'NORMAL' }),
         },
       }),
     );
@@ -140,8 +154,18 @@ describe('KdsGateway Integration Tests - TSK-2.1', () => {
       const result = await orderService.createOrder(createDto, tenantId);
 
       expect(result.id).toBe(mockOrder.id);
-      // Verify KDS broadcast happened automatically
+      // Verify ticket.created (canonical) was broadcast
       expect(mockServerTo).toHaveBeenCalledWith(`tenant:${tenantId}:branch:${branchId}`);
+      expect(mockServerToEmit).toHaveBeenCalledWith(
+        'ticket.created',
+        expect.objectContaining({
+          event: 'ticket.created',
+          tenantId,
+          branchId,
+          data: expect.objectContaining({ ticketId: mockOrder.id }),
+        }),
+      );
+      // Verify order.created (legacy alias) was also broadcast
       expect(mockServerToEmit).toHaveBeenCalledWith(
         'order.created',
         expect.objectContaining({

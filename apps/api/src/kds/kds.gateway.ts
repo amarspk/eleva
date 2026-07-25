@@ -334,4 +334,34 @@ export class KdsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   public emitOrderCancelled(tenantId: string, branchId: string, order: any): void {
     this.broadcastOrderEvent(tenantId, branchId, 'order.cancelled', order);
   }
+
+  /**
+   * Canonical KDS event: ticket.created
+   * Emits spec-compliant payload per DOC-004 3.8 / DOC-005 4.5.
+   */
+  public emitTicketCreated(
+    tenantId: string,
+    branchId: string,
+    ticket: { ticketId: string; ticketNumber: string; priority: string; items: any[] },
+  ): void {
+    this.broadcastOrderEvent(tenantId, branchId, 'ticket.created', ticket);
+  }
+
+  /**
+   * Server-side priority escalation event: ticket.priority_changed
+   * Emitted when a ticket's priority transitions (e.g., NORMAL -> RUSH).
+   */
+  public emitTicketPriorityChanged(
+    tenantId: string,
+    branchId: string,
+    ticketId: string,
+    oldPriority: string,
+    newPriority: string,
+  ): void {
+    this.broadcastOrderEvent(tenantId, branchId, 'ticket.priority_changed', {
+      ticketId,
+      oldPriority,
+      newPriority,
+    });
+  }
 }

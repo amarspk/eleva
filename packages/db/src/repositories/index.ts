@@ -14,3 +14,4 @@ export * from './TenantRestaurantRepository';
 export * from './TenantCustomerRepository';
 export * from './TenantWebhookRepository';
 export * from './TenantDeviceTokenRepository';
+export * from './TenantKitchenQueueRepository';

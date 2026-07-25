@@ -10,6 +10,7 @@ import {
   TenantAddonItemRepository,
   TenantInvoiceRepository,
   TenantRestaurantRepository,
+  TenantKitchenQueueRepository,
   prisma,
 } from '@zayjar/db';
 import { KdsGateway } from '../kds/kds.gateway';
@@ -28,6 +29,7 @@ export class OrderService {
   private readonly addonItemRepository = new TenantAddonItemRepository();
   private readonly invoiceRepository = new TenantInvoiceRepository();
   private readonly restaurantRepository = new TenantRestaurantRepository();
+  private readonly kitchenQueueRepository = new TenantKitchenQueueRepository();
 
   constructor(
     @Optional() @Inject(KdsGateway) private readonly kdsGateway?: KdsGateway,
@@ -194,14 +196,45 @@ export class OrderService {
         },
       });
 
+      // Create kitchen_queues entry for KDS ticket tracking
+      const ticketNumber = orderNumber.slice(-3);
+      await tx.kitchenQueue.create({
+        data: {
+          tenantId: userTenantId,
+          branchId: dto.branchId,
+          orderId: createdOrder.id,
+          ticketNumber,
+          priority: 'NORMAL',
+        },
+      });
+
       this.logger.log(`Order checkout created atomically inside database. Reference: [${orderNumber}]`);
       return createdOrder;
     });
 
     // ==========================================
-    // REAL-TIME KDS BROADCAST: order.created
+    // REAL-TIME KDS BROADCAST: ticket.created (canonical)
     // ==========================================
-    // Use tenantId and branchId from server-resolved context and DB record
+    if (this.kdsGateway && order.orderItems) {
+      const ticketPayload = {
+        ticketId: order.id,
+        ticketNumber: orderNumber.slice(-3),
+        priority: 'NORMAL',
+        items: order.orderItems.map((item: any) => ({
+          orderItemId: item.id,
+          name: item.product?.name || 'Unknown Product',
+          quantity: item.quantity,
+          size: item.size?.name || null,
+          addons: item.orderItemAddons
+            ? item.orderItemAddons.map((a: any) => a.addonItem?.name).filter(Boolean)
+            : [],
+          cookingStatus: item.cookingStatus,
+        })),
+      };
+      this.kdsGateway.emitTicketCreated(userTenantId, dto.branchId, ticketPayload);
+    }
+
+    // Legacy alias: order.created for backward compatibility
     this.emitKdsEvent(userTenantId, dto.branchId, 'order.created', order);
 
     return order;

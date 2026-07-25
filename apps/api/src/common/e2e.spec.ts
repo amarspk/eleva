@@ -190,7 +190,8 @@ describe('Zayjar Platform End-to-End API Verification (TSK-2.0)', () => {
       status: OrderStatus.PENDING,
     };
     jest.spyOn(prisma, '$transaction').mockImplementation(async (cb: any) => cb({
-      order: { create: jest.fn().mockResolvedValue(mockOrderResult) }
+      order: { create: jest.fn().mockResolvedValue(mockOrderResult) },
+      kitchenQueue: { create: jest.fn().mockResolvedValue({ id: 'kq-1', ticketNumber: '999', priority: 'NORMAL' }) },
     }));
 
     const createDto = {

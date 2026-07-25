@@ -65,6 +65,19 @@ export const KDSTerminal: React.FC<KDSTerminalProps> = ({ branchId, accessToken,
       setTickets((prevTickets) => [...prevTickets, { ...newTicket, elapsedMinutes: 0 }]);
     });
 
+    // Server-side priority escalation event
+    socket.on('ticket.priority_changed', (payload: { data: { ticketId: string; oldPriority: string; newPriority: string } }) => {
+      const data = payload.data || payload;
+      setTickets((prevTickets) =>
+        prevTickets.map((ticket) =>
+          ticket.ticketId === data.ticketId
+            ? { ...ticket, priority: data.newPriority as KDSTicket['priority'] }
+            : ticket
+        )
+      );
+    });
+
+    // Legacy alias: order.created for backward compatibility
     socket.on('order.created', (payload: any) => {
       // Transform order.created event to KDS ticket format per DOC-008 7.6 Event Broadcasts
       const order = payload.data || payload;
@@ -111,20 +124,7 @@ export const KDSTerminal: React.FC<KDSTerminalProps> = ({ branchId, accessToken,
       );
     });
 
-    // Priority escalation logic per DOC-005 4.5: monitor preparation times
-    const interval = setInterval(() => {
-      setTickets((prev) =>
-        prev.map((ticket) => {
-          const newElapsed = ticket.elapsedMinutes + 1;
-          // Escalate to RUSH if exceeds estimated prep time (15 min default)
-          const priority = newElapsed > 15 ? 'RUSH' : ticket.priority;
-          return { ...ticket, elapsedMinutes: newElapsed, priority };
-        })
-      );
-    }, 60000); // Every minute
-
     return () => {
-      clearInterval(interval);
       socket.disconnect();
     };
   }, [branchId, accessToken, tenantId]);

@@ -73,6 +73,9 @@ function mockTransaction(orderResult: any) {
     order: {
       create: jest.fn().mockResolvedValue(orderResult),
     },
+    kitchenQueue: {
+      create: jest.fn().mockResolvedValue({ id: 'kq-1', ticketNumber: '001', priority: 'NORMAL' }),
+    },
   };
   return jest.spyOn(prisma, '$transaction').mockImplementation(async (cb: any) => cb(txMock));
 }
