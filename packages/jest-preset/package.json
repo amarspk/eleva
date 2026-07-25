@@ -1,0 +1,15 @@
+{
+  "name": "@zayjar/jest-preset",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Shared Jest configuration preset for Zayjar frontend apps",
+  "main": "jest-preset.js",
+  "dependencies": {
+    "@testing-library/jest-dom": "^6.6.0",
+    "@testing-library/react": "^14.3.0",
+    "identity-obj-proxy": "^3.0.0"
+  },
+  "devDependencies": {
+    "jest-fixed-jsdom": "^0.0.9"
+  }
+}
