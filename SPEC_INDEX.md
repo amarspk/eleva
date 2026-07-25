@@ -112,7 +112,7 @@
 
 ### 2.2 Table-by-Table Data Dictionary
 - **Status:** ✅ Implemented
-- **Description:** 29 Prisma models matching all DOC-002 table definitions (tenants, subscription_plans, subscriptions, users, roles, permissions, user_roles, role_permissions, restaurants, branches, tables, categories, products, product_sizes, product_variants, product_addons, addon_items, orders, order_items, order_item_addons, customers, payments, invoices, audit_logs, device_tokens, kitchen_queues, session_logs, notifications, webhooks).
+- **Description:** 30 Prisma models matching all DOC-002 table definitions (tenants, subscription_plans, subscriptions, users, roles, permissions, user_roles, role_permissions, restaurants, branches, tables, categories, products, product_sizes, product_variants, product_addons, addon_items, orders, order_items, order_item_addons, customers, payments, invoices, audit_logs, device_tokens, kitchen_queues, session_logs, notifications, webhooks, media).
 - **Files:** `packages/db/prisma/schema.prisma`, `packages/types/src/models.ts`, `packages/types/src/enums.ts`
 - **Commits:** `3088aac`, `e192b47`
 - **TSK/Roadmap:** TSK-1.6
@@ -338,9 +338,9 @@
 - **Files:** `packages/db/prisma/schema.prisma`, all repository and service files
 - **Commits:** `3088aac`
 
-### 5.6 Distributed Rate Limiting via Redis Token Bucket
+### 5.6 Distributed Rate Limiting via Redis Fixed-Window Counter
 - **Status:** ✅ Implemented
-- **Description:** Redis-backed token bucket, configurable rate windows: 10/min auth, 120/min API, 30/min checkout. HTTP 429 with retry-after.
+- **Description:** Redis-backed fixed-window counter, configurable rate windows: 10/min auth, 120/min API, 30/min checkout. HTTP 429 with retry-after.
 - **Files:** `apps/api/src/common/rate-limit/rate-limit.service.ts`, `apps/api/src/common/rate-limit/rate-limit.guard.ts`, `apps/api/src/common/rate-limit/rate-limit.module.ts`
 - **Commits:** `3209cb7`
 - **TSK/Roadmap:** TSK-3.7
@@ -373,7 +373,7 @@
 ### 6.1 Direct S3 Pre-Signed Upload Flow
 - **Status:** ✅ Implemented
 - **Description:** Pre-signed URL generation with 5-min TTL, file type/size validation, S3 key path construction.
-- **Files:** `apps/api/src/asset/asset.service.ts`, `apps/api/src/media/media.service.ts`, `apps/api/src/media/media.controller.ts`
+- **Files:** `apps/api/src/asset/asset.service.ts`, `apps/api/src/media/media.service.ts`, `apps/api/src/asset/asset.controller.ts`
 - **Commits:** `c976363`, `e192b47`
 - **TSK/Roadmap:** TSK-2.9 (Presigned URL), TSK-5.7 (Media Pipeline)
 
