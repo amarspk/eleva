@@ -34,7 +34,10 @@ describe('MediaService', () => {
     mockStorage = {
       upload: jest.fn().mockResolvedValue({ storageKey: 'key', url: '/url', size: 100 }),
       delete: jest.fn(),
-      deleteBatch: jest.fn(),
+      deleteBatch: jest.fn().mockImplementation(async (keys: string[]) => ({
+        deleted: keys,
+        failed: [],
+      })),
       getPublicUrl: jest.fn(),
     };
 
@@ -347,6 +350,79 @@ describe('MediaService', () => {
 
       // Media record created for the committed attempt
       expect(mockPrisma.media.create).toHaveBeenCalledTimes(1);
+    });
+
+    it('should enqueue ROLLBACK cleanup for files that failed to delete during retry', async () => {
+      mockPrisma.media.findFirst
+        .mockResolvedValue(null) // dedup check
+        .mockResolvedValue(null); // existingMedia check
+
+      const error = Object.assign(new Error('serialization failure'), { code: '40001' });
+
+      let transactionCallCount = 0;
+      mockPrisma.$transaction.mockImplementation(async (cb: any) => {
+        transactionCallCount++;
+        if (transactionCallCount === 1) {
+          throw error;
+        }
+        return cb(mockPrisma);
+      });
+
+      (mockStorage.deleteBatch as jest.Mock).mockResolvedValueOnce({
+        deleted: ['ok-key-original.webp'],
+        failed: [
+          { key: 'ok-key-thumbnail.webp', reason: 'permission denied' },
+          { key: 'ok-key-medium.webp', reason: 'permission denied' },
+        ],
+      });
+
+      mockPrisma.media.create.mockResolvedValue({
+        id: 'new-m1', tenantId: 't1', entityType: 'product', entityId: 'p1',
+        mediaType: 'IMAGE', originalName: 'photo.jpg', mimeType: 'image/jpeg',
+        originalFileSize: 1024, fileSize: 200, checksum: 'abc123checksum',
+        width: 800, height: 600, storageKey: 'key', storageProvider: 'LocalStorageProvider',
+        originalUrl: '/url', thumbnailUrl: '/url', mediumUrl: '/url', largeUrl: '/url',
+        status: 'ready', createdAt: new Date(), updatedAt: new Date(),
+      });
+
+      await service.upload(mockFile, 'product', 'p1', 'IMAGE', 't1');
+
+      // Failed keys were enqueued for async cleanup
+      expect(mockQueue.enqueue).toHaveBeenCalledWith({
+        type: 'ROLLBACK',
+        storageKeys: ['ok-key-thumbnail.webp', 'ok-key-medium.webp'],
+      });
+    });
+
+    it('should not enqueue ROLLBACK when all files are deleted successfully', async () => {
+      mockPrisma.media.findFirst
+        .mockResolvedValue(null)
+        .mockResolvedValue(null);
+
+      const error = Object.assign(new Error('serialization failure'), { code: '40001' });
+
+      let transactionCallCount = 0;
+      mockPrisma.$transaction.mockImplementation(async (cb: any) => {
+        transactionCallCount++;
+        if (transactionCallCount === 1) {
+          throw error;
+        }
+        return cb(mockPrisma);
+      });
+
+      mockPrisma.media.create.mockResolvedValue({
+        id: 'new-m1', tenantId: 't1', entityType: 'product', entityId: 'p1',
+        mediaType: 'IMAGE', originalName: 'photo.jpg', mimeType: 'image/jpeg',
+        originalFileSize: 1024, fileSize: 200, checksum: 'abc123checksum',
+        width: 800, height: 600, storageKey: 'key', storageProvider: 'LocalStorageProvider',
+        originalUrl: '/url', thumbnailUrl: '/url', mediumUrl: '/url', largeUrl: '/url',
+        status: 'ready', createdAt: new Date(), updatedAt: new Date(),
+      });
+
+      await service.upload(mockFile, 'product', 'p1', 'IMAGE', 't1');
+
+      // No old record to replace, and deleteBatch succeeded → no enqueue at all
+      expect(mockQueue.enqueue).not.toHaveBeenCalled();
     });
   });
 

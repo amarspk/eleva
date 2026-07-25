@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import * as fs from 'fs/promises';
 import * as path from 'path';
-import { StorageProvider, StorageUploadResult } from './storage-provider.interface';
+import { StorageProvider, StorageUploadResult, DeleteBatchResult } from './storage-provider.interface';
 
 @Injectable()
 export class LocalStorageProvider implements StorageProvider {
@@ -35,10 +35,27 @@ export class LocalStorageProvider implements StorageProvider {
     }
   }
 
-  async deleteBatch(keys: string[]): Promise<void> {
+  async deleteBatch(keys: string[]): Promise<DeleteBatchResult> {
+    const deleted: string[] = [];
+    const failed: Array<{ key: string; reason: string }> = [];
+
     for (const key of keys) {
-      await this.delete(key);
+      const filePath = path.join(this.basePath, key);
+      try {
+        await fs.unlink(filePath);
+        deleted.push(key);
+        this.logger.debug(`Deleted ${filePath}`);
+      } catch (err: any) {
+        if (err.code === 'ENOENT') {
+          deleted.push(key);
+        } else {
+          failed.push({ key, reason: err.message });
+          this.logger.warn(`Failed to delete ${filePath}: ${err.message}`);
+        }
+      }
     }
+
+    return { deleted, failed };
   }
 
   getPublicUrl(key: string): string {

@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { StorageProvider, StorageUploadResult } from './storage-provider.interface';
+import { StorageProvider, StorageUploadResult, DeleteBatchResult } from './storage-provider.interface';
 
 @Injectable()
 export class S3StorageProvider implements StorageProvider {
@@ -65,24 +65,58 @@ export class S3StorageProvider implements StorageProvider {
     }
   }
 
-  async deleteBatch(keys: string[]): Promise<void> {
+  async deleteBatch(keys: string[]): Promise<DeleteBatchResult> {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { DeleteObjectsCommand } = require('@aws-sdk/client-s3');
 
+    const deleted: string[] = [];
+    const failed: Array<{ key: string; reason: string }> = [];
+
     try {
-      await this.s3Client.send(
+      const response = await this.s3Client.send(
         new DeleteObjectsCommand({
           Bucket: this.bucket,
           Delete: { Objects: keys.map((Key) => ({ Key })) },
         }),
       );
-      this.logger.debug(`Deleted ${keys.length} objects from s3://${this.bucket}`);
+
+      if (response.Deleted) {
+        for (const item of response.Deleted) {
+          deleted.push(item.Key);
+        }
+      }
+
+      if (response.Errors) {
+        for (const err of response.Errors) {
+          failed.push({ key: err.Key, reason: err.Message || 'Unknown S3 error' });
+          this.logger.warn(
+            `S3 batch delete error for key ${err.Key}: ${err.Message} (Code: ${err.Code})`,
+          );
+        }
+      }
+
+      this.logger.debug(
+        `S3 batch delete: ${deleted.length} deleted, ${failed.length} failed from s3://${this.bucket}`,
+      );
     } catch (err: any) {
-      this.logger.warn(`Batch delete failed: ${err.message}`);
+      this.logger.warn(`S3 batch delete request failed: ${err.message}. Falling back to individual deletes.`);
+
       for (const key of keys) {
-        await this.delete(key);
+        try {
+          const { DeleteObjectCommand } = require('@aws-sdk/client-s3');
+          await this.s3Client.send(
+            new DeleteObjectCommand({ Bucket: this.bucket, Key: key }),
+          );
+          deleted.push(key);
+          this.logger.debug(`Deleted s3://${this.bucket}/${key}`);
+        } catch (individualErr: any) {
+          failed.push({ key, reason: individualErr.message });
+          this.logger.warn(`Failed to delete s3://${this.bucket}/${key}: ${individualErr.message}`);
+        }
       }
     }
+
+    return { deleted, failed };
   }
 
   getPublicUrl(key: string): string {

@@ -53,10 +53,26 @@ export class MediaCleanupQueueService implements OnModuleDestroy {
       }
 
       try {
-        if (job.type === 'ROLLBACK') {
-          await this.storageProvider.deleteBatch(job.storageKeys);
-        } else {
-          await this.storageProvider.deleteBatch(job.storageKeys);
+        const result = await this.storageProvider.deleteBatch(job.storageKeys);
+
+        if (result.failed.length > 0) {
+          const failedKeys = result.failed.map((f) => f.key);
+          job.attempts++;
+          if (job.attempts < this.MAX_RETRIES) {
+            const backoff = Math.pow(2, job.attempts) * 1000;
+            job.nextRetryAt = Date.now() + backoff;
+            job.storageKeys = failedKeys;
+            this.queue.push(job);
+            this.logger.warn(
+              `Cleanup partial failure ${job.attempts}/${this.MAX_RETRIES} for ${job.type}: ` +
+              `${result.failed.length}/${job.storageKeys.length} keys failed`,
+            );
+          } else {
+            this.logger.error(
+              `[MediaCleanup] Permanently failed after ${this.MAX_RETRIES} retries: ` +
+              `type=${job.type} failedKeys=${failedKeys.join(',')}`,
+            );
+          }
         }
       } catch (err: unknown) {
         const error = err as Error;

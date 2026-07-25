@@ -41,7 +41,10 @@ describe('MediaService — retry cleanup (TSK-5.7)', () => {
     mockStorage = {
       upload: jest.fn().mockResolvedValue({ storageKey: 'key', url: '/url', size: 100 }),
       delete: jest.fn(),
-      deleteBatch: jest.fn(),
+      deleteBatch: jest.fn().mockImplementation(async (keys: string[]) => ({
+        deleted: keys,
+        failed: [],
+      })),
       getPublicUrl: jest.fn(),
     };
 
@@ -208,8 +211,9 @@ describe('MediaService — retry cleanup (TSK-5.7)', () => {
         return { storageKey: 'key', url: '/url', size: 100 };
       });
 
-      mockStorage.deleteBatch.mockImplementation(async () => {
+      mockStorage.deleteBatch.mockImplementation(async (keys: string[]) => {
         callOrder.push('deleteBatch');
+        return { deleted: keys, failed: [] };
       });
 
       const error = Object.assign(new Error('serialization failure'), { code: '40001' });

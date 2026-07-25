@@ -223,7 +223,19 @@ export class MediaService {
           this.logger.warn(
             `Cleaning up ${attemptStorageKeys.length} files from failed attempt before retry`,
           );
-          await this.storageProvider.deleteBatch(attemptStorageKeys);
+          const result = await this.storageProvider.deleteBatch(attemptStorageKeys);
+
+          if (result.failed.length > 0) {
+            for (const f of result.failed) {
+              this.logger.error(
+                `[MediaCleanup] Failed to delete file from failed upload attempt: key=${f.key} reason=${f.reason}`,
+              );
+            }
+            this.cleanupQueue.enqueue({
+              type: 'ROLLBACK',
+              storageKeys: result.failed.map((f) => f.key),
+            });
+          }
         }
 
         throw err;

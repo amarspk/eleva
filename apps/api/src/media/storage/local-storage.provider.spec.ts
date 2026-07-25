@@ -49,6 +49,52 @@ describe('LocalStorageProvider', () => {
     });
   });
 
+  describe('deleteBatch', () => {
+    it('should return all keys in deleted when all succeed', async () => {
+      mockFs.unlink.mockResolvedValue(undefined);
+      const result = await provider.deleteBatch(['key1', 'key2', 'key3']);
+      expect(result.deleted).toEqual(['key1', 'key2', 'key3']);
+      expect(result.failed).toEqual([]);
+    });
+
+    it('should treat ENOENT as successful deletion', async () => {
+      const enoent = Object.assign(new Error('not found'), { code: 'ENOENT' });
+      mockFs.unlink.mockRejectedValue(enoent);
+      const result = await provider.deleteBatch(['missing-key']);
+      expect(result.deleted).toEqual(['missing-key']);
+      expect(result.failed).toEqual([]);
+    });
+
+    it('should continue deleting remaining files after a non-ENOENT failure', async () => {
+      const eacces = Object.assign(new Error('permission denied'), { code: 'EACCES' });
+      mockFs.unlink
+        .mockRejectedValueOnce(eacces)
+        .mockResolvedValueOnce(undefined);
+
+      const result = await provider.deleteBatch(['bad-key', 'good-key']);
+      expect(result.deleted).toEqual(['good-key']);
+      expect(result.failed).toEqual([{ key: 'bad-key', reason: 'permission denied' }]);
+    });
+
+    it('should collect multiple failures and successes', async () => {
+      const ebusy = Object.assign(new Error('resource busy'), { code: 'EBUSY' });
+      mockFs.unlink
+        .mockResolvedValueOnce(undefined)
+        .mockRejectedValueOnce(ebusy)
+        .mockResolvedValueOnce(undefined);
+
+      const result = await provider.deleteBatch(['ok1', 'busy', 'ok2']);
+      expect(result.deleted).toEqual(['ok1', 'ok2']);
+      expect(result.failed).toEqual([{ key: 'busy', reason: 'resource busy' }]);
+    });
+
+    it('should return empty deleted/failed for empty input', async () => {
+      const result = await provider.deleteBatch([]);
+      expect(result.deleted).toEqual([]);
+      expect(result.failed).toEqual([]);
+    });
+  });
+
   describe('getPublicUrl', () => {
     it('should return /uploads/ prefixed URL', () => {
       const url = provider.getPublicUrl('tenant-123/file.webp');

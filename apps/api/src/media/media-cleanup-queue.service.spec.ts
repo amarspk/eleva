@@ -5,11 +5,16 @@ describe('MediaCleanupQueueService', () => {
   let service: MediaCleanupQueueService;
   let mockStorage: StorageProvider;
 
+  const allDeleted = (keys: string[]) => ({
+    deleted: keys,
+    failed: [],
+  });
+
   beforeEach(() => {
     mockStorage = {
       upload: jest.fn(),
       delete: jest.fn(),
-      deleteBatch: jest.fn().mockResolvedValue(undefined),
+      deleteBatch: jest.fn().mockImplementation(async (keys: string[]) => allDeleted(keys)),
       getPublicUrl: jest.fn(),
     };
     service = new MediaCleanupQueueService(mockStorage);
@@ -46,7 +51,7 @@ describe('MediaCleanupQueueService', () => {
       (mockStorage.deleteBatch as jest.Mock)
         .mockRejectedValueOnce(new Error('fail 1'))
         .mockRejectedValueOnce(new Error('fail 2'))
-        .mockResolvedValueOnce(undefined);
+        .mockImplementationOnce(async (keys: string[]) => allDeleted(keys));
 
       service.enqueue({ type: 'REPLACE', storageKeys: ['retry-key'] });
 
@@ -81,8 +86,9 @@ describe('MediaCleanupQueueService', () => {
 
     it('should not throw when second cleanup job deletes already-removed files', async () => {
       let deleteCount = 0;
-      (mockStorage.deleteBatch as jest.Mock).mockImplementation(async () => {
+      (mockStorage.deleteBatch as jest.Mock).mockImplementation(async (keys: string[]) => {
         deleteCount++;
+        return allDeleted(keys);
       });
 
       service.enqueue({ type: 'DELETE', storageKeys: ['shared-key'] });
@@ -93,5 +99,36 @@ describe('MediaCleanupQueueService', () => {
       expect(deleteCount).toBe(2);
       expect(service.pendingCount).toBe(0);
     });
+
+    it('should retry only failed keys on partial failure', async () => {
+      (mockStorage.deleteBatch as jest.Mock)
+        .mockResolvedValueOnce({
+          deleted: ['ok-key'],
+          failed: [{ key: 'bad-key', reason: 'permission denied' }],
+        })
+        .mockImplementationOnce(async (keys: string[]) => allDeleted(keys));
+
+      service.enqueue({ type: 'REPLACE', storageKeys: ['ok-key', 'bad-key'] });
+
+      await new Promise((resolve) => setTimeout(resolve, 2500));
+
+      expect(mockStorage.deleteBatch).toHaveBeenCalledTimes(2);
+      expect(mockStorage.deleteBatch).toHaveBeenLastCalledWith(['bad-key']);
+      expect(service.pendingCount).toBe(0);
+    }, 10000);
+
+    it('should permanently fail only the failed keys after MAX_RETRIES on partial failures', async () => {
+      (mockStorage.deleteBatch as jest.Mock).mockResolvedValue({
+        deleted: [],
+        failed: [{ key: 'stuck-key', reason: 'access denied' }],
+      });
+
+      service.enqueue({ type: 'DELETE', storageKeys: ['stuck-key'] });
+
+      await new Promise((resolve) => setTimeout(resolve, 8000));
+
+      expect(service.pendingCount).toBe(0);
+      expect(mockStorage.deleteBatch).toHaveBeenCalledTimes(3);
+    }, 15000);
   });
 });
