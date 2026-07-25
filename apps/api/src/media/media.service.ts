@@ -17,6 +17,7 @@ const ENTITY_URL_MAP: Record<string, Record<string, string>> = {
 };
 
 const PG_SERIALIZATION_ERROR = '40001';
+const PG_DEADLOCK_ERROR = '40P01';
 const MAX_SERIALIZATION_RETRIES = 3;
 
 @Injectable()
@@ -120,19 +121,23 @@ export class MediaService {
             );
 
             if ('original' in processed) {
-              const [originalResult, thumbnailResult, mediumResult, largeResult] = await Promise.all([
-                this.storageProvider.upload(`${attemptStorageKey}-original.webp`, processed.original.buffer, 'image/webp'),
-                this.storageProvider.upload(`${attemptStorageKey}-thumbnail.webp`, processed.thumbnail.buffer, 'image/webp'),
-                this.storageProvider.upload(`${attemptStorageKey}-medium.webp`, processed.medium.buffer, 'image/webp'),
-                this.storageProvider.upload(`${attemptStorageKey}-large.webp`, processed.large.buffer, 'image/webp'),
-              ]);
-
-              attemptStorageKeys.push(
+              const imageKeys = [
                 `${attemptStorageKey}-original.webp`,
                 `${attemptStorageKey}-thumbnail.webp`,
                 `${attemptStorageKey}-medium.webp`,
                 `${attemptStorageKey}-large.webp`,
-              );
+              ];
+
+              // Track keys BEFORE uploading so if Promise.all partially fails,
+              // the catch block can clean up successfully-uploaded files.
+              attemptStorageKeys.push(...imageKeys);
+
+              const [originalResult, thumbnailResult, mediumResult, largeResult] = await Promise.all([
+                this.storageProvider.upload(imageKeys[0], processed.original.buffer, 'image/webp'),
+                this.storageProvider.upload(imageKeys[1], processed.thumbnail.buffer, 'image/webp'),
+                this.storageProvider.upload(imageKeys[2], processed.medium.buffer, 'image/webp'),
+                this.storageProvider.upload(imageKeys[3], processed.large.buffer, 'image/webp'),
+              ]);
               attemptStorageKey = `${attemptPrefix}/${attemptFilePrefix}`;
               attemptUrls = {
                 originalUrl: originalResult.url,
@@ -215,11 +220,12 @@ export class MediaService {
 
         return result;
       } catch (err: any) {
-        const isSerializationError =
+        const isRetryableError =
           err?.code === PG_SERIALIZATION_ERROR ||
+          err?.code === PG_DEADLOCK_ERROR ||
           err?.message?.includes('serialization failure');
 
-        if (isSerializationError && attemptStorageKeys.length > 0) {
+        if (isRetryableError && attemptStorageKeys.length > 0) {
           this.logger.warn(
             `Cleaning up ${attemptStorageKeys.length} files from failed attempt before retry`,
           );
@@ -356,11 +362,17 @@ export class MediaService {
       try {
         return await fn();
       } catch (err: any) {
-        const isSerializationError =
+        const isRetryableError =
           err?.code === PG_SERIALIZATION_ERROR ||
+          err?.code === PG_DEADLOCK_ERROR ||
           err?.message?.includes('serialization failure');
 
-        if (!isSerializationError || attempt === MAX_SERIALIZATION_RETRIES) {
+        if (!isRetryableError || attempt === MAX_SERIALIZATION_RETRIES) {
+          if (isRetryableError) {
+            this.logger.error(
+              `Exhausted ${MAX_SERIALIZATION_RETRIES} retry attempts for serializable transaction`,
+            );
+          }
           throw err;
         }
 
@@ -376,13 +388,23 @@ export class MediaService {
     storageKey: string,
     type: 'REPLACE' | 'DELETE' | 'ROLLBACK',
   ): void {
+    // IMAGE types store key as `.../prefix` (no extension); actual files are
+    // `prefix-original.webp`, `prefix-thumbnail.webp`, etc.
+    // DOCUMENT type stores key as `.../prefix.pdf` (extension already included).
     const keys = [
       `${storageKey}-original.webp`,
       `${storageKey}-thumbnail.webp`,
       `${storageKey}-medium.webp`,
       `${storageKey}-large.webp`,
-      `${storageKey}.pdf`,
     ];
+
+    if (storageKey.endsWith('.pdf')) {
+      // Document: storageKey already includes `.pdf`
+      keys.push(storageKey);
+    } else {
+      // Image: append `.pdf` doesn't apply, but we push the image keys above.
+      // No additional keys needed.
+    }
 
     this.cleanupQueue.enqueue({ type, storageKeys: keys });
   }

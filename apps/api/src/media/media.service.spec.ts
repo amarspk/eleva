@@ -31,6 +31,11 @@ describe('MediaService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
 
+    // clearAllMocks() preserves implementations but does NOT clear
+    // mockResolvedValueOnce queues. Reset findFirst to prevent test pollution.
+    mockPrisma.media.findFirst.mockReset();
+    mockPrisma.media.findFirst.mockResolvedValue(null);
+
     mockStorage = {
       upload: jest.fn().mockResolvedValue({ storageKey: 'key', url: '/url', size: 100 }),
       delete: jest.fn(),
@@ -423,6 +428,89 @@ describe('MediaService', () => {
 
       // No old record to replace, and deleteBatch succeeded → no enqueue at all
       expect(mockQueue.enqueue).not.toHaveBeenCalled();
+    });
+
+    it('should clean up successfully uploaded files when Promise.all partially fails (Fix A)', async () => {
+      // This tests the actual bug: all 4 uploads succeed, then $transaction
+      // fails with serialization error. Keys must be tracked BEFORE Promise.all
+      // so the catch block can clean them up.
+      mockPrisma.media.findFirst.mockResolvedValue(null);
+
+      const error = Object.assign(new Error('serialization failure'), { code: '40001' });
+
+      let txCount = 0;
+      mockPrisma.$transaction.mockImplementation(async (cb: any) => {
+        txCount++;
+        if (txCount === 1) {
+          throw error;
+        }
+        return cb(mockPrisma);
+      });
+
+      mockPrisma.media.create.mockResolvedValue({
+        id: 'new-m1', tenantId: 't1', entityType: 'product', entityId: 'p1',
+        mediaType: 'IMAGE', originalName: 'photo.jpg', mimeType: 'image/jpeg',
+        originalFileSize: 1024, fileSize: 200, checksum: 'abc123checksum',
+        width: 800, height: 600, storageKey: 'key', storageProvider: 'LocalStorageProvider',
+        originalUrl: '/url', thumbnailUrl: '/url', mediumUrl: '/url', largeUrl: '/url',
+        status: 'ready', createdAt: new Date(), updatedAt: new Date(),
+      });
+
+      await service.upload(mockFile, 'product', 'p1', 'IMAGE', 't1');
+
+      // Attempt 1: 4 uploads succeed → $transaction fails → files cleaned up
+      // Attempt 2: 4 uploads succeed → $transaction succeeds → files committed
+      // Total: 8 uploads, 1 deleteBatch (for attempt 1 cleanup)
+      expect(mockStorage.upload).toHaveBeenCalledTimes(8);
+      expect(mockStorage.deleteBatch).toHaveBeenCalledTimes(1);
+      const deletedKeys = mockStorage.deleteBatch.mock.calls[0][0];
+      expect(deletedKeys).toHaveLength(4);
+      expect(deletedKeys[0]).toMatch(/-original\.webp$/);
+      expect(deletedKeys[1]).toMatch(/-thumbnail\.webp$/);
+      expect(deletedKeys[2]).toMatch(/-medium\.webp$/);
+      expect(deletedKeys[3]).toMatch(/-large\.webp$/);
+    });
+
+    it('should generate correct keys for DOCUMENT cleanup (no double .pdf) (Fix B)', async () => {
+      const docFile = {
+        buffer: Buffer.from('pdf-data'),
+        originalname: 'doc.pdf',
+        mimetype: 'application/pdf',
+        size: 2048,
+      } as Express.Multer.File;
+
+      const oldDocMedia = {
+        id: 'old-doc', storageKey: 'tenants/t1/document/old-doc.pdf',
+        originalUrl: '/old', thumbnailUrl: null, mediumUrl: null, largeUrl: null,
+        width: null, height: null, fileSize: 100,
+      };
+
+      mockPrisma.media.findFirst
+        .mockResolvedValueOnce(null) // dedup check
+        .mockResolvedValueOnce(oldDocMedia) // existingMedia check
+        .mockResolvedValueOnce(oldDocMedia); // re-read inside tx
+      mockPrisma.media.count.mockResolvedValue(0);
+
+      mockPrisma.media.create.mockResolvedValue({
+        id: 'doc-1', tenantId: 't1', entityType: 'product', entityId: 'p1',
+        mediaType: 'DOCUMENT', originalName: 'doc.pdf', mimeType: 'application/pdf',
+        originalFileSize: 2048, fileSize: 2048, checksum: 'abc123checksum',
+        width: null, height: null, storageKey: 'tenants/t1/document/new-doc.pdf',
+        storageProvider: 'LocalStorageProvider',
+        originalUrl: '/url/doc.pdf', thumbnailUrl: null, mediumUrl: null, largeUrl: null,
+        status: 'ready', createdAt: new Date(), updatedAt: new Date(),
+      });
+
+      await service.upload(docFile, 'product', 'p1', 'DOCUMENT', 't1');
+
+      // Cleanup should enqueue the storageKey itself (not storageKey.pdf)
+      const enqueueCall = mockQueue.enqueue.mock.calls.find(
+        (c: any[]) => c[0].type === 'REPLACE',
+      );
+      expect(enqueueCall).toBeDefined();
+      const keys = enqueueCall[0].storageKeys;
+      expect(keys).toContain('tenants/t1/document/old-doc.pdf');
+      expect(keys).not.toContain('tenants/t1/document/old-doc.pdf.pdf');
     });
   });
 

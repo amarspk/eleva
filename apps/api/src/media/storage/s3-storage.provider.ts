@@ -16,14 +16,23 @@ export class S3StorageProvider implements StorageProvider {
       throw new Error('S3_BUCKET environment variable is required when STORAGE_PROVIDER=s3');
     }
 
+    const accessKeyId = process.env.AWS_ACCESS_KEY_ID || '';
+    const secretAccessKey = process.env.AWS_SECRET_ACCESS_KEY || '';
+
+    if (!accessKeyId || !secretAccessKey) {
+      throw new Error(
+        'AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY are required when STORAGE_PROVIDER=s3',
+      );
+    }
+
     try {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
       const { S3Client } = require('@aws-sdk/client-s3');
       this.s3Client = new S3Client({
         region: this.region,
         credentials: {
-          accessKeyId: process.env.AWS_ACCESS_KEY_ID || '',
-          secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || '',
+          accessKeyId,
+          secretAccessKey,
         },
       });
     } catch {

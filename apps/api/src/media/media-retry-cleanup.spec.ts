@@ -250,4 +250,62 @@ describe('MediaService — retry cleanup (TSK-5.7)', () => {
       ]);
     });
   });
+
+  describe('deadlock retry (Fix C)', () => {
+    it('should retry on PostgreSQL deadlock error (code 40P01)', async () => {
+      const deadlockError = Object.assign(new Error('deadlock detected'), { code: '40P01' });
+      let txCount = 0;
+
+      mockPrisma.$transaction.mockImplementation(async (cb: any) => {
+        txCount++;
+        if (txCount === 1) {
+          throw deadlockError;
+        }
+        return cb(mockPrisma);
+      });
+
+      mockPrisma.media.create.mockResolvedValue({
+        id: 'new-m1', tenantId: 't1', entityType: 'product', entityId: 'p1',
+        mediaType: 'IMAGE', originalName: 'photo.jpg', mimeType: 'image/jpeg',
+        originalFileSize: 1024, fileSize: 200, checksum: 'abc123checksum',
+        width: 800, height: 600, storageKey: 'key', storageProvider: 'LocalStorageProvider',
+        originalUrl: '/url', thumbnailUrl: '/url', mediumUrl: '/url', largeUrl: '/url',
+        status: 'ready', createdAt: new Date(), updatedAt: new Date(),
+      });
+
+      await service.upload(mockFile, 'product', 'p1', 'IMAGE', 't1');
+
+      // Deadlock on attempt 1 → files cleaned up → retry succeeds
+      expect(mockStorage.deleteBatch).toHaveBeenCalledTimes(1);
+      expect(mockPrisma.$transaction).toHaveBeenCalledTimes(2);
+    });
+
+    it('should clean up files on deadlock before retry', async () => {
+      const deadlockError = Object.assign(new Error('deadlock detected'), { code: '40P01' });
+      let txCount = 0;
+
+      mockPrisma.$transaction.mockImplementation(async (cb: any) => {
+        txCount++;
+        if (txCount === 1) {
+          throw deadlockError;
+        }
+        return cb(mockPrisma);
+      });
+
+      mockPrisma.media.create.mockResolvedValue({
+        id: 'new-m1', tenantId: 't1', entityType: 'product', entityId: 'p1',
+        mediaType: 'IMAGE', originalName: 'photo.jpg', mimeType: 'image/jpeg',
+        originalFileSize: 1024, fileSize: 200, checksum: 'abc123checksum',
+        width: 800, height: 600, storageKey: 'key', storageProvider: 'LocalStorageProvider',
+        originalUrl: '/url', thumbnailUrl: '/url', mediumUrl: '/url', largeUrl: '/url',
+        status: 'ready', createdAt: new Date(), updatedAt: new Date(),
+      });
+
+      await service.upload(mockFile, 'product', 'p1', 'IMAGE', 't1');
+
+      const deletedKeys = mockStorage.deleteBatch.mock.calls[0][0];
+      expect(deletedKeys).toHaveLength(4);
+      deletedKeys.forEach((k: string) => expect(k).toMatch(/\.webp$/));
+    });
+  });
 });
