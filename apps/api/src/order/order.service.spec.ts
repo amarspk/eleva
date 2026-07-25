@@ -6,6 +6,7 @@ import {
   TenantProductSizeRepository,
   TenantAddonItemRepository,
   TenantOrderRepository,
+  TenantInvoiceRepository,
   TenantRestaurantRepository,
   prisma,
 } from '@zayjar/db';
@@ -248,5 +249,200 @@ describe('OrderService Unit Tests', () => {
     await expect(
       service.createOrder(createDto, tenantId)
     ).rejects.toThrow('Database transaction connection timeout.');
+  });
+
+  // ==========================================
+  // 5. Full Order Lifecycle: PENDING → COMPLETED with Invoice
+  // ==========================================
+  it('should complete full lifecycle PENDING → ACCEPTED → PREPARING → READY → COMPLETED with invoice generation', async () => {
+    const id = 'order-lifecycle-001';
+    const orderId = 'inv-order-001';
+    const tenantId = 'tenant-uuid-1111';
+    const branchId = 'branch-uuid-1234';
+
+    // Mock order at each stage
+    const makeOrder = (status: OrderStatus) => ({
+      id,
+      tenantId,
+      branchId,
+      orderNumber: 'ORD-2026-12345',
+      status,
+      subtotal: 50.00,
+      taxAmount: 5.00,
+      total: 55.00,
+    });
+
+    jest.spyOn(TenantOrderRepository.prototype, 'findById')
+      .mockResolvedValueOnce(makeOrder(OrderStatus.PENDING))
+      .mockResolvedValueOnce(makeOrder(OrderStatus.ACCEPTED))
+      .mockResolvedValueOnce(makeOrder(OrderStatus.PREPARING))
+      .mockResolvedValueOnce(makeOrder(OrderStatus.READY));
+
+    jest.spyOn(TenantOrderRepository.prototype, 'update')
+      .mockResolvedValueOnce(makeOrder(OrderStatus.ACCEPTED))
+      .mockResolvedValueOnce(makeOrder(OrderStatus.PREPARING))
+      .mockResolvedValueOnce(makeOrder(OrderStatus.READY))
+      .mockResolvedValueOnce(makeOrder(OrderStatus.COMPLETED));
+
+    const invoiceSpy = jest.spyOn(TenantInvoiceRepository.prototype, 'create')
+      .mockResolvedValue({ id: 'inv-1', invoiceNumber: 'INV-2026-999999' } as any);
+
+    // Execute full lifecycle
+    const step1 = await service.updateOrderStatus(id, { status: OrderStatus.ACCEPTED });
+    expect(step1.status).toBe(OrderStatus.ACCEPTED);
+
+    const step2 = await service.updateOrderStatus(id, { status: OrderStatus.PREPARING });
+    expect(step2.status).toBe(OrderStatus.PREPARING);
+
+    const step3 = await service.updateOrderStatus(id, { status: OrderStatus.READY });
+    expect(step3.status).toBe(OrderStatus.READY);
+
+    const step4 = await service.updateOrderStatus(id, { status: OrderStatus.COMPLETED });
+    expect(step4.status).toBe(OrderStatus.COMPLETED);
+
+    // Invoice must be auto-generated on completion
+    expect(invoiceSpy).toHaveBeenCalledTimes(1);
+    expect(invoiceSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tenantId,
+        orderId: id,
+        invoiceNumber: expect.stringMatching(/^INV-\d{4}-\d{6}$/),
+      }),
+    );
+  });
+
+  // ==========================================
+  // 6. Cancel from Every Valid State
+  // ==========================================
+  it('should allow cancellation from PENDING, ACCEPTED, PREPARING, and READY states', async () => {
+    const id = 'order-cancel-test';
+    const cancelableStates = [
+      OrderStatus.PENDING,
+      OrderStatus.ACCEPTED,
+      OrderStatus.PREPARING,
+      OrderStatus.READY,
+    ];
+
+    for (const status of cancelableStates) {
+      jest.clearAllMocks();
+      jest.spyOn(TenantOrderRepository.prototype, 'findById')
+        .mockResolvedValue({ id, status } as any);
+      jest.spyOn(TenantOrderRepository.prototype, 'update')
+        .mockResolvedValue({ id, status: OrderStatus.CANCELLED } as any);
+
+      const result = await service.cancelOrder(id);
+      expect(result.status).toBe(OrderStatus.CANCELLED);
+    }
+  });
+
+  // ==========================================
+  // 7. Reject All Invalid Transitions
+  // ==========================================
+  it('should reject all invalid state transitions with BadRequestException', async () => {
+    const id = 'order-invalid-transitions';
+
+    const invalidTransitions: [OrderStatus, OrderStatus][] = [
+      [OrderStatus.PENDING, OrderStatus.PREPARING],
+      [OrderStatus.PENDING, OrderStatus.READY],
+      [OrderStatus.PENDING, OrderStatus.COMPLETED],
+      [OrderStatus.ACCEPTED, OrderStatus.READY],
+      [OrderStatus.ACCEPTED, OrderStatus.COMPLETED],
+      [OrderStatus.PREPARING, OrderStatus.COMPLETED],
+      [OrderStatus.DRAFT, OrderStatus.COMPLETED],
+    ];
+
+    for (const [current, next] of invalidTransitions) {
+      jest.clearAllMocks();
+      jest.spyOn(TenantOrderRepository.prototype, 'findById')
+        .mockResolvedValue({ id, status: current } as any);
+
+      await expect(
+        service.updateOrderStatus(id, { status: next }),
+      ).rejects.toThrow(BadRequestException);
+    }
+  });
+
+  // ==========================================
+  // 8. SMS Notification Triggered on READY Status
+  // ==========================================
+  it('should trigger SMS notification when order status transitions to READY', async () => {
+    const id = 'order-sms-test';
+    const smsService = { sendOrderStatusSms: jest.fn().mockResolvedValue(undefined) };
+
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        OrderService,
+        { provide: require('../notification/sms/sms.service').SmsService, useValue: smsService },
+      ],
+    }).compile();
+
+    const svc = module.get<OrderService>(OrderService);
+
+    jest.spyOn(TenantOrderRepository.prototype, 'findById')
+      .mockResolvedValue({ id, status: OrderStatus.PREPARING, tenantId: 't1', branchId: 'b1', orderNumber: 'ORD-2026-11111' } as any);
+    jest.spyOn(TenantOrderRepository.prototype, 'update')
+      .mockResolvedValue({ id, status: OrderStatus.READY, tenantId: 't1', branchId: 'b1', orderNumber: 'ORD-2026-11111' } as any);
+
+    await svc.updateOrderStatus(id, { status: OrderStatus.READY });
+
+    // SMS is fire-and-forget, give it a tick
+    await new Promise((r) => setTimeout(r, 10));
+    expect(smsService.sendOrderStatusSms).toHaveBeenCalled();
+  });
+
+  // ==========================================
+  // 9. KDS Broadcast Events Fired on Status Changes
+  // ==========================================
+  it('should broadcast KDS events on status transitions', async () => {
+    const id = 'order-kds-test';
+    const kdsGateway = { broadcastOrderEvent: jest.fn() };
+
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        OrderService,
+        { provide: require('../kds/kds.gateway').KdsGateway, useValue: kdsGateway },
+      ],
+    }).compile();
+
+    const svc = module.get<OrderService>(OrderService);
+
+    jest.spyOn(TenantOrderRepository.prototype, 'findById')
+      .mockResolvedValue({ id, status: OrderStatus.PENDING, tenantId: 't1', branchId: 'b1', orderNumber: 'ORD-2026-11111' } as any);
+    jest.spyOn(TenantOrderRepository.prototype, 'update')
+      .mockResolvedValue({ id, status: OrderStatus.ACCEPTED, tenantId: 't1', branchId: 'b1', orderNumber: 'ORD-2026-11111' } as any);
+
+    await svc.updateOrderStatus(id, { status: OrderStatus.ACCEPTED });
+
+    expect(kdsGateway.broadcastOrderEvent).toHaveBeenCalledWith(
+      't1', 'b1', 'order.accepted', expect.objectContaining({ id }),
+    );
+  });
+
+  // ==========================================
+  // 10. Cancel Broadcasts order.cancelled Event
+  // ==========================================
+  it('should broadcast order.cancelled KDS event on cancellation', async () => {
+    const id = 'order-cancel-kds';
+    const kdsGateway = { broadcastOrderEvent: jest.fn() };
+
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        OrderService,
+        { provide: require('../kds/kds.gateway').KdsGateway, useValue: kdsGateway },
+      ],
+    }).compile();
+
+    const svc = module.get<OrderService>(OrderService);
+
+    jest.spyOn(TenantOrderRepository.prototype, 'findById')
+      .mockResolvedValue({ id, status: OrderStatus.PENDING, tenantId: 't1', branchId: 'b1', orderNumber: 'ORD-2026-22222' } as any);
+    jest.spyOn(TenantOrderRepository.prototype, 'update')
+      .mockResolvedValue({ id, status: OrderStatus.CANCELLED, tenantId: 't1', branchId: 'b1', orderNumber: 'ORD-2026-22222' } as any);
+
+    await svc.cancelOrder(id);
+
+    expect(kdsGateway.broadcastOrderEvent).toHaveBeenCalledWith(
+      't1', 'b1', 'order.cancelled', expect.objectContaining({ id }),
+    );
   });
 });
