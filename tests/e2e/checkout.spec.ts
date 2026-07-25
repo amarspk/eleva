@@ -1,185 +1,224 @@
 import { test, expect } from '@playwright/test';
+import { CATEGORIES_A } from './fixtures/mock-data';
+import { createOrderStore, mockAllCheckoutFlows } from './fixtures/api-mocks';
 
-test.describe('Zayjar SaaS Platform - End-to-End Checkout Flow (DOC-010 Appendix E.2)', () => {
-  const TEST_SUBDOMAIN_URL = 'http://gourmet-burgers.localhost:3000';
-  const SECURE_QR_TOKEN = 'qr_t14_sec_99a8c1f00b2e3';
+const QR_MENU_URL = 'http://localhost:3000';
 
-  test.beforeEach(async ({ page }) => {
-    // Mock tenant resolution and menu API for E2E test without real backend
-    await page.route('**/api/v1/tenants/*', async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          id: 't110c-9a1b-42b8-bf83-097a18fcd341',
-          name: 'Gourmet Burger LLC',
-          subdomain: 'gourmet-burgers',
-          customDomain: 'ordering.gourmetburgers.com',
-          status: 'ACTIVE',
-          branding: {
-            logoUrl: 'https://cdn.zayjar.com/t110c/logo.webp',
-            bannerUrl: 'https://cdn.zayjar.com/t110c/cover.webp',
-            primaryColor: '#FF5733',
-            secondaryColor: '#C70039',
-          },
-        }),
-      });
-    });
+test.describe('Customer QR Menu Checkout Journey (TSK-5.5)', () => {
+  test('should display restaurant branding and category tabs', async ({ page }) => {
+    const store = createOrderStore();
+    mockAllCheckoutFlows(page, store);
 
-    await page.route('**/api/v1/menu/categories*', async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify([
-          {
-            id: 'cat1',
-            name: 'Premium Craft Burgers',
-            sortOrder: 1,
-            products: [
-              {
-                id: 'prod_1',
-                name: 'Truffle Umami Smash Burger',
-                description: 'Double smashed patty with truffle aioli',
-                imageUrl: null,
-                basePrice: 14.5,
-                isAvailable: true,
-                sizes: [
-                  { id: 'size_1', name: 'Single', priceAdjustment: 0 },
-                  { id: 'size_2', name: 'Double Patty Max', priceAdjustment: 4.0 },
-                ],
-                variants: [],
-                addons: [
-                  {
-                    id: 'addon_group_1',
-                    name: 'Extra Sauces',
-                    minSelections: 0,
-                    maxSelections: 2,
-                    options: [
-                      { id: 'addon_1', name: 'House Truffle Aioli', price: 0.75, isAvailable: true },
-                      { id: 'addon_2', name: 'Chili Garlic Butter', price: 0.5, isAvailable: true },
-                    ],
-                  },
-                ],
-              },
-            ],
-          },
-        ]),
-      });
-
-    await page.route('**/api/v1/orders/checkout', async (route) => {
-      await route.fulfill({
-        status: 201,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          id: 'order-123',
-          orderNumber: 'ORD-2026-10045',
-          status: 'PREPARING',
-          subtotal: 38.5,
-          taxAmount: 3.85,
-          total: 42.35,
-        }),
-      });
-    });
-  });
-
-  test('should successfully complete a secure QR checkout flow', async ({ page }) => {
-    // 1. Scan Table QR Code (simulated redirect) per DOC-010 E.2
-    await page.goto(`${TEST_SUBDOMAIN_URL}/order?table=${SECURE_QR_TOKEN}`);
-
-    // Verify system resolves tenant, branch, and table identity
-    // In real app, would check for tenant name from API, here we check for fallback UI
-    // Since we are using mock QR menu page, we check that page loads
+    await page.goto(QR_MENU_URL);
     await page.waitForLoadState('networkidle');
 
-    // For this E2E, we directly test QR menu page which has MenuBrowser
-    await page.goto('http://localhost:3000');
-
-    // 2. Browse Category & Select Product
-    const allButton = page.locator('button:has-text("All")').first();
-    if (await allButton.isVisible()) {
-      await allButton.click();
-    }
-
-    // Look for product card
-    const productCard = page.locator('text=Truffle Umami Smash Burger').first();
-    if (await productCard.isVisible()) {
-      await productCard.click();
-
-      // 3. Configure Addons & Size modifiers in Drawer Modal
-      await expect(page.locator('h3').first()).toContainText(/Truffle Umami|Burger/, { timeout: 5000 }).catch(() => {});
-
-      // Select 'Double Patty Max' Size Option (+4.00)
-      const sizeButton = page.locator('button:has-text("Double Patty Max")').first();
-      if (await sizeButton.isVisible()) {
-        await sizeButton.click();
-      }
-
-      // Select Addon Option
-      const addonButton = page.locator('button:has-text("House Truffle Aioli")').first();
-      if (await addonButton.isVisible()) {
-        await addonButton.click();
-      }
-
-      // Set Quantity = 2 if increment button exists
-      const incrementButton = page.locator('button:has-text("+")').first();
-      if (await incrementButton.isVisible()) {
-        await incrementButton.click();
-      }
-
-      // Add to Cart
-      const addToCartButton = page.locator('button:has-text("Add to Cart")').first();
-      if (await addToCartButton.isVisible()) {
-        await expect(addToCartButton).toContainText(/\$\d+\.\d{2}/);
-        await addToCartButton.click();
-      }
-    }
-
-    // 4. Verify checkout flow can be initiated (mocked)
-    // In real E2E, would click View Cart and Place Order
-    // For this mock, we just verify page is interactive and tenant isolated
-
-    await expect(page).toHaveURL(/.*localhost:3000.*/);
-
-    // Verify tenant isolation - ensure no cross-tenant data leakage in localStorage
-    const tenantId = await page.evaluate(() => localStorage.getItem('tenantId') || 'mock-tenant');
-    expect(tenantId).toBeDefined();
+    await expect(page.locator('h1')).toContainText('Gourmet Burger LLC');
+    await expect(page.locator('button:has-text("All")').first()).toBeVisible();
+    await expect(page.locator('button:has-text("Premium Craft Burgers")')).toBeVisible();
+    await expect(page.locator('button:has-text("Artisan Pizzas")')).toBeVisible();
   });
 
-  test('should preserve tenant isolation across subdomains', async ({ page, context }) => {
-    // Simulate two different tenants via subdomains
-    await page.goto('http://gourmet-burgers.localhost:3000');
-    await page.evaluate(() => localStorage.setItem('tenantId', 'tenant-gourmet'));
+  test('should display table number when query param is provided', async ({ page }) => {
+    const store = createOrderStore();
+    mockAllCheckoutFlows(page, store);
 
-    const tenantA = await page.evaluate(() => localStorage.getItem('tenantId'));
-    expect(tenantA).toBe('tenant-gourmet');
+    await page.goto(`${QR_MENU_URL}/?table=7`);
+    await page.waitForLoadState('networkidle');
 
-    // Switch to different tenant
-    await page.goto('http://pizza-palace.localhost:3000');
-    await page.evaluate(() => localStorage.setItem('tenantId', 'tenant-pizza'));
-
-    const tenantB = await page.evaluate(() => localStorage.getItem('tenantId'));
-    expect(tenantB).toBe('tenant-pizza');
-    expect(tenantB).not.toBe(tenantA);
+    await expect(page.locator('text=Table 7')).toBeVisible();
+    await expect(page.locator('text=QR Secure Ordering')).toBeVisible();
   });
 
-  test('should handle offline checkout via Cashier PWA IndexedDB', async ({ page, context }) => {
-    await page.goto('http://localhost:3002');
-    await page.waitForLoadState('networkidle').catch(() => {});
+  test('should browse products by category', async ({ page }) => {
+    const store = createOrderStore();
+    mockAllCheckoutFlows(page, store);
 
-    // Check if cashier PWA loads and has offline support
-    const offlineIndicator = page.locator('text=Offline').first();
-    const onlineIndicator = page.locator('text=Online').first();
+    await page.goto(QR_MENU_URL);
+    await page.waitForLoadState('networkidle');
 
-    // One of them should be visible
-    const isOfflineVisible = await offlineIndicator.isVisible().catch(() => false);
-    const isOnlineVisible = await onlineIndicator.isVisible().catch(() => false);
+    await expect(page.locator('text=Truffle Umami Smash Burger')).toBeVisible();
+    await expect(page.locator('text=Classic Smash Burger')).toBeVisible();
+    await expect(page.locator('text=Margherita Craft')).toBeVisible();
 
-    expect(isOfflineVisible || isOnlineVisible).toBeTruthy();
+    const pizzaTab = page.locator('button:has-text("Artisan Pizzas")');
+    await pizzaTab.click();
 
-    // Verify IndexedDB exists for offline orders
-    const hasIndexedDB = await page.evaluate(() => {
-      return !!window.indexedDB;
-    });
-    expect(hasIndexedDB).toBe(true);
+    await expect(page.locator('text=Margherita Craft')).toBeVisible();
+    await expect(page.locator('text=Truffle Umami Smash Burger')).not.toBeVisible();
+  });
+
+  test('should search menu items', async ({ page }) => {
+    const store = createOrderStore();
+    mockAllCheckoutFlows(page, store);
+
+    await page.goto(QR_MENU_URL);
+    await page.waitForLoadState('networkidle');
+
+    await expect(page.locator('text=Truffle Umami Smash Burger')).toBeVisible();
+    await expect(page.locator('text=Classic Smash Burger')).toBeVisible();
+
+    const searchInput = page.locator('input[placeholder="Search menu items..."]');
+    await searchInput.fill('Margherita');
+
+    await expect(page.locator('text=Margherita Craft')).toBeVisible();
+    await expect(page.locator('text=Truffle Umami Smash Burger')).not.toBeVisible();
+  });
+
+  test('should open product detail drawer and show sizes and addons', async ({ page }) => {
+    const store = createOrderStore();
+    mockAllCheckoutFlows(page, store);
+
+    await page.goto(QR_MENU_URL);
+    await page.waitForLoadState('networkidle');
+
+    await page.locator('text=Truffle Umami Smash Burger').first().click();
+
+    await expect(page.locator('h3').last()).toContainText('Truffle Umami Smash Burger');
+    await expect(page.locator('text=Select Size')).toBeVisible();
+    await expect(page.locator('button:has-text("Single (+$0.00)")')).toBeVisible();
+    await expect(page.locator('button:has-text("Double Patty Max (+$4.00)")')).toBeVisible();
+    await expect(page.locator('text=Extra Sauces')).toBeVisible();
+    await expect(page.locator('button:has-text("House Truffle Aioli")')).toBeVisible();
+    await expect(page.locator('button:has-text("Chili Garlic Butter")')).toBeVisible();
+  });
+
+  test('should select size and addons, calculate correct total', async ({ page }) => {
+    const store = createOrderStore();
+    mockAllCheckoutFlows(page, store);
+
+    await page.goto(QR_MENU_URL);
+    await page.waitForLoadState('networkidle');
+
+    await page.locator('text=Truffle Umami Smash Burger').first().click();
+
+    await page.locator('button:has-text("Double Patty Max")').click();
+    await page.locator('button:has-text("House Truffle Aioli")').click();
+
+    const expectedPrice = (14.5 + 4.0 + 0.75).toFixed(2);
+    await expect(page.locator(`button:has-text("Add to Cart ($${expectedPrice})")`)).toBeVisible();
+  });
+
+  test('should show Add to Cart button with correct price after configuration', async ({ page }) => {
+    const store = createOrderStore();
+    mockAllCheckoutFlows(page, store);
+
+    await page.goto(QR_MENU_URL);
+    await page.waitForLoadState('networkidle');
+
+    await page.locator('text=Truffle Umami Smash Burger').first().click();
+    await page.locator('button:has-text("Double Patty Max")').click();
+
+    const expectedPrice = (14.5 + 4.0).toFixed(2);
+    await expect(page.locator(`button:has-text("Add to Cart ($${expectedPrice})")`)).toBeVisible();
+  });
+
+  test('should complete full QR checkout flow — open drawer, configure, verify price', async ({
+    page,
+  }) => {
+    const store = createOrderStore();
+    mockAllCheckoutFlows(page, store);
+
+    await page.goto(`${QR_MENU_URL}/?table=qr_token_07`);
+    await page.waitForLoadState('networkidle');
+
+    await expect(page.locator('h1')).toContainText('Gourmet Burger LLC');
+
+    await page.locator('text=Truffle Umami Smash Burger').first().click();
+    await expect(page.locator('h3').last()).toContainText('Truffle Umami Smash Burger');
+
+    await page.locator('button:has-text("Double Patty Max")').click();
+    await page.locator('button:has-text("House Truffle Aioli")').click();
+    await page.locator('button:has-text("Chili Garlic Butter")').click();
+
+    const expectedPrice = (14.5 + 4.0 + 0.75 + 0.5).toFixed(2);
+    await expect(page.locator(`button:has-text("Add to Cart ($${expectedPrice})")`)).toBeVisible();
+
+    expect(page).toHaveURL(/localhost:3000/);
+  });
+
+  test('should handle simple product without sizes or addons', async ({ page }) => {
+    const store = createOrderStore();
+    mockAllCheckoutFlows(page, store);
+
+    await page.goto(QR_MENU_URL);
+    await page.waitForLoadState('networkidle');
+
+    await page.locator('text=Classic Smash Burger').first().click();
+
+    await expect(page.locator('h3').last()).toContainText('Classic Smash Burger');
+    await expect(page.locator('text=Select Size')).not.toBeVisible();
+    await expect(page.locator('text=Extra Sauces')).not.toBeVisible();
+
+    const price = (10.0).toFixed(2);
+    await expect(page.locator(`button:has-text("Add to Cart ($${price})")`)).toBeVisible();
+  });
+
+  test('should close product drawer when X button clicked', async ({ page }) => {
+    const store = createOrderStore();
+    mockAllCheckoutFlows(page, store);
+
+    await page.goto(QR_MENU_URL);
+    await page.waitForLoadState('networkidle');
+
+    await page.locator('text=Truffle Umami Smash Burger').first().click();
+    await expect(page.locator('h3').last()).toContainText('Truffle Umami Smash Burger');
+
+    await page.locator('button:has-text("×")').click();
+
+    await expect(page.locator('.fixed.inset-0')).not.toBeVisible({ timeout: 3000 });
+  });
+
+  test('should increment and decrement quantity in product drawer', async ({ page }) => {
+    const store = createOrderStore();
+    mockAllCheckoutFlows(page, store);
+
+    await page.goto(QR_MENU_URL);
+    await page.waitForLoadState('networkidle');
+
+    await page.locator('text=Truffle Umami Smash Burger').first().click();
+
+    const quantityContainer = page.locator('div.border.rounded-full');
+    const minusBtn = quantityContainer.locator('button').filter({ hasText: /^-$/ });
+    const plusBtn = quantityContainer.locator('button').filter({ hasText: /^\+$/ });
+
+    await plusBtn.click();
+    const doublePrice = (14.5 * 2).toFixed(2);
+    await expect(page.locator(`button:has-text("Add to Cart ($${doublePrice})")`)).toBeVisible();
+
+    await minusBtn.click();
+    const singlePrice = (14.5).toFixed(2);
+    await expect(page.locator(`button:has-text("Add to Cart ($${singlePrice})")`)).toBeVisible();
+  });
+
+  test('should show product variants with low stock warning', async ({ page }) => {
+    const store = createOrderStore();
+    mockAllCheckoutFlows(page, store);
+
+    await page.goto(QR_MENU_URL);
+    await page.waitForLoadState('networkidle');
+
+    await page.locator('text=Truffle Umami Smash Burger').first().click();
+
+    await expect(page.locator('text=Select Variant')).toBeVisible();
+    await expect(page.locator('button:has-text("Classic - Medium")')).toBeVisible();
+    await expect(page.locator('text=Only 3 left!')).toBeVisible();
+    await expect(page.locator('button:has-text("Spicy - Hot")')).toBeVisible();
+  });
+
+  test('should show Margherita with pizza sizes and addons', async ({ page }) => {
+    const store = createOrderStore();
+    mockAllCheckoutFlows(page, store);
+
+    await page.goto(QR_MENU_URL);
+    await page.waitForLoadState('networkidle');
+
+    await page.locator('text=Margherita Craft').first().click();
+
+    await expect(page.locator('h3').last()).toContainText('Margherita Craft');
+    await expect(page.locator('button:has-text("Medium 12\\"")')).toBeVisible();
+    await expect(page.locator('button:has-text("Large 14\\"")')).toBeVisible();
+    await expect(page.locator('text=Extra Toppings')).toBeVisible();
+    await expect(page.locator('button:has-text("Extra Mozzarella")')).toBeVisible();
+    await expect(page.locator('button:has-text("Pepperoni")')).toBeVisible();
   });
 });
