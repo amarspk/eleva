@@ -124,7 +124,7 @@ export class MediaService {
       where: { tenantId, entityType, entityId, mediaType: mediaType as any, status: 'ready' },
     });
 
-    const media = await prisma.$transaction(async (tx: any) => {
+    const { media, shouldDeleteOldFiles, oldStorageKey } = await prisma.$transaction(async (tx: any) => {
       const created = await tx.media.create({
         data: {
           tenantId,
@@ -163,24 +163,31 @@ export class MediaService {
         }
       }
 
-      return created;
+      let shouldDeleteOldFiles = false;
+      let deletedStorageKey: string | undefined;
+
+      if (existingMedia) {
+        deletedStorageKey = existingMedia.storageKey;
+
+        // deleteMany is idempotent — safe for concurrent replacements
+        await tx.media.deleteMany({ where: { id: existingMedia.id } });
+
+        // Refcount check AFTER the old record is deleted, INSIDE the transaction.
+        // The new Media (created above) is visible to this query within the same tx.
+        // If new Media shares storageKey via dedup, count >= 1 → keep files.
+        // If new Media has a different key, count == 0 → delete old files.
+        const remainingCount = await tx.media.count({
+          where: { storageKey: existingMedia.storageKey, status: 'ready' },
+        });
+        shouldDeleteOldFiles = remainingCount === 0;
+      }
+
+      return { media: created, shouldDeleteOldFiles, oldStorageKey: deletedStorageKey };
     });
 
-    if (existingMedia) {
-      // Check refcount BEFORE deleting the old record.
-      // This count includes the old Media record itself.
-      // If refcount = 1, only the old record references this storageKey.
-      // After we delete it, refcount will be 0 → safe to delete files.
-      // If refcount > 1, the new Media shares storageKey via dedup → keep files.
-      const oldRefcount = await prisma.media.count({
-        where: { storageKey: existingMedia.storageKey, status: 'ready' },
-      });
-
-      await prisma.media.delete({ where: { id: existingMedia.id } });
-
-      if (oldRefcount === 1) {
-        this.enqueueCleanup(existingMedia.storageKey, 'REPLACE');
-      }
+    // File deletion is always async and outside the transaction.
+    if (shouldDeleteOldFiles && oldStorageKey) {
+      this.enqueueCleanup(oldStorageKey, 'REPLACE');
     }
 
     return this.toResponseDto(media);
@@ -228,16 +235,7 @@ export class MediaService {
       throw new NotFoundException(`Media with ID "${id}" not found`);
     }
 
-    // Check refcount BEFORE deletion.
-    // This count includes the record itself.
-    // If refcount = 1, only this record references the storageKey.
-    // After deletion, refcount will be 0 → safe to delete files.
-    // If refcount > 1, other records share the storageKey → keep files.
-    const refCount = await prisma.media.count({
-      where: { storageKey: media.storageKey, status: 'ready' },
-    });
-
-    await prisma.$transaction(async (tx: any) => {
+    const shouldDeleteFiles = await prisma.$transaction(async (tx: any) => {
       const urlField = ENTITY_URL_MAP[media.entityType]?.[media.mediaType];
       if (urlField) {
         if (media.entityType === 'restaurant') {
@@ -253,10 +251,20 @@ export class MediaService {
         }
       }
 
-      await tx.media.delete({ where: { id } });
+      // deleteMany is idempotent — safe if record was already removed
+      await tx.media.deleteMany({ where: { id } });
+
+      // Refcount check AFTER deletion, INSIDE the transaction.
+      // This query sees the delete above (same tx).
+      // If count == 0, no other record references these files → safe to delete.
+      // If count > 0, another record shares the storageKey → keep files.
+      const remainingCount = await tx.media.count({
+        where: { storageKey: media.storageKey, status: 'ready' },
+      });
+      return remainingCount === 0;
     });
 
-    if (refCount === 1) {
+    if (shouldDeleteFiles) {
       this.enqueueCleanup(media.storageKey, 'DELETE');
     }
   }

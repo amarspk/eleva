@@ -129,12 +129,12 @@ describe('MediaService', () => {
       expect(mockStorage.upload).not.toHaveBeenCalled();
     });
 
-    it('should delete old media and enqueue cleanup when replacement refcount = 1', async () => {
+    it('should delete old media and enqueue cleanup when replacement refcount = 0 after deletion', async () => {
       const oldMedia = { id: 'old-m1', storageKey: 'old-key', originalUrl: '/old', thumbnailUrl: '/old', mediumUrl: '/old', largeUrl: '/old', width: 800, height: 600, fileSize: 100 };
       mockPrisma.media.findFirst
         .mockResolvedValueOnce(null)
         .mockResolvedValueOnce(oldMedia);
-      mockPrisma.media.count.mockResolvedValue(1);
+      mockPrisma.media.count.mockResolvedValue(0);
       mockPrisma.media.create.mockResolvedValue({
         id: 'new-m1', tenantId: 't1', entityType: 'product', entityId: 'p1',
         mediaType: 'IMAGE', originalName: 'photo.jpg', mimeType: 'image/jpeg',
@@ -146,18 +146,18 @@ describe('MediaService', () => {
 
       await service.upload(mockFile, 'product', 'p1', 'IMAGE', 't1');
 
-      expect(mockPrisma.media.delete).toHaveBeenCalledWith({ where: { id: 'old-m1' } });
+      expect(mockPrisma.media.deleteMany).toHaveBeenCalledWith({ where: { id: 'old-m1' } });
       expect(mockQueue.enqueue).toHaveBeenCalledWith(
         expect.objectContaining({ type: 'REPLACE' }),
       );
     });
 
-    it('should not enqueue cleanup when replacement refcount > 1 (shared dedup)', async () => {
+    it('should not enqueue cleanup when new Media shares storageKey (refcount > 0 after deletion)', async () => {
       const oldMedia = { id: 'old-m1', storageKey: 'shared-key', originalUrl: '/old', thumbnailUrl: '/old', mediumUrl: '/old', largeUrl: '/old', width: 800, height: 600, fileSize: 100 };
       mockPrisma.media.findFirst
         .mockResolvedValueOnce({ storageKey: 'shared-key', originalUrl: '/old', thumbnailUrl: '/old', mediumUrl: '/old', largeUrl: '/old', width: 800, height: 600, fileSize: 100 })
         .mockResolvedValueOnce(oldMedia);
-      mockPrisma.media.count.mockResolvedValue(2);
+      mockPrisma.media.count.mockResolvedValue(1);
       mockPrisma.media.create.mockResolvedValue({
         id: 'new-m1', tenantId: 't1', entityType: 'product', entityId: 'p1',
         mediaType: 'IMAGE', originalName: 'photo.jpg', mimeType: 'image/jpeg',
@@ -169,7 +169,7 @@ describe('MediaService', () => {
 
       await service.upload(mockFile, 'product', 'p1', 'IMAGE', 't1');
 
-      expect(mockPrisma.media.delete).toHaveBeenCalledWith({ where: { id: 'old-m1' } });
+      expect(mockPrisma.media.deleteMany).toHaveBeenCalledWith({ where: { id: 'old-m1' } });
       expect(mockQueue.enqueue).not.toHaveBeenCalled();
     });
   });
@@ -213,31 +213,31 @@ describe('MediaService', () => {
   });
 
   describe('remove', () => {
-    it('should delete media and enqueue cleanup when refcount = 1 (sole reference)', async () => {
+    it('should delete media and enqueue cleanup when refcount = 0 after deletion (sole reference)', async () => {
       mockPrisma.media.findFirst.mockResolvedValue({
         id: 'm1', tenantId: 't1', entityType: 'product', entityId: 'p1',
         mediaType: 'IMAGE', storageKey: 'key-to-delete',
       });
-      mockPrisma.media.count.mockResolvedValue(1);
+      mockPrisma.media.count.mockResolvedValue(0);
 
       await service.remove('m1', 't1');
 
-      expect(mockPrisma.media.delete).toHaveBeenCalled();
+      expect(mockPrisma.media.deleteMany).toHaveBeenCalledWith({ where: { id: 'm1' } });
       expect(mockQueue.enqueue).toHaveBeenCalledWith(
         expect.objectContaining({ type: 'DELETE' }),
       );
     });
 
-    it('should not enqueue file deletion when refcount > 1 (shared dedup)', async () => {
+    it('should not enqueue file deletion when refcount > 0 after deletion (shared dedup)', async () => {
       mockPrisma.media.findFirst.mockResolvedValue({
         id: 'm1', tenantId: 't1', entityType: 'product', entityId: 'p1',
         mediaType: 'IMAGE', storageKey: 'shared-key',
       });
-      mockPrisma.media.count.mockResolvedValue(2);
+      mockPrisma.media.count.mockResolvedValue(1);
 
       await service.remove('m1', 't1');
 
-      expect(mockPrisma.media.delete).toHaveBeenCalled();
+      expect(mockPrisma.media.deleteMany).toHaveBeenCalledWith({ where: { id: 'm1' } });
       expect(mockQueue.enqueue).not.toHaveBeenCalled();
     });
 
