@@ -167,7 +167,20 @@ export class MediaService {
     });
 
     if (existingMedia) {
-      this.enqueueCleanup(existingMedia.storageKey, 'REPLACE');
+      // Check refcount BEFORE deleting the old record.
+      // This count includes the old Media record itself.
+      // If refcount = 1, only the old record references this storageKey.
+      // After we delete it, refcount will be 0 → safe to delete files.
+      // If refcount > 1, the new Media shares storageKey via dedup → keep files.
+      const oldRefcount = await prisma.media.count({
+        where: { storageKey: existingMedia.storageKey, status: 'ready' },
+      });
+
+      await prisma.media.delete({ where: { id: existingMedia.id } });
+
+      if (oldRefcount === 1) {
+        this.enqueueCleanup(existingMedia.storageKey, 'REPLACE');
+      }
     }
 
     return this.toResponseDto(media);
@@ -215,6 +228,15 @@ export class MediaService {
       throw new NotFoundException(`Media with ID "${id}" not found`);
     }
 
+    // Check refcount BEFORE deletion.
+    // This count includes the record itself.
+    // If refcount = 1, only this record references the storageKey.
+    // After deletion, refcount will be 0 → safe to delete files.
+    // If refcount > 1, other records share the storageKey → keep files.
+    const refCount = await prisma.media.count({
+      where: { storageKey: media.storageKey, status: 'ready' },
+    });
+
     await prisma.$transaction(async (tx: any) => {
       const urlField = ENTITY_URL_MAP[media.entityType]?.[media.mediaType];
       if (urlField) {
@@ -234,11 +256,7 @@ export class MediaService {
       await tx.media.delete({ where: { id } });
     });
 
-    const refCount = await prisma.media.count({
-      where: { storageKey: media.storageKey, status: 'ready' },
-    });
-
-    if (refCount === 0) {
+    if (refCount === 1) {
       this.enqueueCleanup(media.storageKey, 'DELETE');
     }
   }

@@ -128,6 +128,50 @@ describe('MediaService', () => {
       expect(result.storageKey).toBe('existing-key');
       expect(mockStorage.upload).not.toHaveBeenCalled();
     });
+
+    it('should delete old media and enqueue cleanup when replacement refcount = 1', async () => {
+      const oldMedia = { id: 'old-m1', storageKey: 'old-key', originalUrl: '/old', thumbnailUrl: '/old', mediumUrl: '/old', largeUrl: '/old', width: 800, height: 600, fileSize: 100 };
+      mockPrisma.media.findFirst
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(oldMedia);
+      mockPrisma.media.count.mockResolvedValue(1);
+      mockPrisma.media.create.mockResolvedValue({
+        id: 'new-m1', tenantId: 't1', entityType: 'product', entityId: 'p1',
+        mediaType: 'IMAGE', originalName: 'photo.jpg', mimeType: 'image/jpeg',
+        originalFileSize: 1024, fileSize: 200, checksum: 'new-checksum',
+        width: 800, height: 600, storageKey: 'new-key', storageProvider: 'LocalStorageProvider',
+        originalUrl: '/new', thumbnailUrl: '/new', mediumUrl: '/new', largeUrl: '/new',
+        status: 'ready', createdAt: new Date(), updatedAt: new Date(),
+      });
+
+      await service.upload(mockFile, 'product', 'p1', 'IMAGE', 't1');
+
+      expect(mockPrisma.media.delete).toHaveBeenCalledWith({ where: { id: 'old-m1' } });
+      expect(mockQueue.enqueue).toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'REPLACE' }),
+      );
+    });
+
+    it('should not enqueue cleanup when replacement refcount > 1 (shared dedup)', async () => {
+      const oldMedia = { id: 'old-m1', storageKey: 'shared-key', originalUrl: '/old', thumbnailUrl: '/old', mediumUrl: '/old', largeUrl: '/old', width: 800, height: 600, fileSize: 100 };
+      mockPrisma.media.findFirst
+        .mockResolvedValueOnce({ storageKey: 'shared-key', originalUrl: '/old', thumbnailUrl: '/old', mediumUrl: '/old', largeUrl: '/old', width: 800, height: 600, fileSize: 100 })
+        .mockResolvedValueOnce(oldMedia);
+      mockPrisma.media.count.mockResolvedValue(2);
+      mockPrisma.media.create.mockResolvedValue({
+        id: 'new-m1', tenantId: 't1', entityType: 'product', entityId: 'p1',
+        mediaType: 'IMAGE', originalName: 'photo.jpg', mimeType: 'image/jpeg',
+        originalFileSize: 1024, fileSize: 200, checksum: 'abc123checksum',
+        width: 800, height: 600, storageKey: 'shared-key', storageProvider: 'LocalStorageProvider',
+        originalUrl: '/old', thumbnailUrl: '/old', mediumUrl: '/old', largeUrl: '/old',
+        status: 'ready', createdAt: new Date(), updatedAt: new Date(),
+      });
+
+      await service.upload(mockFile, 'product', 'p1', 'IMAGE', 't1');
+
+      expect(mockPrisma.media.delete).toHaveBeenCalledWith({ where: { id: 'old-m1' } });
+      expect(mockQueue.enqueue).not.toHaveBeenCalled();
+    });
   });
 
   describe('findAll', () => {
@@ -169,12 +213,12 @@ describe('MediaService', () => {
   });
 
   describe('remove', () => {
-    it('should delete media and enqueue cleanup when refcount = 0', async () => {
+    it('should delete media and enqueue cleanup when refcount = 1 (sole reference)', async () => {
       mockPrisma.media.findFirst.mockResolvedValue({
         id: 'm1', tenantId: 't1', entityType: 'product', entityId: 'p1',
         mediaType: 'IMAGE', storageKey: 'key-to-delete',
       });
-      mockPrisma.media.count.mockResolvedValue(0);
+      mockPrisma.media.count.mockResolvedValue(1);
 
       await service.remove('m1', 't1');
 
@@ -184,12 +228,12 @@ describe('MediaService', () => {
       );
     });
 
-    it('should not enqueue file deletion when refcount > 0 (shared dedup)', async () => {
+    it('should not enqueue file deletion when refcount > 1 (shared dedup)', async () => {
       mockPrisma.media.findFirst.mockResolvedValue({
         id: 'm1', tenantId: 't1', entityType: 'product', entityId: 'p1',
         mediaType: 'IMAGE', storageKey: 'shared-key',
       });
-      mockPrisma.media.count.mockResolvedValue(1);
+      mockPrisma.media.count.mockResolvedValue(2);
 
       await service.remove('m1', 't1');
 
