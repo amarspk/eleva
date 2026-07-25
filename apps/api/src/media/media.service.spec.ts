@@ -113,7 +113,7 @@ describe('MediaService', () => {
     it('should use dedup when checksum matches', async () => {
       mockPrisma.media.findFirst
         .mockResolvedValueOnce({ storageKey: 'existing-key', originalUrl: '/existing', thumbnailUrl: '/existing', mediumUrl: '/existing', largeUrl: '/existing', width: 800, height: 600, fileSize: 100 })
-        .mockResolvedValueOnce(null);
+        .mockResolvedValueOnce(null); // existingMedia check returns null
       mockPrisma.media.create.mockResolvedValue({
         id: 'media-dedup', tenantId: 't1', entityType: 'product', entityId: 'p1',
         mediaType: 'IMAGE', originalName: 'photo.jpg', mimeType: 'image/jpeg',
@@ -156,7 +156,7 @@ describe('MediaService', () => {
     it('should not enqueue cleanup when new Media shares storageKey (refcount > 0 after deletion)', async () => {
       const oldMedia = { id: 'old-m1', storageKey: 'shared-key', originalUrl: '/old', thumbnailUrl: '/old', mediumUrl: '/old', largeUrl: '/old', width: 800, height: 600, fileSize: 100 };
       mockPrisma.media.findFirst
-        .mockResolvedValueOnce({ storageKey: 'shared-key', originalUrl: '/old', thumbnailUrl: '/old', mediumUrl: '/old', largeUrl: '/old', width: 800, height: 600, fileSize: 100 })
+        .mockResolvedValueOnce({ storageKey: 'shared-key', originalUrl: '/old', thumbnailUrl: '/old', mediumUrl: '/old', largeUrl: '/old', width: 800, height: 600, fileSize: 100 }) // dedup
         .mockResolvedValueOnce(oldMedia) // existingMedia check
         .mockResolvedValueOnce(oldMedia); // re-read inside tx
       mockPrisma.media.count.mockResolvedValue(1);
@@ -178,15 +178,18 @@ describe('MediaService', () => {
     it('should handle two concurrent replacements for the same entity/mediaType correctly', async () => {
       const oldMedia = { id: 'old-m1', storageKey: 'old-key', originalUrl: '/old', thumbnailUrl: '/old', mediumUrl: '/old', largeUrl: '/old', width: 800, height: 600, fileSize: 100 };
 
-      // Each upload() makes two findFirst calls:
-      //   1. Dedup check by checksum → always null (no existing checksum match)
+      // Each upload() makes 3 findFirst calls:
+      //   1. Dedup check by checksum → null
       //   2. Existing media check by entityType/entityId/mediaType → oldMedia
-      // Use mockImplementation to route correctly regardless of call order.
+      //   3. Re-read inside SERIALIZABLE tx by id → oldMedia
       let findFirstCallCount = 0;
       mockPrisma.media.findFirst.mockImplementation(async (args: any) => {
         findFirstCallCount++;
         if (args.where?.checksum) {
           return null; // dedup check
+        }
+        if (args.where?.id === oldMedia.id) {
+          return oldMedia; // re-read inside tx or existingMedia check
         }
         return oldMedia; // existingMedia check
       });
@@ -241,6 +244,109 @@ describe('MediaService', () => {
       expect(mockQueue.enqueue).toHaveBeenCalledWith(
         expect.objectContaining({ type: 'REPLACE', storageKeys: expect.arrayContaining(['old-key-original.webp']) }),
       );
+    });
+
+    it('should synchronously delete files from failed attempt before retrying on serialization error', async () => {
+      mockPrisma.media.findFirst
+        .mockResolvedValue(null) // dedup check → null for all calls
+        .mockResolvedValue(null); // existingMedia check → null
+
+      const error = Object.assign(new Error('serialization failure'), { code: '40001' });
+
+      let transactionCallCount = 0;
+      mockPrisma.$transaction.mockImplementation(async (cb: any) => {
+        transactionCallCount++;
+        if (transactionCallCount === 1) {
+          throw error;
+        }
+        return cb(mockPrisma);
+      });
+
+      mockPrisma.media.create.mockResolvedValue({
+        id: 'new-m1', tenantId: 't1', entityType: 'product', entityId: 'p1',
+        mediaType: 'IMAGE', originalName: 'photo.jpg', mimeType: 'image/jpeg',
+        originalFileSize: 1024, fileSize: 200, checksum: 'abc123checksum',
+        width: 800, height: 600, storageKey: 'key', storageProvider: 'LocalStorageProvider',
+        originalUrl: '/url', thumbnailUrl: '/url', mediumUrl: '/url', largeUrl: '/url',
+        status: 'ready', createdAt: new Date(), updatedAt: new Date(),
+      });
+
+      await service.upload(mockFile, 'product', 'p1', 'IMAGE', 't1');
+
+      // Files from failed attempt were synchronously deleted before retry
+      expect(mockStorage.deleteBatch).toHaveBeenCalledTimes(1);
+      // Keys follow the pattern: tenants/t1/image/{timestamp}-{checksum8}-{size}.webp
+      const deletedKeys = mockStorage.deleteBatch.mock.calls[0][0];
+      expect(deletedKeys).toHaveLength(4);
+      expect(deletedKeys[0]).toMatch(/^tenants\/t1\/image\/.*-original\.webp$/);
+      expect(deletedKeys[1]).toMatch(/^tenants\/t1\/image\/.*-thumbnail\.webp$/);
+      expect(deletedKeys[2]).toMatch(/^tenants\/t1\/image\/.*-medium\.webp$/);
+      expect(deletedKeys[3]).toMatch(/^tenants\/t1\/image\/.*-large\.webp$/);
+
+      // Transaction was called twice: fail + retry success
+      expect(mockPrisma.$transaction).toHaveBeenCalledTimes(2);
+    });
+
+    it('should leave zero leaked files after all retries fail', async () => {
+      mockPrisma.media.findFirst.mockResolvedValue(null);
+
+      const error = Object.assign(new Error('serialization failure'), { code: '40001' });
+      mockPrisma.$transaction.mockRejectedValue(error);
+
+      await expect(
+        service.upload(mockFile, 'product', 'p1', 'IMAGE', 't1'),
+      ).rejects.toThrow();
+
+      // 3 attempts × 4 files uploaded per attempt = 12 uploads
+      expect(mockStorage.upload).toHaveBeenCalledTimes(12);
+      // After each attempt's failure, deleteBatch is called with 4 keys
+      expect(mockStorage.deleteBatch).toHaveBeenCalledTimes(3);
+      for (const call of mockStorage.deleteBatch.mock.calls) {
+        expect(call[0]).toHaveLength(4);
+        expect(call[0][0]).toMatch(/-original\.webp$/);
+        expect(call[0][1]).toMatch(/-thumbnail\.webp$/);
+        expect(call[0][2]).toMatch(/-medium\.webp$/);
+        expect(call[0][3]).toMatch(/-large\.webp$/);
+      }
+
+      // No database records created
+      expect(mockPrisma.media.create).not.toHaveBeenCalled();
+      expect(mockQueue.enqueue).not.toHaveBeenCalled();
+    });
+
+    it('should keep only committed files after successful retry', async () => {
+      mockPrisma.media.findFirst
+        .mockResolvedValue(null) // dedup check
+        .mockResolvedValue(null); // existingMedia check
+
+      const error = Object.assign(new Error('serialization failure'), { code: '40001' });
+
+      let transactionCallCount = 0;
+      mockPrisma.$transaction.mockImplementation(async (cb: any) => {
+        transactionCallCount++;
+        if (transactionCallCount === 1) {
+          throw error;
+        }
+        return cb(mockPrisma);
+      });
+
+      mockPrisma.media.create.mockResolvedValue({
+        id: 'new-m1', tenantId: 't1', entityType: 'product', entityId: 'p1',
+        mediaType: 'IMAGE', originalName: 'photo.jpg', mimeType: 'image/jpeg',
+        originalFileSize: 1024, fileSize: 200, checksum: 'abc123checksum',
+        width: 800, height: 600, storageKey: 'key', storageProvider: 'LocalStorageProvider',
+        originalUrl: '/url', thumbnailUrl: '/url', mediumUrl: '/url', largeUrl: '/url',
+        status: 'ready', createdAt: new Date(), updatedAt: new Date(),
+      });
+
+      const result = await service.upload(mockFile, 'product', 'p1', 'IMAGE', 't1');
+
+      // Attempt 1 files deleted synchronously, attempt 2 files remain in storage
+      expect(mockStorage.deleteBatch).toHaveBeenCalledTimes(1);
+      expect(result.id).toBe('new-m1');
+
+      // Media record created for the committed attempt
+      expect(mockPrisma.media.create).toHaveBeenCalledTimes(1);
     });
   });
 

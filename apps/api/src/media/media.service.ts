@@ -59,70 +59,6 @@ export class MediaService {
       where: { tenantId, checksum, status: 'ready' },
     });
 
-    let storageKey: string;
-    let urls: { originalUrl: string; thumbnailUrl: string | null; mediumUrl: string | null; largeUrl: string | null };
-    let width: number | undefined;
-    let height: number | undefined;
-    let fileSize: number;
-
-    if (existingByChecksum) {
-      this.logger.log(`Dedup match found for checksum ${checksum}, reusing storage`);
-      storageKey = existingByChecksum.storageKey;
-      urls = {
-        originalUrl: existingByChecksum.originalUrl,
-        thumbnailUrl: existingByChecksum.thumbnailUrl,
-        mediumUrl: existingByChecksum.mediumUrl,
-        largeUrl: existingByChecksum.largeUrl,
-      };
-      width = existingByChecksum.width ?? undefined;
-      height = existingByChecksum.height ?? undefined;
-      fileSize = existingByChecksum.fileSize;
-    } else {
-      const storagePrefix = `tenants/${tenantId}/${mediaType.toLowerCase()}`;
-      const filePrefix = `${Date.now()}-${checksum.substring(0, 8)}`;
-      storageKey = `${storagePrefix}/${filePrefix}`;
-
-      if (mediaType === 'DOCUMENT') {
-        const result = await this.storageProvider.upload(
-          `${storageKey}.pdf`,
-          file.buffer,
-          file.mimetype,
-        );
-        storageKey = result.storageKey;
-        urls = { originalUrl: result.url, thumbnailUrl: null, mediumUrl: null, largeUrl: null };
-        width = undefined;
-        height = undefined;
-        fileSize = result.size;
-      } else {
-        const processed = await this.imageProcessor.processImage(
-          file.buffer,
-          mediaType as keyof typeof MEDIA_TYPE_CONFIG,
-        );
-
-        if ('original' in processed) {
-          const [originalResult, thumbnailResult, mediumResult, largeResult] = await Promise.all([
-            this.storageProvider.upload(`${storageKey}-original.webp`, processed.original.buffer, 'image/webp'),
-            this.storageProvider.upload(`${storageKey}-thumbnail.webp`, processed.thumbnail.buffer, 'image/webp'),
-            this.storageProvider.upload(`${storageKey}-medium.webp`, processed.medium.buffer, 'image/webp'),
-            this.storageProvider.upload(`${storageKey}-large.webp`, processed.large.buffer, 'image/webp'),
-          ]);
-
-          storageKey = `${storagePrefix}/${filePrefix}`;
-          urls = {
-            originalUrl: originalResult.url,
-            thumbnailUrl: thumbnailResult.url,
-            mediumUrl: mediumResult.url,
-            largeUrl: largeResult.url,
-          };
-          width = processed.original.width;
-          height = processed.original.height;
-          fileSize = originalResult.size;
-        } else {
-          throw new BadRequestException('Unexpected processing result');
-        }
-      }
-    }
-
     const existingMedia = await prisma.media.findFirst({
       where: { tenantId, entityType, entityId, mediaType: mediaType as any, status: 'ready' },
     });
@@ -133,82 +69,168 @@ export class MediaService {
     // records, and both succeed — leaving duplicate active records.
     // SERIALIZABLE causes the second transaction to detect the conflict
     // and fail with a serialization error, which we retry.
+    //
+    // FILES ARE WRITTEN INSIDE the retry loop, NOT before it.
+    // Each attempt processes and uploads files independently. If the transaction
+    // fails with a serialization error, every file written during that attempt
+    // is synchronously deleted before the next retry starts. This ensures zero
+    // orphaned files regardless of how many retries occur.
     const { media, shouldDeleteOldFiles, oldStorageKey } = await this.serializableRetry(async () => {
-      return prisma.$transaction(async (tx: any) => {
-        // Re-read existingMedia INSIDE the SERIALIZABLE transaction.
-        // This ensures we see the latest committed state and lock the row
-        // for the duration of the transaction.
-        const currentExisting = existingMedia
-          ? await tx.media.findFirst({
-              where: { id: existingMedia.id, status: 'ready' },
-            })
-          : null;
+      const attemptStorageKeys: string[] = [];
 
-        const created = await tx.media.create({
-          data: {
-            tenantId,
-            entityType,
-            entityId,
-            mediaType,
-            originalName: file.originalname,
-            mimeType: file.mimetype,
-            originalFileSize: file.size,
-            fileSize,
-            checksum,
-            width: width ?? null,
-            height: height ?? null,
-            storageKey,
-            storageProvider: this.storageProvider.constructor.name,
-            originalUrl: urls.originalUrl,
-            thumbnailUrl: urls.thumbnailUrl,
-            mediumUrl: urls.mediumUrl,
-            largeUrl: urls.largeUrl,
-            status: 'ready',
-          },
-        });
+      try {
+        let attemptStorageKey: string;
+        let attemptUrls: typeof urls;
+        let attemptWidth: number | undefined;
+        let attemptHeight: number | undefined;
+        let attemptFileSize: number;
 
-        const urlField = ENTITY_URL_MAP[entityType]?.[mediaType];
-        if (urlField) {
-          if (entityType === 'restaurant') {
-            await tx.tenant.update({
-              where: { id: tenantId },
-              data: { [urlField]: urls.originalUrl },
-            });
-          } else if (entityType === 'product') {
-            await tx.product.update({
-              where: { id: entityId },
-              data: { [urlField]: urls.originalUrl },
-            });
+        if (existingByChecksum) {
+          attemptStorageKey = existingByChecksum.storageKey;
+          attemptUrls = {
+            originalUrl: existingByChecksum.originalUrl,
+            thumbnailUrl: existingByChecksum.thumbnailUrl,
+            mediumUrl: existingByChecksum.mediumUrl,
+            largeUrl: existingByChecksum.largeUrl,
+          };
+          attemptWidth = existingByChecksum.width ?? undefined;
+          attemptHeight = existingByChecksum.height ?? undefined;
+          attemptFileSize = existingByChecksum.fileSize;
+        } else {
+          const attemptPrefix = `tenants/${tenantId}/${mediaType.toLowerCase()}`;
+          const attemptFilePrefix = `${Date.now()}-${checksum.substring(0, 8)}`;
+          attemptStorageKey = `${attemptPrefix}/${attemptFilePrefix}`;
+
+          if (mediaType === 'DOCUMENT') {
+            const result = await this.storageProvider.upload(
+              `${attemptStorageKey}.pdf`,
+              file.buffer,
+              file.mimetype,
+            );
+            attemptStorageKey = result.storageKey;
+            attemptStorageKeys.push(result.storageKey);
+            attemptUrls = { originalUrl: result.url, thumbnailUrl: null, mediumUrl: null, largeUrl: null };
+            attemptWidth = undefined;
+            attemptHeight = undefined;
+            attemptFileSize = result.size;
+          } else {
+            const processed = await this.imageProcessor.processImage(
+              file.buffer,
+              mediaType as keyof typeof MEDIA_TYPE_CONFIG,
+            );
+
+            if ('original' in processed) {
+              const [originalResult, thumbnailResult, mediumResult, largeResult] = await Promise.all([
+                this.storageProvider.upload(`${attemptStorageKey}-original.webp`, processed.original.buffer, 'image/webp'),
+                this.storageProvider.upload(`${attemptStorageKey}-thumbnail.webp`, processed.thumbnail.buffer, 'image/webp'),
+                this.storageProvider.upload(`${attemptStorageKey}-medium.webp`, processed.medium.buffer, 'image/webp'),
+                this.storageProvider.upload(`${attemptStorageKey}-large.webp`, processed.large.buffer, 'image/webp'),
+              ]);
+
+              attemptStorageKeys.push(
+                `${attemptStorageKey}-original.webp`,
+                `${attemptStorageKey}-thumbnail.webp`,
+                `${attemptStorageKey}-medium.webp`,
+                `${attemptStorageKey}-large.webp`,
+              );
+              attemptStorageKey = `${attemptPrefix}/${attemptFilePrefix}`;
+              attemptUrls = {
+                originalUrl: originalResult.url,
+                thumbnailUrl: thumbnailResult.url,
+                mediumUrl: mediumResult.url,
+                largeUrl: largeResult.url,
+              };
+              attemptWidth = processed.original.width;
+              attemptHeight = processed.original.height;
+              attemptFileSize = originalResult.size;
+            } else {
+              throw new BadRequestException('Unexpected processing result');
+            }
           }
         }
 
-        let shouldDeleteOldFiles = false;
-        let deletedStorageKey: string | undefined;
+        const result = await prisma.$transaction(async (tx: any) => {
+          const currentExisting = existingMedia
+            ? await tx.media.findFirst({
+                where: { id: existingMedia.id, status: 'ready' },
+              })
+            : null;
 
-        if (currentExisting) {
-          deletedStorageKey = currentExisting.storageKey;
-
-          // deleteMany is idempotent — safe for concurrent replacements
-          await tx.media.deleteMany({ where: { id: currentExisting.id } });
-
-          // Refcount check AFTER the old record is deleted, INSIDE the transaction.
-          // The new Media (created above) is visible to this query within the same tx.
-          // If new Media shares storageKey via dedup, count >= 1 → keep files.
-          // If new Media has a different key, count == 0 → delete old files.
-          const remainingCount = await tx.media.count({
-            where: { storageKey: currentExisting.storageKey, status: 'ready' },
+          const created = await tx.media.create({
+            data: {
+              tenantId,
+              entityType,
+              entityId,
+              mediaType,
+              originalName: file.originalname,
+              mimeType: file.mimetype,
+              originalFileSize: file.size,
+              fileSize: attemptFileSize,
+              checksum,
+              width: attemptWidth ?? null,
+              height: attemptHeight ?? null,
+              storageKey: attemptStorageKey,
+              storageProvider: this.storageProvider.constructor.name,
+              originalUrl: attemptUrls.originalUrl,
+              thumbnailUrl: attemptUrls.thumbnailUrl,
+              mediumUrl: attemptUrls.mediumUrl,
+              largeUrl: attemptUrls.largeUrl,
+              status: 'ready',
+            },
           });
-          shouldDeleteOldFiles = remainingCount === 0;
+
+          const urlField = ENTITY_URL_MAP[entityType]?.[mediaType];
+          if (urlField) {
+            if (entityType === 'restaurant') {
+              await tx.tenant.update({
+                where: { id: tenantId },
+                data: { [urlField]: attemptUrls.originalUrl },
+              });
+            } else if (entityType === 'product') {
+              await tx.product.update({
+                where: { id: entityId },
+                data: { [urlField]: attemptUrls.originalUrl },
+              });
+            }
+          }
+
+          let shouldDeleteOldFiles = false;
+          let deletedStorageKey: string | undefined;
+
+          if (currentExisting) {
+            deletedStorageKey = currentExisting.storageKey;
+            await tx.media.deleteMany({ where: { id: currentExisting.id } });
+
+            const remainingCount = await tx.media.count({
+              where: { storageKey: currentExisting.storageKey, status: 'ready' },
+            });
+            shouldDeleteOldFiles = remainingCount === 0;
+          }
+
+          return { media: created, shouldDeleteOldFiles, oldStorageKey: deletedStorageKey };
+        }, {
+          isolationLevel: 'Serializable' as const,
+          timeout: 10000,
+        });
+
+        return result;
+      } catch (err: any) {
+        const isSerializationError =
+          err?.code === PG_SERIALIZATION_ERROR ||
+          err?.message?.includes('serialization failure');
+
+        if (isSerializationError && attemptStorageKeys.length > 0) {
+          this.logger.warn(
+            `Cleaning up ${attemptStorageKeys.length} files from failed attempt before retry`,
+          );
+          await this.storageProvider.deleteBatch(attemptStorageKeys);
         }
 
-        return { media: created, shouldDeleteOldFiles, oldStorageKey: deletedStorageKey };
-      }, {
-        isolationLevel: 'Serializable' as const,
-        timeout: 10000,
-      });
+        throw err;
+      }
     });
 
-    // File deletion is always async and outside the transaction.
+    // File deletion for replaced old records is async and outside the transaction.
     if (shouldDeleteOldFiles && oldStorageKey) {
       this.enqueueCleanup(oldStorageKey, 'REPLACE');
     }
@@ -260,16 +282,22 @@ export class MediaService {
 
     const shouldDeleteFiles = await this.serializableRetry(async () => {
       return prisma.$transaction(async (tx: any) => {
-        const urlField = ENTITY_URL_MAP[media.entityType]?.[media.mediaType];
+        // Re-read inside SERIALIZABLE tx to get latest state
+        const currentMedia = await tx.media.findFirst({ where: { id, tenantId } });
+        if (!currentMedia) {
+          return false;
+        }
+
+        const urlField = ENTITY_URL_MAP[currentMedia.entityType]?.[currentMedia.mediaType];
         if (urlField) {
-          if (media.entityType === 'restaurant') {
+          if (currentMedia.entityType === 'restaurant') {
             await tx.tenant.update({
               where: { id: tenantId },
               data: { [urlField]: null },
             });
-          } else if (media.entityType === 'product') {
+          } else if (currentMedia.entityType === 'product') {
             await tx.product.update({
-              where: { id: media.entityId },
+              where: { id: currentMedia.entityId },
               data: { [urlField]: null },
             });
           }
@@ -279,11 +307,8 @@ export class MediaService {
         await tx.media.deleteMany({ where: { id } });
 
         // Refcount check AFTER deletion, INSIDE the transaction.
-        // This query sees the delete above (same tx).
-        // If count == 0, no other record references these files → safe to delete.
-        // If count > 0, another record shares the storageKey → keep files.
         const remainingCount = await tx.media.count({
-          where: { storageKey: media.storageKey, status: 'ready' },
+          where: { storageKey: currentMedia.storageKey, status: 'ready' },
         });
         return remainingCount === 0;
       }, {
