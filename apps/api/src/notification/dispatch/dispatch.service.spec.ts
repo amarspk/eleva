@@ -2,6 +2,9 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { DispatchService } from './dispatch.service';
 import { EmailService } from '../email/email.service';
 import { SmsService } from '../sms/sms.service';
+import { DeviceTokenService } from '../../device-token/device-token.service';
+import { WebhookService } from '../../webhook/webhook.service';
+import { KdsGateway } from '../../kds/kds.gateway';
 
 describe('DispatchService Unit Tests - DOC-008 7.1 Multi-Channel Dispatch Engine', () => {
   let service: DispatchService;
@@ -16,12 +19,27 @@ describe('DispatchService Unit Tests - DOC-008 7.1 Multi-Channel Dispatch Engine
     sendSms: jest.fn().mockResolvedValue({ success: true, provider: 'twilio-mock', attempts: 1 }),
   };
 
+  const mockDeviceTokenService = {
+    sendPushNotification: jest.fn().mockResolvedValue({ sent: 1, payloads: [{ message: { token: 'tok-1' } }] }),
+  };
+
+  const mockWebhookService = {
+    dispatchEvent: jest.fn().mockResolvedValue([{ webhookId: 'wh-1', targetUrl: 'https://example.com/hook', success: true, attempts: 1 }]),
+  };
+
+  const mockKdsGateway = {
+    broadcastOrderEvent: jest.fn(),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         DispatchService,
         { provide: EmailService, useValue: mockEmailService },
         { provide: SmsService, useValue: mockSmsService },
+        { provide: DeviceTokenService, useValue: mockDeviceTokenService },
+        { provide: WebhookService, useValue: mockWebhookService },
+        { provide: KdsGateway, useValue: mockKdsGateway },
       ],
     }).compile();
 
@@ -134,5 +152,120 @@ describe('DispatchService Unit Tests - DOC-008 7.1 Multi-Channel Dispatch Engine
 
     service.clearQueues();
     expect(service.getQueueLength()).toBe(0);
+  });
+
+  it('should dispatch push via DeviceTokenService with userId from payload', async () => {
+    const tenantId = 'tenant-123';
+    const result = await service.dispatch(tenantId, 'push', 'order.ready', {
+      userId: 'user-456',
+      title: 'Order Ready',
+      body: 'Your order is ready for pickup',
+      orderNumber: 'ORD-123',
+    });
+
+    expect(result.queued).toBe(true);
+    expect(result.channel).toBe('push');
+
+    // Allow in-memory queue to process
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    expect(mockDeviceTokenService.sendPushNotification).toHaveBeenCalledWith(
+      tenantId,
+      'user-456',
+      'Order Ready',
+      'Your order is ready for pickup',
+      expect.objectContaining({ userId: 'user-456', orderNumber: 'ORD-123' }),
+    );
+  });
+
+  it('should return push failure when userId missing from payload', async () => {
+    mockDeviceTokenService.sendPushNotification.mockClear();
+    const tenantId = 'tenant-123';
+    const result = await service.dispatch(tenantId, 'push', 'order.ready', {
+      orderNumber: 'ORD-123',
+      // No userId
+    });
+
+    expect(result.queued).toBe(true);
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    expect(mockDeviceTokenService.sendPushNotification).not.toHaveBeenCalled();
+  });
+
+  it('should dispatch webhook via WebhookService.dispatchEvent', async () => {
+    const tenantId = 'tenant-123';
+    const payload = { id: 'order-123', orderNumber: 'ORD-123', status: 'completed' };
+    const result = await service.dispatch(tenantId, 'webhook', 'order.completed', payload);
+
+    expect(result.queued).toBe(true);
+    expect(result.channel).toBe('webhook');
+
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    expect(mockWebhookService.dispatchEvent).toHaveBeenCalledWith(tenantId, 'order.completed', payload);
+  });
+
+  it('should dispatch websocket broadcast via KdsGateway.broadcastOrderEvent', async () => {
+    const tenantId = 'tenant-123';
+    const payload = { id: 'order-123', orderNumber: 'ORD-123', branchId: 'branch-456', status: 'preparing' };
+    const result = await service.dispatch(tenantId, 'websocket', 'order.preparing', payload);
+
+    expect(result.queued).toBe(true);
+    expect(result.channel).toBe('websocket');
+
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    expect(mockKdsGateway.broadcastOrderEvent).toHaveBeenCalledWith(
+      tenantId,
+      'branch-456',
+      'order.preparing',
+      payload,
+    );
+  });
+
+  it('should skip websocket broadcast when branchId missing from payload', async () => {
+    mockKdsGateway.broadcastOrderEvent.mockClear();
+    const tenantId = 'tenant-123';
+    const result = await service.dispatch(tenantId, 'websocket', 'order.created', {
+      id: 'order-123',
+      // No branchId
+    });
+
+    expect(result.queued).toBe(true);
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    expect(mockKdsGateway.broadcastOrderEvent).not.toHaveBeenCalled();
+  });
+
+  it('should handle webhook dispatch returning empty results', async () => {
+    mockWebhookService.dispatchEvent.mockResolvedValueOnce([]);
+    const tenantId = 'tenant-123';
+    const result = await service.dispatch(tenantId, 'webhook', 'order.created', {
+      id: 'order-123',
+    });
+
+    expect(result.queued).toBe(true);
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    // Empty results is still considered success (no webhooks subscribed)
+    expect(mockWebhookService.dispatchEvent).toHaveBeenCalled();
+  });
+
+  it('should use customerId fallback for push when userId not present', async () => {
+    mockDeviceTokenService.sendPushNotification.mockClear();
+    const tenantId = 'tenant-123';
+    await service.dispatch(tenantId, 'push', 'payment.received', {
+      customerId: 'cust-789',
+      title: 'Payment Confirmed',
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    expect(mockDeviceTokenService.sendPushNotification).toHaveBeenCalledWith(
+      tenantId,
+      'cust-789',
+      'Payment Confirmed',
+      expect.any(String),
+      expect.any(Object),
+    );
   });
 });

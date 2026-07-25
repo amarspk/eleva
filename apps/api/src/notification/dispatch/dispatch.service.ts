@@ -1,6 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { EmailService } from '../email/email.service';
 import { SmsService } from '../sms/sms.service';
+import { DeviceTokenService } from '../../device-token/device-token.service';
+import { WebhookService } from '../../webhook/webhook.service';
+import { KdsGateway } from '../../kds/kds.gateway';
 
 export type NotificationChannel = 'email' | 'sms' | 'push' | 'webhook' | 'websocket';
 export type NotificationPriority = 'low' | 'normal' | 'high';
@@ -28,6 +31,9 @@ export class DispatchService {
   constructor(
     private readonly emailService: EmailService,
     private readonly smsService: SmsService,
+    private readonly deviceTokenService: DeviceTokenService,
+    private readonly webhookService: WebhookService,
+    private readonly kdsGateway: KdsGateway,
   ) {
     this.initializeBullMQ();
   }
@@ -193,20 +199,45 @@ export class DispatchService {
         }
       }
 
-      case 'push':
-        // Push would use DeviceTokenService, mock here
-        this.logger.log(`[MOCK PUSH] Tenant ${tenantId} Event ${event} Payload ${JSON.stringify(payload).substring(0, 100)}`);
-        return { success: true, provider: 'fcm-mock' };
+      case 'push': {
+        const userId = payload.userId || payload.customerId;
+        const title = payload.title || `Zayjar: ${event}`;
+        const body = payload.body || payload.message || `Event ${event} occurred`;
+        try {
+          if (!userId) {
+            this.logger.warn(`Push skipped: no userId in payload for event ${event} tenant ${tenantId}`);
+            return { success: false, provider: 'fcm' };
+          }
+          const result = await this.deviceTokenService.sendPushNotification(tenantId, userId, title, body, payload);
+          return { success: result.sent > 0, provider: 'fcm' };
+        } catch {
+          return { success: false };
+        }
+      }
 
-      case 'webhook':
-        // Webhook dispatch handled by WebhookService, mock here
-        this.logger.log(`[MOCK WEBHOOK] Tenant ${tenantId} Event ${event}`);
-        return { success: true, provider: 'webhook-mock' };
+      case 'webhook': {
+        try {
+          const results = await this.webhookService.dispatchEvent(tenantId, event, payload);
+          const successCount = results.filter((r: any) => r.success).length;
+          return { success: successCount > 0 || results.length > 0, provider: 'webhook' };
+        } catch {
+          return { success: false };
+        }
+      }
 
-      case 'websocket':
-        // WebSocket broadcast handled by KdsGateway, mock here
-        this.logger.log(`[MOCK WEBSOCKET] Tenant ${tenantId} Event ${event}`);
-        return { success: true, provider: 'socket.io-mock' };
+      case 'websocket': {
+        const branchId = payload.branchId;
+        try {
+          if (!branchId) {
+            this.logger.warn(`WebSocket broadcast skipped: no branchId in payload for event ${event} tenant ${tenantId}`);
+            return { success: false, provider: 'socket.io' };
+          }
+          this.kdsGateway.broadcastOrderEvent(tenantId, branchId, event, payload);
+          return { success: true, provider: 'socket.io' };
+        } catch {
+          return { success: false };
+        }
+      }
 
       default:
         return { success: false };

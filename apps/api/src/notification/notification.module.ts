@@ -2,8 +2,12 @@ import { Module } from '@nestjs/common';
 import { EmailService } from './email/email.service';
 import { SmsService } from './sms/sms.service';
 import { DispatchService } from './dispatch/dispatch.service';
+import { DeviceTokenModule } from '../device-token/device-token.module';
+import { WebhookModule } from '../webhook/webhook.module';
+import { KdsModule } from '../kds/kds.module';
 
 @Module({
+  imports: [DeviceTokenModule, WebhookModule, KdsModule],
   providers: [EmailService, SmsService, DispatchService],
   exports: [EmailService, SmsService, DispatchService],
 })
