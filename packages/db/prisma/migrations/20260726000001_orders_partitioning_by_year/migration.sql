@@ -111,10 +111,11 @@ CREATE INDEX idx_order_items_partitioned_parent ON order_items("orderId");
 CREATE INDEX idx_order_items_partitioned_product ON order_items("productId");
 
 -- 9. Create a maintenance function for adding future year partitions
+--    Note: table names are 'orders' and 'order_items' after the swap in step 7
 CREATE OR REPLACE FUNCTION ensure_order_partitions(p_year INT) RETURNS VOID AS $$
 BEGIN
-  PERFORM create_yearly_partitions('orders_partitioned', p_year, p_year);
-  PERFORM create_yearly_partitions('order_items_partitioned', p_year, p_year);
+  PERFORM create_yearly_partitions('orders', p_year, p_year);
+  PERFORM create_yearly_partitions('order_items', p_year, p_year);
   RAISE NOTICE 'Created partitions for year %', p_year;
 END;
 $$ LANGUAGE plpgsql;
