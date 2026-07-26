@@ -55,7 +55,12 @@ COPY --from=builder /app/apps/api/dist ./apps/api/dist
 COPY --from=builder /app/apps/api/package.json ./apps/api/package.json
 COPY --from=builder /app/packages/db ./packages/db
 
+# DOC-006 §5.9: Entrypoint script for AWS Secrets Manager integration
+COPY docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
+
 USER node_api
 EXPOSE 8000
 
+ENTRYPOINT ["/docker-entrypoint.sh"]
 CMD ["node", "apps/api/dist/main.js"]

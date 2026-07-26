@@ -10,6 +10,7 @@
     "test": "jest src/**/*.spec.ts"
   },
   "dependencies": {
+    "@aws-sdk/client-secrets-manager": "^3.1095.0",
     "@casl/ability": "^7.0.1",
     "@nestjs/common": "^10.3.8",
     "@nestjs/core": "^10.3.8",

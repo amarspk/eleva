@@ -360,11 +360,11 @@
 - **Missing:** RDS encryption-at-rest verification, S3 bucket encryption config, Redis TLS config, KMS key rotation policies
 
 ### 5.9 Enterprise Secrets Management
-- **Status:** ❌ Not Implemented
-- **Description:** Hardcoded credentials in docker-compose.yml. No AWS Secrets Manager integration.
-- **Files:** `docker-compose.yml` (hardcoded `SecretPassword123!`, `SecretRedis123!`)
-- **Commits:** `10460d9`
-- **Missing:** AWS Secrets Manager integration, dynamic credential injection at container startup, removal of hardcoded secrets from docker-compose.yml
+- **Status:** ✅ Implemented
+- **Description:** AWS Secrets Manager integration for centralized secrets management. Application fetches secrets dynamically at startup, injects into process.env. Falls back to environment variables when AWS Secrets Manager is not configured (local dev). Docker entrypoint script validates required env vars.
+- **Files:** `apps/api/src/common/secrets/secrets-manager.service.ts`, `apps/api/src/common/secrets/secrets-manager.module.ts`, `apps/api/src/main.ts`, `apps/api/Dockerfile`, `docker-entrypoint.sh`, `docker-compose.yml`, `.env.example`
+- **Commits:** current commit
+- **Notes:** Secret must be a JSON document in AWS Secrets Manager with key-value pairs matching env var names. In ECS, use IAM Task Execution Role for AWS auth.
 
 ---
 
@@ -589,8 +589,8 @@
 | Metric | Count |
 |--------|-------|
 | **Total Requirements Indexed** | **76** |
-| **Implemented** | **56** |
-| **Partially Implemented** | **14** |
+| **Implemented** | **57** |
+| **Partially Implemented** | **13** |
 | **Not Implemented** | **6** |
 
 ### Breakdown by DOC
@@ -601,7 +601,7 @@
 | DOC-002 (Database) | 9 | 7 | 2 | 0 |
 | DOC-003 (REST API) | 11 | 11 | 0 | 0 |
 | DOC-005 (Business Logic) | 8 | 8 | 0 | 0 |
-| DOC-006 (Security) | 9 | 5 | 3 | 1 |
+| DOC-006 (Security) | 9 | 6 | 3 | 0 |
 | DOC-007 (Image Pipeline) | 5 | 4 | 0 | 1 |
 | DOC-008 (Notifications) | 6 | 6 | 0 | 0 |
 | DOC-009 (Integrations) | 5 | 1 | 2 | 2 |
@@ -614,34 +614,33 @@
 Listed in dependency order (prerequisites first, downstream features after):
 
 ### Priority 1 — Security Foundation (no dependencies)
-1. **DOC-006 §5.9** — AWS Secrets Manager integration (remove hardcoded credentials from docker-compose.yml)
-2. **DOC-006 §5.3** — X-CSRF-Token double-submit header validation (application-level middleware)
-3. **DOC-006 §5.4** — Input sanitization middleware (dompurify/class-sanitizer for XSS prevention)
+1. **DOC-006 §5.3** — X-CSRF-Token double-submit header validation (application-level middleware)
+2. **DOC-006 §5.4** — Input sanitization middleware (dompurify/class-sanitizer for XSS prevention)
 
 ### Priority 2 — Infrastructure (foundational for production)
-4. **DOC-010 §9.2** — Database optimization tooling (EXPLAIN ANALYZE scripts, autovacuum tuning)
-5. **DOC-010 §9.4** — BullMQ worker architecture (queue definitions, retry policies, DLQ)
-6. **DOC-010 §9.5** — Kubernetes manifests + HPA configuration
-7. **DOC-009 §8.5** — Automated backups & disaster recovery (RDS Multi-AZ, WAL archiving, PITR)
+3. **DOC-010 §9.2** — Database optimization tooling (EXPLAIN ANALYZE scripts, autovacuum tuning)
+4. **DOC-010 §9.4** — BullMQ worker architecture (queue definitions, retry policies, DLQ)
+5. **DOC-010 §9.5** — Kubernetes manifests + HPA configuration
+6. **DOC-009 §8.5** — Automated backups & disaster recovery (RDS Multi-AZ, WAL archiving, PITR)
 
 ### Priority 3 — Observability (depends on Priority 2)
-8. **DOC-009 §8.4** — Winston structured logging + ELK Stack + Datadog APM
-9. **DOC-010 §10.5** — CD pipeline (`.github/workflows/cd.yml`) + branch protection
+7. **DOC-009 §8.4** — Winston structured logging + ELK Stack + Datadog APM
+8. **DOC-010 §10.5** — CD pipeline (`.github/workflows/cd.yml`) + branch protection
 
 ### Priority 4 — CDN & Performance (depends on Priority 2)
-10. **DOC-007 §6.4** — CloudFront CDN edge caching + cache invalidation strategy
-11. **DOC-002 §2.4** — GIN full-text search index on `products.tsv_menu_search`
-12. **DOC-010 §9.3** — Next.js Image component + dynamic imports audit
+9. **DOC-007 §6.4** — CloudFront CDN edge caching + cache invalidation strategy
+10. **DOC-002 §2.4** — GIN full-text search index on `products.tsv_menu_search`
+11. **DOC-010 §9.3** — Next.js Image component + dynamic imports audit
 
 ### Priority 5 — Payment Completeness (independent)
-13. **DOC-009 §8.2** — Complete Stripe subscription lifecycle webhook handler
-14. **DOC-009 §8.3** — Real Tap/PayTabs SDK integration (KNET, Benefit, Mada)
+12. **DOC-009 §8.2** — Complete Stripe subscription lifecycle webhook handler
+13. **DOC-009 §8.3** — Real Tap/PayTabs SDK integration (KNET, Benefit, Mada)
 
 ### Priority 6 — Code Quality (independent)
-15. **DOC-010 §10.2** — ESLint zero-error CI enforcement + `no-explicit-any` audit
-16. **DOC-010 §10.3** — Zero-downtime migration documentation + CI validation
-17. **DOC-010 §10.6** — Complete environment variable set + staging/production configs
-18. **DOC-002 §2.7** — Database-level triggers for `updated_at`, audit logs, and notifications
+14. **DOC-010 §10.2** — ESLint zero-error CI enforcement + `no-explicit-any` audit
+15. **DOC-010 §10.3** — Zero-downtime migration documentation + CI validation
+16. **DOC-010 §10.6** — Complete environment variable set + staging/production configs
+17. **DOC-002 §2.7** — Database-level triggers for `updated_at`, audit logs, and notifications
 
 ---
 

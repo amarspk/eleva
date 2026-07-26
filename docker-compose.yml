@@ -93,6 +93,10 @@ services:
       - UNIFONIC_SENDER_ID=${UNIFONIC_SENDER_ID}
       - SENDGRID_API_KEY=${SENDGRID_API_KEY}
       - SENDGRID_FROM_EMAIL=${SENDGRID_FROM_EMAIL}
+      # DOC-006 §5.9: AWS Secrets Manager configuration
+      # When set, the application fetches secrets from AWS Secrets Manager at startup.
+      # In production (ECS), use IAM Task Execution Role instead of explicit AWS credentials.
+      - AWS_SECRETS_MANAGER_SECRET_ID=${AWS_SECRETS_MANAGER_SECRET_ID:-}
     depends_on:
       pgbouncer:
         condition: service_started
