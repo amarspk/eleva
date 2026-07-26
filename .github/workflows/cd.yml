@@ -1,10 +1,31 @@
 name: CD
 
 on:
+  # Trigger 1: Staging — auto-deploy on successful CI
   workflow_run:
     workflows: ["CI"]
     types: [completed]
     branches: [main]
+
+  # Trigger 2: Production — only on GitHub Release
+  release:
+    types: [published]
+
+  # Trigger 3: Production — manual workflow_dispatch
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Target environment"
+        required: true
+        default: "staging"
+        type: choice
+        options:
+          - staging
+          - production
+      image_tag:
+        description: "Docker image tag to deploy (commit SHA or release tag)"
+        required: false
+        type: string
 
 concurrency:
   group: cd-${{ github.ref }}
@@ -16,21 +37,26 @@ env:
 
 jobs:
   # ==========================================
-  # Gate: Only proceed if CI passed
+  # Gate: Only proceed if CI passed (staging path)
   # ==========================================
   ci-check:
     runs-on: ubuntu-latest
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    if: >
+      github.event_name == 'workflow_run' &&
+      github.event.workflow_run.conclusion == 'success'
     steps:
       - name: CI passed
-        run: echo "CI workflow completed successfully, proceeding with deployment."
+        run: echo "CI workflow completed successfully, proceeding with staging deployment."
 
   # ==========================================
   # Job 1: Build & Push Docker Images
   # ==========================================
   build-and-push:
     runs-on: ubuntu-latest
-    needs: ci-check
+    needs: [ci-check]
+    if: >
+      always() &&
+      (needs.ci-check.result == 'success' || github.event_name == 'release' || github.event_name == 'workflow_dispatch')
     permissions:
       contents: read
       packages: write
@@ -67,6 +93,7 @@ jobs:
           tags: |
             type=sha,prefix=
             type=raw,value=latest
+            type=ref,event=tag
 
       - name: Build and push
         uses: docker/build-push-action@v5
@@ -80,11 +107,14 @@ jobs:
           cache-to: type=gha,mode=max
 
   # ==========================================
-  # Job 2: Deploy to Staging
+  # Job 2: Deploy to Staging (auto on CI success)
   # ==========================================
   deploy-staging:
     runs-on: ubuntu-latest
     needs: build-and-push
+    if: >
+      github.event_name == 'workflow_run' ||
+      (github.event_name == 'workflow_dispatch' && inputs.environment == 'staging')
     environment:
       name: staging
       url: https://staging.zayjar.com
@@ -94,10 +124,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Resolve image tag
+        id: tag
+        run: |
+          TAG="${{ inputs.image_tag || github.sha }}"
+          echo "deploy_tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "Deploying image tag: ${TAG}"
+
       - name: Deploy to staging
         run: |
           echo "=== Deploying to staging environment ==="
-          echo "Image tag: ${{ github.sha }}"
+          echo "Image tag: ${{ steps.tag.outputs.deploy_tag }}"
           echo ""
           echo "Deployment configuration:"
           echo "  Environment: staging"
@@ -119,11 +156,14 @@ jobs:
           echo "[staging] Deployment notification: ${{ job.status }}"
 
   # ==========================================
-  # Job 3: Deploy to Production
+  # Job 3: Deploy to Production (release tag OR manual dispatch)
   # ==========================================
   deploy-production:
     runs-on: ubuntu-latest
-    needs: deploy-staging
+    needs: build-and-push
+    if: >
+      github.event_name == 'release' ||
+      (github.event_name == 'workflow_dispatch' && inputs.environment == 'production')
     environment:
       name: production
       url: https://api.zayjar.com
@@ -133,10 +173,30 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Resolve image tag
+        id: tag
+        run: |
+          if [ "${{ github.event_name }}" = "release" ]; then
+            TAG="${{ github.event.release.tag_name }}"
+          else
+            TAG="${{ inputs.image_tag || github.sha }}"
+          fi
+          echo "deploy_tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "Deploying image tag: ${TAG}"
+
+      - name: Verify release tag
+        if: github.event_name == 'release'
+        run: |
+          echo "=== Release deployment triggered ==="
+          echo "Release: ${{ github.event.release.tag_name }}"
+          echo "Prerelease: ${{ github.event.release.prerelease }}"
+          echo ""
+
       - name: Deploy to production
         run: |
           echo "=== Deploying to production environment ==="
-          echo "Image tag: ${{ github.sha }}"
+          echo "Image tag: ${{ steps.tag.outputs.deploy_tag }}"
+          echo "Trigger: ${{ github.event_name }}"
           echo ""
           echo "Deployment configuration:"
           echo "  Environment: production"
