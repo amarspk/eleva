@@ -17,6 +17,10 @@ class BrandingDto {
   @IsString()
   @IsOptional()
   secondaryColor?: string;
+
+  @IsObject()
+  @IsOptional()
+  dynamic?: Record<string, any>;
 }
 
 export class UpdateTenantRequestDto {

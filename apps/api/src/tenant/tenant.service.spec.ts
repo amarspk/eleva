@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { TenantService } from './tenant.service';
 import { AuthService } from '../auth/auth.service';
-import { prisma } from '@zayjar/db';
+import { prisma, prismaRead } from '@zayjar/db';
 
 // Mocking argon2 C++ native modules to prevent Jest V8 multithreaded segmentation faults
 jest.mock('argon2', () => ({
@@ -59,5 +59,53 @@ describe('TenantService Unit Tests', () => {
     expect(result.owner.id).toBe('u1');
     expect(result.branch.id).toBe('b1');
     expect(mockAuthService.hashPassword).toHaveBeenCalledWith('Password123!');
+  });
+
+  it('should use prismaRead for read-only tenant queries (read replica routing)', async () => {
+    const mockTenant = {
+      id: 't1',
+      name: 'Gourmet',
+      subdomain: 'gourmet',
+      customDomain: null,
+      status: 'ACTIVE',
+      logoUrl: null,
+      bannerUrl: null,
+      primaryColor: '#000',
+      secondaryColor: '#FFF',
+      branding: { translations: { ar: { name: 'جورميه' } } },
+    };
+
+    jest.spyOn(prismaRead.tenant, 'findUnique').mockResolvedValue(mockTenant as any);
+
+    const result = await service.getTenantById('t1');
+
+    expect(prismaRead.tenant.findUnique).toHaveBeenCalledWith({ where: { id: 't1' } });
+    expect(result.branding.logoUrl).toBeNull();
+    expect(result.branding.translations).toEqual({ ar: { name: 'جورميه' } });
+  });
+
+  it('should merge JSONB dynamic branding into static branding fields', async () => {
+    const mockTenant = {
+      id: 't1',
+      name: 'Gourmet',
+      subdomain: 'gourmet',
+      customDomain: null,
+      status: 'ACTIVE',
+      logoUrl: 'https://cdn.example.com/logo.webp',
+      bannerUrl: null,
+      primaryColor: '#FF5733',
+      secondaryColor: '#C70039',
+      branding: { layout: 'modern', menuStyle: 'cards', translations: { ar: { welcome: 'أهلا' } } },
+    };
+
+    jest.spyOn(prismaRead.tenant, 'findUnique').mockResolvedValue(mockTenant as any);
+
+    const result = await service.getTenantById('t1');
+
+    expect(result.branding.logoUrl).toBe('https://cdn.example.com/logo.webp');
+    expect(result.branding.primaryColor).toBe('#FF5733');
+    expect(result.branding.layout).toBe('modern');
+    expect(result.branding.menuStyle).toBe('cards');
+    expect(result.branding.translations).toEqual({ ar: { welcome: 'أهلا' } });
   });
 });

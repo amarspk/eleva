@@ -56,12 +56,12 @@
 - **TSK/Roadmap:** TSK-3.8 (Audit Logs)
 
 ### 1.5 Database Architecture
-- **Status:** ⚠️ Partially Implemented
-- **Description:** PostgreSQL + Prisma ORM + PgBouncer (Docker). Missing: read replica routing, historical partitioning, JSONB dynamic configs.
-- **Files:** `packages/db/prisma/schema.prisma`, `docker-compose.yml`
-- **Commits:** `3088aac`, `36ef6b1`
+- **Status:** ✅ Implemented
+- **Description:** PostgreSQL + Prisma ORM + PgBouncer (Docker). Read replica routing via `prismaRead` client, historical partitioning SQL migration for `orders`/`order_items` by year, JSONB `branding` column on Tenant for dynamic UI customization.
+- **Files:** `packages/db/prisma/schema.prisma`, `packages/db/src/index.ts`, `docker-compose.yml`, `.env.example`, `packages/db/prisma/migrations/20260726000000_add_tenant_branding_jsonb/migration.sql`, `packages/db/prisma/migrations/20260726000001_orders_partitioning_by_year/migration.sql`
+- **Commits:** `082b9c1`, current commit
 - **TSK/Roadmap:** (unassigned)
-- **Missing:** Read replica connection routing (`DATABASE_READ_URL`), `orders`/`order_items` table partitioning by year, JSONB branding column usage
+- **Notes:** `prismaRead` routes reads to `DATABASE_READ_URL` (falls back to `DATABASE_URL`). `ensure_order_partitions(year)` maintenance function for future partition creation.
 
 ### 1.6 Authentication Architecture
 - **Status:** ✅ Implemented
@@ -589,15 +589,15 @@
 | Metric | Count |
 |--------|-------|
 | **Total Requirements Indexed** | **76** |
-| **Implemented** | **55** |
-| **Partially Implemented** | **15** |
+| **Implemented** | **56** |
+| **Partially Implemented** | **14** |
 | **Not Implemented** | **6** |
 
 ### Breakdown by DOC
 
 | DOC | Total | Implemented | Partial | Not |
 |-----|-------|-------------|---------|-----|
-| DOC-001 (Architecture) | 10 | 8 | 2 | 0 |
+| DOC-001 (Architecture) | 10 | 9 | 1 | 0 |
 | DOC-002 (Database) | 9 | 7 | 2 | 0 |
 | DOC-003 (REST API) | 11 | 11 | 0 | 0 |
 | DOC-005 (Business Logic) | 8 | 8 | 0 | 0 |
@@ -631,18 +631,17 @@ Listed in dependency order (prerequisites first, downstream features after):
 ### Priority 4 — CDN & Performance (depends on Priority 2)
 10. **DOC-007 §6.4** — CloudFront CDN edge caching + cache invalidation strategy
 11. **DOC-002 §2.4** — GIN full-text search index on `products.tsv_menu_search`
-12. **DOC-001 §1.5** — Read replica routing (`DATABASE_READ_URL`) + table partitioning
-13. **DOC-010 §9.3** — Next.js Image component + dynamic imports audit
+12. **DOC-010 §9.3** — Next.js Image component + dynamic imports audit
 
 ### Priority 5 — Payment Completeness (independent)
-14. **DOC-009 §8.2** — Complete Stripe subscription lifecycle webhook handler
-15. **DOC-009 §8.3** — Real Tap/PayTabs SDK integration (KNET, Benefit, Mada)
+13. **DOC-009 §8.2** — Complete Stripe subscription lifecycle webhook handler
+14. **DOC-009 §8.3** — Real Tap/PayTabs SDK integration (KNET, Benefit, Mada)
 
 ### Priority 6 — Code Quality (independent)
-16. **DOC-010 §10.2** — ESLint zero-error CI enforcement + `no-explicit-any` audit
-17. **DOC-010 §10.3** — Zero-downtime migration documentation + CI validation
-18. **DOC-010 §10.6** — Complete environment variable set + staging/production configs
-19. **DOC-002 §2.7** — Database-level triggers for `updated_at`, audit logs, and notifications
+15. **DOC-010 §10.2** — ESLint zero-error CI enforcement + `no-explicit-any` audit
+16. **DOC-010 §10.3** — Zero-downtime migration documentation + CI validation
+17. **DOC-010 §10.6** — Complete environment variable set + staging/production configs
+18. **DOC-002 §2.7** — Database-level triggers for `updated_at`, audit logs, and notifications
 
 ---
 

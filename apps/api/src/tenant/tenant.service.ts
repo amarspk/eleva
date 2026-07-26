@@ -2,7 +2,7 @@ import { Injectable, ConflictException, Logger, NotFoundException, ForbiddenExce
 import { CreateTenantRequestDto } from './dto/create-tenant-request.dto';
 import { UpdateTenantRequestDto } from './dto/update-tenant-request.dto';
 import { AuthService } from '../auth/auth.service';
-import { prisma } from '@zayjar/db';
+import { prisma, prismaRead } from '@zayjar/db';
 import { EmailService } from '../notification/email/email.service';
 
 @Injectable()
@@ -149,10 +149,11 @@ export class TenantService {
 
   /**
    * Returns tenant branding and profile per DOC-003 3.3.2
+   * Uses prismaRead for read-only queries (DOC-001 §1.5 read replica routing)
    * Public read allowed, but if authenticated user is not PLATFORM_OWNER, enforce tenant isolation
    */
   async getTenantById(id: string, requester?: { tenantId?: string | null; roles?: string[] }) {
-    const tenant = await prisma.tenant.findUnique({
+    const tenant = await prismaRead.tenant.findUnique({
       where: { id },
     });
 
@@ -167,6 +168,9 @@ export class TenantService {
       }
     }
 
+    // Merge static branding fields with JSONB dynamic branding (DOC-001 §1.5)
+    const dynamicBranding = (tenant.branding as Record<string, any>) || {};
+
     return {
       id: tenant.id,
       name: tenant.name,
@@ -178,6 +182,7 @@ export class TenantService {
         bannerUrl: tenant.bannerUrl,
         primaryColor: tenant.primaryColor,
         secondaryColor: tenant.secondaryColor,
+        ...dynamicBranding,
       },
     };
   }
@@ -185,6 +190,7 @@ export class TenantService {
   /**
    * Modifies tenant branding per DOC-003 3.3.3
    * Requires RESTAURANT_OWNER, tenant isolation enforced
+   * Supports both static branding fields and JSONB dynamic branding (DOC-001 §1.5)
    */
   async updateTenant(id: string, dto: UpdateTenantRequestDto, requester?: { tenantId?: string | null; roles?: string[] }) {
     const existing = await prisma.tenant.findUnique({
@@ -222,10 +228,18 @@ export class TenantService {
       if (dto.branding.secondaryColor !== undefined) {data.secondaryColor = dto.branding.secondaryColor;}
     }
 
+    // Merge dynamic branding keys into JSONB column (DOC-001 §1.5)
+    if (dto.branding?.dynamic) {
+      const existingBranding = (existing.branding as Record<string, any>) || {};
+      data.branding = { ...existingBranding, ...dto.branding.dynamic };
+    }
+
     const updated = await prisma.tenant.update({
       where: { id },
       data,
     });
+
+    const dynamicBranding = (updated.branding as Record<string, any>) || {};
 
     return {
       id: updated.id,
@@ -238,6 +252,7 @@ export class TenantService {
         bannerUrl: updated.bannerUrl,
         primaryColor: updated.primaryColor,
         secondaryColor: updated.secondaryColor,
+        ...dynamicBranding,
       },
       updatedAt: updated.updatedAt,
     };

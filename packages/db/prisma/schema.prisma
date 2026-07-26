@@ -96,6 +96,7 @@ model Tenant {
   bannerUrl        String?      @db.VarChar(2048)
   primaryColor     String       @default("#000000") @db.VarChar(7)
   secondaryColor   String       @default("#FFFFFF") @db.VarChar(7)
+  branding         Json?        @default("{}")
   stripeCustomerId String?      @db.VarChar(255)
   createdAt        DateTime     @default(now()) @db.Timestamptz
   updatedAt        DateTime     @updatedAt @db.Timestamptz

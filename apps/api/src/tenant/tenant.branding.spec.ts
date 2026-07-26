@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { TenantService } from './tenant.service';
 import { AuthService } from '../auth/auth.service';
-import { prisma } from '@zayjar/db';
+import { prisma, prismaRead } from '@zayjar/db';
 import { NotFoundException, ForbiddenException, ConflictException } from '@nestjs/common';
 
 jest.mock('argon2', () => ({
@@ -42,9 +42,10 @@ describe('TenantService Branding Unit Tests - TSK-2.5', () => {
         bannerUrl: 'https://cdn.zayjar.com/t110c/cover.webp',
         primaryColor: '#FF5733',
         secondaryColor: '#C70039',
+        branding: {},
       };
 
-      jest.spyOn(prisma.tenant, 'findUnique').mockResolvedValue(mockTenant as any);
+      jest.spyOn(prismaRead.tenant, 'findUnique').mockResolvedValue(mockTenant as any);
 
       const result = await service.getTenantById(tenantId);
 
@@ -54,7 +55,7 @@ describe('TenantService Branding Unit Tests - TSK-2.5', () => {
     });
 
     it('should throw NotFoundException if tenant not found', async () => {
-      jest.spyOn(prisma.tenant, 'findUnique').mockResolvedValue(null);
+      jest.spyOn(prismaRead.tenant, 'findUnique').mockResolvedValue(null);
 
       await expect(service.getTenantById('nonexistent')).rejects.toThrow(NotFoundException);
     });
@@ -71,9 +72,10 @@ describe('TenantService Branding Unit Tests - TSK-2.5', () => {
         primaryColor: '#000',
         secondaryColor: '#FFF',
         customDomain: null,
+        branding: {},
       };
 
-      jest.spyOn(prisma.tenant, 'findUnique').mockResolvedValue(mockTenant as any);
+      jest.spyOn(prismaRead.tenant, 'findUnique').mockResolvedValue(mockTenant as any);
 
       const requester = { tenantId: 'different-tenant', roles: ['RESTAURANT_OWNER'] };
 
@@ -92,14 +94,45 @@ describe('TenantService Branding Unit Tests - TSK-2.5', () => {
         primaryColor: '#000',
         secondaryColor: '#FFF',
         customDomain: null,
+        branding: {},
       };
 
-      jest.spyOn(prisma.tenant, 'findUnique').mockResolvedValue(mockTenant as any);
+      jest.spyOn(prismaRead.tenant, 'findUnique').mockResolvedValue(mockTenant as any);
 
       const requester = { tenantId: 'other-tenant', roles: ['PLATFORM_OWNER'] };
 
       const result = await service.getTenantById(tenantId, requester);
       expect(result.id).toBe(tenantId);
+    });
+
+    it('should merge JSONB dynamic branding into response', async () => {
+      const tenantId = 't1';
+      const mockTenant = {
+        id: tenantId,
+        name: 'Gourmet',
+        subdomain: 'gourmet',
+        status: 'ACTIVE',
+        logoUrl: 'https://cdn.example.com/logo.webp',
+        bannerUrl: null,
+        primaryColor: '#FF5733',
+        secondaryColor: '#C70039',
+        customDomain: null,
+        branding: {
+          menuLayout: 'grid',
+          translations: { ar: { welcome: 'أهلا' } },
+          customCss: '.header { background: #FF5733; }',
+        },
+      };
+
+      jest.spyOn(prismaRead.tenant, 'findUnique').mockResolvedValue(mockTenant as any);
+
+      const result = await service.getTenantById(tenantId);
+
+      expect(result.branding.logoUrl).toBe('https://cdn.example.com/logo.webp');
+      expect(result.branding.primaryColor).toBe('#FF5733');
+      expect(result.branding.menuLayout).toBe('grid');
+      expect(result.branding.translations).toEqual({ ar: { welcome: 'أهلا' } });
+      expect(result.branding.customCss).toBe('.header { background: #FF5733; }');
     });
   });
 
@@ -116,6 +149,7 @@ describe('TenantService Branding Unit Tests - TSK-2.5', () => {
         bannerUrl: null,
         primaryColor: '#000',
         secondaryColor: '#FFF',
+        branding: {},
       };
 
       const updated = {
@@ -128,6 +162,7 @@ describe('TenantService Branding Unit Tests - TSK-2.5', () => {
         bannerUrl: 'https://cdn.zayjar.com/t110c/new-cover.webp',
         primaryColor: '#00FF66',
         secondaryColor: '#009933',
+        branding: {},
         updatedAt: new Date().toISOString(),
       };
 
@@ -197,6 +232,60 @@ describe('TenantService Branding Unit Tests - TSK-2.5', () => {
       const requester = { tenantId: 'evil-tenant', roles: ['RESTAURANT_OWNER'] };
 
       await expect(service.updateTenant(tenantId, dto as any, requester)).rejects.toThrow(ForbiddenException);
+    });
+
+    it('should update JSONB dynamic branding alongside static fields', async () => {
+      const tenantId = 't1';
+      const existing = {
+        id: tenantId,
+        name: 'Gourmet',
+        subdomain: 'gourmet',
+        customDomain: null,
+        status: 'ACTIVE',
+        logoUrl: null,
+        bannerUrl: null,
+        primaryColor: '#000',
+        secondaryColor: '#FFF',
+        branding: { menuLayout: 'list', translations: {} },
+      };
+
+      const updated = {
+        id: tenantId,
+        name: 'Gourmet',
+        subdomain: 'gourmet',
+        customDomain: null,
+        status: 'ACTIVE',
+        logoUrl: null,
+        bannerUrl: null,
+        primaryColor: '#000',
+        secondaryColor: '#FFF',
+        branding: { menuLayout: 'grid', translations: { ar: { menu: 'القائمة' } }, customFont: 'Roboto' },
+        updatedAt: new Date().toISOString(),
+      };
+
+      jest.spyOn(prisma.tenant, 'findUnique')
+        .mockResolvedValueOnce(existing as any)
+        .mockResolvedValueOnce(null);
+
+      jest.spyOn(prisma.tenant, 'update').mockResolvedValue(updated as any);
+
+      const dto = {
+        branding: {
+          dynamic: {
+            menuLayout: 'grid',
+            translations: { ar: { menu: 'القائمة' } },
+            customFont: 'Roboto',
+          },
+        },
+      };
+
+      const requester = { tenantId, roles: ['RESTAURANT_OWNER'] };
+
+      const result = await service.updateTenant(tenantId, dto as any, requester);
+
+      expect(result.branding.menuLayout).toBe('grid');
+      expect(result.branding.translations).toEqual({ ar: { menu: 'القائمة' } });
+      expect(result.branding.customFont).toBe('Roboto');
     });
   });
 });
