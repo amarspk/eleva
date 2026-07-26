@@ -474,11 +474,11 @@
 - **Missing:** Real Tap Payments / PayTabs SDK integration for KNET (Kuwait), Benefit (Bahrain), Mada (Saudi Arabia)
 
 ### 8.4 Telemetry, Logging (Winston, ELK Stack), & APM (Datadog)
-- **Status:** ❌ Not Implemented
-- **Description:** No structured logging framework, no centralized log aggregation, no APM integration.
-- **Files:** None
-- **Commits:** None
-- **Missing:** Winston logger setup with JSON format, correlation ID enrichment, ELK Stack (Elasticsearch/Logstash/Kibana) integration, Datadog APM agent configuration
+- **Status:** ✅ Implemented
+- **Description:** Winston structured logging with JSON format (production) and colored console (development). ZayjarLogger implements NestJS LoggerService for zero-change compatibility with all existing `new Logger()` calls. Automatic sensitive data masking (passwords, tokens, API keys, etc.) on all log outputs. Correlation ID middleware (X-Request-ID with UUID v4 fallback). HTTP request/response logging middleware with status-based severity routing. Daily log rotation (14-day general, 30-day error-only, gzip archived). Filebeat/Logstash ELK-compatible pipeline configuration. Datadog APM hooks (dd-trace integration, conditional init on DD_AGENT_HOST). Performance measurement utilities. Production documentation with environment variables and K8s integration.
+- **Files:** `apps/api/src/common/logging/logger.service.ts`, `apps/api/src/common/logging/logging.module.ts`, `apps/api/src/common/logging/correlation-id.middleware.ts`, `apps/api/src/common/logging/http-logging.middleware.ts`, `apps/api/src/common/logging/sensitive-data.mask.ts`, `apps/api/src/common/logging/datadog-apm.ts`, `apps/api/src/common/logging/performance.ts`, `apps/api/src/common/logging/masked-console.logger.ts`, `apps/api/src/common/logging/logger.service.spec.ts`, `apps/api/src/common/logging/correlation-id.middleware.spec.ts`, `apps/api/src/common/logging/http-logging.middleware.spec.ts`, `apps/api/src/common/logging/sensitive-data.mask.spec.ts`, `apps/api/LOGGING.md`, `apps/api/package.json`, `apps/api/src/app.module.ts`, `apps/api/src/main.ts`
+- **Commits:** current commit
+- **Coverage:** Winston + daily rotate, JSON log format, 5 log levels, X-Request-ID correlation, auto masking of 15+ sensitive field patterns, ELK Filebeat/Logstash config, Datadog conditional init, performance measurement API, K8s stdout/stderr compatible
 
 ### 8.5 Automated Backups & Disaster Recovery Strategy
 - **Status:** ✅ Implemented
@@ -583,9 +583,9 @@
 | Metric | Count |
 |--------|-------|
 | **Total Requirements Indexed** | **76** |
-| **Implemented** | **67** |
+| **Implemented** | **68** |
 | **Partially Implemented** | **6** |
-| **Not Implemented** | **3** |
+| **Not Implemented** | **2** |
 
 ### Breakdown by DOC
 
@@ -598,7 +598,7 @@
 | DOC-006 (Security) | 9 | 8 | 1 | 0 |
 | DOC-007 (Image Pipeline) | 5 | 4 | 0 | 1 |
 | DOC-008 (Notifications) | 6 | 6 | 0 | 0 |
-| DOC-009 (Integrations) | 5 | 3 | 1 | 1 |
+| DOC-009 (Integrations) | 5 | 4 | 1 | 0 |
 | DOC-010 (Perf/Testing/Ops) | 13 | 10 | 3 | 0 |
 
 ---
@@ -612,7 +612,7 @@ Listed in dependency order (prerequisites first, downstream features after):
 2. ~~DOC-009 §8.5 — Automated backups & disaster recovery (RDS Multi-AZ, WAL archiving, PITR)~~ ✅ Done
 
 ### Priority 2 — Observability (depends on Priority 1)
-3. **DOC-009 §8.4** — Winston structured logging + ELK Stack + Datadog APM
+3. ~~DOC-009 §8.4 — Winston structured logging + ELK Stack + Datadog APM~~ ✅ Done
 
 ### Priority 3 — CDN & Performance (depends on Priority 1)
 4. **DOC-007 §6.4** — CloudFront CDN edge caching + cache invalidation strategy

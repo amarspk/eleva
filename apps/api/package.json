@@ -39,6 +39,8 @@
     "socket.io": "^4.7.5",
     "speakeasy": "^2.0.0",
     "stripe": "^14.10.0",
+    "winston": "^3.14.0",
+    "winston-daily-rotate-file": "^5.0.0",
     "xss": "^1.0.15"
   },
   "devDependencies": {
@@ -46,6 +48,7 @@
     "@types/jsonwebtoken": "^9.0.5",
     "@types/passport-jwt": "^4.0.1",
     "@types/supertest": "^7.2.1",
+    "dd-trace": "^5.0.0",
     "socket.io-client": "^4.7.5",
     "supertest": "^7.2.2",
     "typescript": "^5.4.5"

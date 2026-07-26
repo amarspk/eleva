@@ -2,6 +2,7 @@ import { Module, NestModule, MiddlewareConsumer } from '@nestjs/common';
 import { APP_INTERCEPTOR, APP_GUARD } from '@nestjs/core';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { CacheModule } from './common/cache/cache.module';
+import { LoggingModule } from './common/logging/logging.module';
 import { AuthModule } from './auth/auth.module';
 import { TenantModule } from './tenant/tenant.module';
 import { BranchModule } from './branch/branch.module';
@@ -24,9 +25,11 @@ import { CsrfModule } from './common/csrf/csrf.module';
 import { CsrfGuard } from './common/csrf/csrf.guard';
 import { SanitizationModule } from './common/sanitization/sanitization.module';
 import { SanitizationMiddleware } from './common/sanitization/sanitization.middleware';
+import { CorrelationIdMiddleware } from './common/logging/correlation-id.middleware';
+import { HttpLoggingMiddleware } from './common/logging/http-logging.middleware';
 
 @Module({
-  imports: [EventEmitterModule.forRoot(), CacheModule, CsrfModule, SanitizationModule, AuthModule, TenantModule, BranchModule, MenuModule, OrderModule, KdsModule, CustomerModule, BillingModule, AdminModule, AssetModule, WebhookModule, DeviceTokenModule, SubscriptionModule, AuditModule, PaymentModule, MediaModule],
+  imports: [EventEmitterModule.forRoot(), CacheModule, LoggingModule, CsrfModule, SanitizationModule, AuthModule, TenantModule, BranchModule, MenuModule, OrderModule, KdsModule, CustomerModule, BillingModule, AdminModule, AssetModule, WebhookModule, DeviceTokenModule, SubscriptionModule, AuditModule, PaymentModule, MediaModule],
   providers: [
     {
       provide: APP_INTERCEPTOR,
@@ -41,6 +44,10 @@ import { SanitizationMiddleware } from './common/sanitization/sanitization.middl
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
     consumer
+      .apply(CorrelationIdMiddleware)
+      .forRoutes('*')
+      .apply(HttpLoggingMiddleware)
+      .forRoutes('*')
       .apply(SanitizationMiddleware)
       .forRoutes('*')
       .apply(TenantContextMiddleware)
