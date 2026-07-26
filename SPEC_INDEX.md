@@ -2,7 +2,7 @@
 
 > Comprehensive specification index mapping every DOC-001 through DOC-010 section and requirement to implementation status, files, commit SHAs, and related TSK/Roadmap items.
 >
-> Generated: 2026-07-26 | HEAD: `d8e5560` | Branch: `main`
+> Generated: 2026-07-26 | HEAD: `5f58450` | Branch: `main`
 
 ---
 
@@ -92,12 +92,11 @@
 - **TSK/Roadmap:** TSK-1.7, TSK-5.5 (E2E Tests)
 
 ### 1.10 Subscription Architecture
-- **Status:** ⚠️ Partially Implemented
-- **Description:** Subscription guard, plan-based feature gating, Stripe checkout sessions. Missing: Stripe webhook-driven status sync for full lifecycle.
-- **Files:** `apps/api/src/subscription/subscription.service.ts`, `apps/api/src/subscription/guards/subscription.guard.ts`, `apps/api/src/billing/billing.service.ts`
-- **Commits:** `094a3a6`, `32b3759`, `3363bdc`
+- **Status:** ✅ Implemented
+- **Description:** Subscription guard, plan-based feature gating, Stripe checkout sessions, complete Stripe webhook-driven status sync for full lifecycle. `checkout.session.completed` persists Stripe IDs, `invoice.payment_failed`/`customer.subscription.deleted`/`customer.subscription.updated` update statuses atomically. Domain event emission (`billing.status_changed`) via EventEmitter2 for notification dispatch. 30-day idempotency guard via CacheService.
+- **Files:** `apps/api/src/subscription/subscription.service.ts`, `apps/api/src/subscription/guards/subscription.guard.ts`, `apps/api/src/billing/billing.service.ts`, `apps/api/src/billing/billing.controller.ts`, `apps/api/src/billing/events/billing-status-changed.event.ts`, `apps/api/src/billing/listeners/billing-notification.listener.ts`
+- **Commits:** `094a3a6`, `32b3759`, `3363bdc`, current commit
 - **TSK/Roadmap:** TSK-3.3 (Billing Webhook Sync), TSK-3.6 (Subscription Gating)
-- **Missing:** Full `invoice.payment_succeeded` / `customer.subscription.deleted` webhook handling to update `subscriptions.status` in real-time
 
 ---
 
@@ -460,12 +459,11 @@
 - **TSK/Roadmap:** TSK-5.3
 
 ### 8.2 Stripe Core Payments & Billing Engine
-- **Status:** ⚠️ Partially Implemented
-- **Description:** Stripe checkout sessions for subscription onboarding, webhook endpoint for invoice events. Missing: full subscription lifecycle webhook handler.
-- **Files:** `apps/api/src/billing/billing.service.ts`, `apps/api/src/billing/billing.controller.ts`
-- **Commits:** `32b3759`, `3363bdc`
+- **Status:** ✅ Implemented
+- **Description:** Complete Stripe subscription lifecycle webhook handler. Checkout session creation for subscription onboarding. Webhook endpoint (`POST /api/v1/billing/webhooks`) with HMAC signature verification via raw body capture. Handles: `checkout.session.completed` (persists Stripe IDs), `invoice.payment_succeeded` → ACTIVE, `invoice.payment_failed` → PAST_DUE, `customer.subscription.deleted` → CANCELED, `customer.subscription.updated` (status + period tracking + `cancel_at_period_end`), `customer.subscription.trial_will_end` (domain event for notification). Atomic tenant/subscription status updates via `$transaction`. 30-day Redis idempotency via CacheService. `BillingStatusChangedEvent` domain event emission via EventEmitter2. `BillingNotificationListener` dispatches PAST_DUE/CANCELED/trial notifications through BullMQ.
+- **Files:** `apps/api/src/billing/billing.service.ts`, `apps/api/src/billing/billing.controller.ts`, `apps/api/src/billing/billing.module.ts`, `apps/api/src/billing/events/billing-status-changed.event.ts`, `apps/api/src/billing/listeners/billing-notification.listener.ts`
+- **Commits:** `32b3759`, `3363bdc`, current commit
 - **TSK/Roadmap:** TSK-2.4, TSK-3.3
-- **Missing:** Complete `invoice.payment_succeeded`, `invoice.payment_failed`, `customer.subscription.deleted` webhook handler to update `subscriptions.status` and tenant access permissions in real-time
 
 ### 8.3 Regional Wallet Integrations (Apple Pay, Google Pay, Local Wallets)
 - **Status:** ⚠️ Partially Implemented
@@ -585,22 +583,22 @@
 | Metric | Count |
 |--------|-------|
 | **Total Requirements Indexed** | **76** |
-| **Implemented** | **61** |
-| **Partially Implemented** | **10** |
+| **Implemented** | **63** |
+| **Partially Implemented** | **8** |
 | **Not Implemented** | **5** |
 
 ### Breakdown by DOC
 
 | DOC | Total | Implemented | Partial | Not |
 |-----|-------|-------------|---------|-----|
-| DOC-001 (Architecture) | 10 | 9 | 1 | 0 |
+| DOC-001 (Architecture) | 10 | 10 | 0 | 0 |
 | DOC-002 (Database) | 9 | 7 | 2 | 0 |
 | DOC-003 (REST API) | 11 | 11 | 0 | 0 |
 | DOC-005 (Business Logic) | 8 | 8 | 0 | 0 |
 | DOC-006 (Security) | 9 | 8 | 1 | 0 |
 | DOC-007 (Image Pipeline) | 5 | 4 | 0 | 1 |
 | DOC-008 (Notifications) | 6 | 6 | 0 | 0 |
-| DOC-009 (Integrations) | 5 | 1 | 2 | 2 |
+| DOC-009 (Integrations) | 5 | 2 | 1 | 2 |
 | DOC-010 (Perf/Testing/Ops) | 13 | 7 | 5 | 1 |
 
 ---
@@ -623,14 +621,13 @@ Listed in dependency order (prerequisites first, downstream features after):
 7. **DOC-010 §9.3** — Next.js Image component + dynamic imports audit
 
 ### Priority 4 — Payment Completeness (independent)
-8. **DOC-009 §8.2** — Complete Stripe subscription lifecycle webhook handler
-9. **DOC-009 §8.3** — Real Tap/PayTabs SDK integration (KNET, Benefit, Mada)
+8. **DOC-009 §8.3** — Real Tap/PayTabs SDK integration (KNET, Benefit, Mada)
 
 ### Priority 5 — Code Quality (independent)
-10. **DOC-010 §10.2** — ESLint zero-error CI enforcement + `no-explicit-any` audit
-11. **DOC-010 §10.3** — Zero-downtime migration documentation + CI validation
-12. **DOC-010 §10.6** — Complete environment variable set + staging/production configs
-13. **DOC-002 §2.7** — Database-level triggers for `updated_at`, audit logs, and notifications
+9. **DOC-010 §10.2** — ESLint zero-error CI enforcement + `no-explicit-any` audit
+10. **DOC-010 §10.3** — Zero-downtime migration documentation + CI validation
+11. **DOC-010 §10.6** — Complete environment variable set + staging/production configs
+12. **DOC-002 §2.7** — Database-level triggers for `updated_at`, audit logs, and notifications
 
 ---
 

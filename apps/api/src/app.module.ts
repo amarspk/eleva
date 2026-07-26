@@ -1,5 +1,6 @@
 import { Module, NestModule, MiddlewareConsumer } from '@nestjs/common';
 import { APP_INTERCEPTOR, APP_GUARD } from '@nestjs/core';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 import { CacheModule } from './common/cache/cache.module';
 import { AuthModule } from './auth/auth.module';
 import { TenantModule } from './tenant/tenant.module';
@@ -25,7 +26,7 @@ import { SanitizationModule } from './common/sanitization/sanitization.module';
 import { SanitizationMiddleware } from './common/sanitization/sanitization.middleware';
 
 @Module({
-  imports: [CacheModule, CsrfModule, SanitizationModule, AuthModule, TenantModule, BranchModule, MenuModule, OrderModule, KdsModule, CustomerModule, BillingModule, AdminModule, AssetModule, WebhookModule, DeviceTokenModule, SubscriptionModule, AuditModule, PaymentModule, MediaModule],
+  imports: [EventEmitterModule.forRoot(), CacheModule, CsrfModule, SanitizationModule, AuthModule, TenantModule, BranchModule, MenuModule, OrderModule, KdsModule, CustomerModule, BillingModule, AdminModule, AssetModule, WebhookModule, DeviceTokenModule, SubscriptionModule, AuditModule, PaymentModule, MediaModule],
   providers: [
     {
       provide: APP_INTERCEPTOR,

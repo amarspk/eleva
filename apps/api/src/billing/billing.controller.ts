@@ -48,16 +48,14 @@ export class BillingController {
   @Public()
   @Post('webhooks')
   @HttpCode(HttpStatus.OK)
-  async handleWebhook(@Body() body: any, @Req() req: any, @Headers('stripe-signature') signature?: string) {
-    // Try to get raw body for signature verification
-    // In NestJS, raw body may be in req.rawBody if configured, otherwise use body
-    const rawBody = (req as any).rawBody || JSON.stringify(body);
+  async handleWebhook(@Req() req: any, @Headers('stripe-signature') signature?: string) {
+    const rawBody: Buffer | undefined = (req as any).rawBody;
+    if (!rawBody) {
+      return { received: true, action: 'missing_raw_body' };
+    }
 
-    // Verify signature if secret configured, otherwise parse as JSON
-    const event: any = this.billingService.verifyWebhookSignature(rawBody, signature);
-
-    // If body is already parsed event (when no signature verification), use it
-    const stripeEvent = event.type ? event : body;
+    const event = this.billingService.verifyWebhookSignature(rawBody, signature);
+    const stripeEvent = event.type ? event : event;
 
     const result = await this.billingService.handleStripeWebhook(stripeEvent);
     return result;

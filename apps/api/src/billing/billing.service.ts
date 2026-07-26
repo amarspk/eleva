@@ -1,14 +1,35 @@
 import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { CreateBillingSessionRequestDto } from './dto/create-billing-session-request.dto';
+import { BillingStatusChangedEvent } from './events/billing-status-changed.event';
+import { CacheService } from '../common/cache/cache.service';
 import { prisma } from '@zayjar/db';
 
+/**
+ * DOC-009 §8.2 — Stripe Subscription Lifecycle Webhook Handler
+ *
+ * Handles inbound Stripe webhook events and keeps tenant/subscription
+ * statuses in sync. Emits BillingStatusChangedEvent domain events for
+ * notification dispatch — BillingService has zero knowledge of notification
+ * channels (email, SMS, push).
+ *
+ * Idempotency: Stripe may deliver the same event multiple times. Each
+ * event is deduplicated using a 30-day TTL key in Redis via CacheService.
+ */
 @Injectable()
 export class BillingService {
   private readonly logger = new Logger(BillingService.name);
+  private static readonly IDEMPOTENCY_KEY_PREFIX = 'stripe:webhook:';
+  private static readonly IDEMPOTENCY_TTL_SECONDS = 30 * 24 * 60 * 60; // 30 days
+
+  constructor(
+    private readonly eventEmitter: EventEmitter2,
+    private readonly cacheService: CacheService,
+  ) {}
 
   /**
    * Creates a Stripe Checkout Session for subscription onboarding or plan upgrade.
-   * Per DOC-003 3.9.1
+   * Per DOC-004 3.9.1
    * Tenant isolation: plan must exist, tenant context validated.
    * If STRIPE_SECRET_KEY not configured, returns mock session for dev/test.
    */
@@ -49,7 +70,6 @@ export class BillingService {
 
     // Real Stripe integration
     try {
-      // Dynamic import to avoid hard dependency if not installed
       const Stripe = require('stripe');
       const stripe = new Stripe(stripeSecretKey, {
         apiVersion: '2023-10-16',
@@ -84,18 +104,52 @@ export class BillingService {
   }
 
   /**
-   * Handles Stripe webhook events per DOC-009 8.2 and DOC-004/005 Billing Sync Automation
-   * Events: invoice.payment_succeeded, invoice.payment_failed, customer.subscription.deleted, customer.subscription.updated
-   * Updates tenant and subscription statuses accordingly
+   * DOC-009 §8.2 — Handles Stripe webhook events per DOC-004/005 Billing Sync Automation.
+   * Processes: checkout.session.completed, invoice.payment_succeeded,
+   * invoice.payment_failed, customer.subscription.created,
+   * customer.subscription.updated, customer.subscription.deleted,
+   * customer.subscription.trial_will_end.
+   *
+   * Updates tenant and subscription statuses atomically.
+   * Emits BillingStatusChangedEvent domain events for notification dispatch.
    */
   async handleStripeWebhook(event: any) {
     const eventType = event.type;
     const dataObject = event.data?.object;
+    const eventId = event.id;
 
-    this.logger.log(`Received Stripe webhook event: ${eventType}`);
+    this.logger.log(`Received Stripe webhook event: ${eventType} [${eventId}]`);
 
     if (!dataObject) {
       throw new BadRequestException('Invalid Stripe webhook payload: missing data.object');
+    }
+
+    // DOC-009 §8.2: 30-day idempotency guard via CacheService.
+    // Stripe may redeliver events; we track processed event IDs to prevent duplicate side-effects.
+    if (eventId) {
+      const idempotencyKey = BillingService.IDEMPOTENCY_KEY_PREFIX + eventId;
+      const alreadyProcessed = await this.cacheService.get<boolean>(
+        idempotencyKey,
+        async () => false,
+        BillingService.IDEMPOTENCY_TTL_SECONDS,
+      );
+
+      if (alreadyProcessed) {
+        this.logger.log(`Duplicate Stripe event [${eventId}] (${eventType}), skipping`);
+        return { received: true, eventType, eventId, action: 'duplicate' };
+      }
+    }
+
+    // Handle checkout.session.completed — persists Stripe IDs back to tenant/subscription
+    if (eventType === 'checkout.session.completed') {
+      const result = await this.handleCheckoutSessionCompleted(dataObject, eventId);
+      return result;
+    }
+
+    // Handle customer.subscription.trial_will_end — emits event for notification dispatch
+    if (eventType === 'customer.subscription.trial_will_end') {
+      const result = await this.handleTrialWillEnd(dataObject, eventId);
+      return result;
     }
 
     // Map Stripe subscription/customer IDs to internal tenant
@@ -120,14 +174,14 @@ export class BillingService {
       const tenant = await prisma.tenant.findFirst({
         where: { stripeCustomerId },
       });
-      if (tenant) {tenantId = tenant.id;}
+      if (tenant) { tenantId = tenant.id; }
     }
 
     if (!tenantId && stripeSubscriptionId) {
       const subscription = await prisma.subscription.findFirst({
         where: { stripeSubscriptionId },
       });
-      if (subscription) {tenantId = subscription.tenantId;}
+      if (subscription) { tenantId = subscription.tenantId; }
     }
 
     // Fallback: try to get tenantId from metadata
@@ -135,12 +189,12 @@ export class BillingService {
       tenantId = dataObject.metadata.tenantId;
     }
 
-    // For test environments without real Stripe IDs, allow test tenantId from metadata or use event's tenantId for mock
     if (!tenantId) {
       this.logger.warn(`Could not resolve tenant for Stripe event ${eventType}, using mock handling`);
       return {
         received: true,
         eventType,
+        eventId,
         tenantId: null,
         action: 'no_tenant_resolved',
       };
@@ -182,19 +236,51 @@ export class BillingService {
       }
       default:
         this.logger.log(`Unhandled Stripe event type: ${eventType}, ignoring`);
-        return { received: true, eventType, tenantId, action: 'ignored' };
+        return { received: true, eventType, eventId, tenantId, action: 'ignored' };
     }
 
     // Update subscription and tenant statuses atomically if we have new statuses
+    let previousSubscriptionStatus: string | null = null;
     if (newSubscriptionStatus && newTenantStatus) {
       try {
         await prisma.$transaction(async (tx: any) => {
+          // Fetch current subscription status before update for domain event
           if (stripeSubscriptionId) {
+            const current = await tx.subscription.findFirst({
+              where: { stripeSubscriptionId },
+              select: { status: true },
+            });
+            previousSubscriptionStatus = current?.status || null;
+
+            const updateData: Record<string, any> = { status: newSubscriptionStatus };
+
+            // DOC-009 §8.2: Update billing period and cancellation fields from Stripe data
+            if (eventType === 'customer.subscription.updated') {
+              if (dataObject.current_period_start) {
+                updateData.currentPeriodStart = new Date(dataObject.current_period_start * 1000);
+              }
+              if (dataObject.current_period_end) {
+                updateData.currentPeriodEnd = new Date(dataObject.current_period_end * 1000);
+              }
+              if (typeof dataObject.cancel_at_period_end === 'boolean') {
+                updateData.cancelAtPeriodEnd = dataObject.cancel_at_period_end;
+              }
+              if (dataObject.canceled_at) {
+                updateData.canceledAt = new Date(dataObject.canceled_at * 1000);
+              }
+            }
+
             await tx.subscription.updateMany({
               where: { stripeSubscriptionId },
-              data: { status: newSubscriptionStatus },
+              data: updateData,
             });
           } else if (tenantId) {
+            const current = await tx.subscription.findFirst({
+              where: { tenantId },
+              select: { status: true },
+            });
+            previousSubscriptionStatus = current?.status || null;
+
             await tx.subscription.updateMany({
               where: { tenantId },
               data: { status: newSubscriptionStatus },
@@ -210,17 +296,174 @@ export class BillingService {
         this.logger.log(
           `Updated tenant [${tenantId}] to status [${newTenantStatus}] and subscription to [${newSubscriptionStatus}] for event [${eventType}]`,
         );
+
+        // DOC-009 §8.2: Emit domain event for notification dispatch.
+        // BillingService has zero knowledge of notification channels —
+        // BillingNotificationListener consumes this event.
+        this.eventEmitter.emit(
+          'billing.status_changed',
+          new BillingStatusChangedEvent(
+            tenantId,
+            previousSubscriptionStatus || 'UNKNOWN',
+            newSubscriptionStatus,
+            eventType,
+            eventId || '',
+            new Date(),
+          ),
+        );
       } catch (err) {
         this.logger.error(`Failed to update tenant/subscription for event ${eventType}: ${(err as Error).message}`);
       }
     }
 
+    // Mark event as processed for idempotency
+    if (eventId) {
+      await this.cacheService.set(
+        BillingService.IDEMPOTENCY_KEY_PREFIX + eventId,
+        true,
+        BillingService.IDEMPOTENCY_TTL_SECONDS,
+      );
+    }
+
     return {
       received: true,
       eventType,
+      eventId,
       tenantId,
       newSubscriptionStatus,
       newTenantStatus,
+    };
+  }
+
+  /**
+   * DOC-009 §8.2: Handles checkout.session.completed events.
+   * Persists stripeCustomerId on tenant and stripeSubscriptionId on subscription
+   * after a successful Stripe Checkout session.
+   */
+  private async handleCheckoutSessionCompleted(dataObject: any, eventId?: string) {
+    const stripeCustomerId = dataObject.customer as string | null;
+    const stripeSubscriptionId = dataObject.subscription as string | null;
+    const metadataTenantId = dataObject.metadata?.tenantId as string | null;
+
+    if (!metadataTenantId) {
+      this.logger.warn(`checkout.session.completed [${eventId}] has no tenantId in metadata, skipping`);
+      return { received: true, eventType: 'checkout.session.completed', eventId, action: 'no_tenant_metadata' };
+    }
+
+    const tenant = await prisma.tenant.findUnique({ where: { id: metadataTenantId } });
+    if (!tenant) {
+      this.logger.warn(`checkout.session.completed [${eventId}] references non-existent tenant [${metadataTenantId}]`);
+      return { received: true, eventType: 'checkout.session.completed', eventId, action: 'tenant_not_found' };
+    }
+
+    try {
+      await prisma.$transaction(async (tx: any) => {
+        // Persist stripeCustomerId on tenant if not already set
+        if (stripeCustomerId && !tenant.stripeCustomerId) {
+          await tx.tenant.update({
+            where: { id: metadataTenantId },
+            data: { stripeCustomerId },
+          });
+          this.logger.log(`Persisted stripeCustomerId [${stripeCustomerId}] for tenant [${metadataTenantId}]`);
+        }
+
+        // Persist stripeSubscriptionId on subscription
+        if (stripeSubscriptionId) {
+          const subscription = await tx.subscription.findFirst({
+            where: { tenantId: metadataTenantId },
+          });
+
+          if (subscription && !subscription.stripeSubscriptionId) {
+            await tx.subscription.update({
+              where: { id: subscription.id },
+              data: { stripeSubscriptionId },
+            });
+            this.logger.log(`Persisted stripeSubscriptionId [${stripeSubscriptionId}] for tenant [${metadataTenantId}]`);
+          }
+        }
+      });
+    } catch (err) {
+      this.logger.error(`Failed to persist Stripe IDs from checkout.session.completed: ${(err as Error).message}`);
+    }
+
+    // Mark event as processed for idempotency
+    if (eventId) {
+      await this.cacheService.set(
+        BillingService.IDEMPOTENCY_KEY_PREFIX + eventId,
+        true,
+        BillingService.IDEMPOTENCY_TTL_SECONDS,
+      );
+    }
+
+    return {
+      received: true,
+      eventType: 'checkout.session.completed',
+      eventId,
+      tenantId: metadataTenantId,
+      action: 'stripe_ids_persisted',
+    };
+  }
+
+  /**
+   * DOC-009 §8.2: Handles customer.subscription.trial_will_end events.
+   * Emits domain event so BillingNotificationListener can dispatch
+   * trial expiry reminder notifications.
+   */
+  private async handleTrialWillEnd(dataObject: any, eventId?: string) {
+    const stripeCustomerId = dataObject.customer as string | null;
+    const stripeSubscriptionId = dataObject.id as string | null;
+
+    let tenantId: string | null = null;
+
+    if (stripeCustomerId) {
+      const tenant = await prisma.tenant.findFirst({ where: { stripeCustomerId } });
+      if (tenant) { tenantId = tenant.id; }
+    }
+
+    if (!tenantId && stripeSubscriptionId) {
+      const subscription = await prisma.subscription.findFirst({ where: { stripeSubscriptionId } });
+      if (subscription) { tenantId = subscription.tenantId; }
+    }
+
+    if (!tenantId && dataObject.metadata?.tenantId) {
+      tenantId = dataObject.metadata.tenantId;
+    }
+
+    if (!tenantId) {
+      this.logger.warn(`customer.subscription.trial_will_end [${eventId}] could not resolve tenant`);
+      return { received: true, eventType: 'customer.subscription.trial_will_end', eventId, action: 'no_tenant_resolved' };
+    }
+
+    // Emit domain event for notification dispatch — no status change, just notification trigger
+    this.eventEmitter.emit(
+      'billing.status_changed',
+      new BillingStatusChangedEvent(
+        tenantId,
+        'TRIALING',
+        'TRIALING',
+        'customer.subscription.trial_will_end',
+        eventId || '',
+        new Date(),
+      ),
+    );
+
+    // Mark event as processed for idempotency
+    if (eventId) {
+      await this.cacheService.set(
+        BillingService.IDEMPOTENCY_KEY_PREFIX + eventId,
+        true,
+        BillingService.IDEMPOTENCY_TTL_SECONDS,
+      );
+    }
+
+    this.logger.log(`Trial expiry notification emitted for tenant [${tenantId}] via domain event`);
+
+    return {
+      received: true,
+      eventType: 'customer.subscription.trial_will_end',
+      eventId,
+      tenantId,
+      action: 'trial_expiry_notification_emitted',
     };
   }
 

@@ -6,7 +6,7 @@ import { SanitizationService } from './sanitization.service';
  * Paths where body sanitization must be skipped to preserve raw payloads
  * for signature verification (e.g., Stripe webhook HMAC validation).
  */
-const SKIP_BODY_SANITIZATION_PATHS = new Set(['/api/v1/webhooks/stripe']);
+const SKIP_BODY_SANITIZATION_PATHS = new Set(['/api/v1/billing/webhooks']);
 
 /**
  * DOC-006 §5.4 — Input Sanitization Middleware
