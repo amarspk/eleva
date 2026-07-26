@@ -34,7 +34,8 @@
     "sharp": "^0.33.2",
     "socket.io": "^4.7.5",
     "speakeasy": "^2.0.0",
-    "stripe": "^14.10.0"
+    "stripe": "^14.10.0",
+    "xss": "^1.0.15"
   },
   "devDependencies": {
     "@nestjs/testing": "^10.4.22",

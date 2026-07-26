@@ -325,11 +325,10 @@
 - **Commits:** `10460d9`, `d4ea6db`
 
 ### 5.4 Cross-Site Scripting (XSS) Sanitization Pipelines
-- **Status:** ⚠️ Partially Implemented
-- **Description:** CSP headers configured in NGINX. Missing: dompurify/class-sanitizer input sanitization middleware.
-- **Files:** `nginx.conf`
-- **Commits:** `10460d9`
-- **Missing:** Global NestJS middleware using `dompurify` and `class-sanitizer` to strip malicious HTML from incoming JSON payloads
+- **Status:** ✅ Implemented
+- **Description:** CSP headers configured in NGINX. Global NestJS middleware using `xss` library to strip all HTML tags/attributes from incoming JSON payloads before they reach controllers or ValidationPipe. Recursive sanitization of nested objects, arrays, and string values. Stripe webhook paths exempted for raw body signature verification.
+- **Files:** `apps/api/src/common/sanitization/sanitization.service.ts`, `apps/api/src/common/sanitization/sanitization.middleware.ts`, `apps/api/src/common/sanitization/sanitization.module.ts`, `apps/api/src/app.module.ts`, `nginx.conf`
+- **Commits:** `10460d9`, current commit
 
 ### 5.5 SQL Injection Defenses & ORM Boundaries
 - **Status:** ✅ Implemented
@@ -588,8 +587,8 @@
 | Metric | Count |
 |--------|-------|
 | **Total Requirements Indexed** | **76** |
-| **Implemented** | **58** |
-| **Partially Implemented** | **12** |
+| **Implemented** | **59** |
+| **Partially Implemented** | **11** |
 | **Not Implemented** | **6** |
 
 ### Breakdown by DOC
@@ -600,7 +599,7 @@
 | DOC-002 (Database) | 9 | 7 | 2 | 0 |
 | DOC-003 (REST API) | 11 | 11 | 0 | 0 |
 | DOC-005 (Business Logic) | 8 | 8 | 0 | 0 |
-| DOC-006 (Security) | 9 | 7 | 2 | 0 |
+| DOC-006 (Security) | 9 | 8 | 1 | 0 |
 | DOC-007 (Image Pipeline) | 5 | 4 | 0 | 1 |
 | DOC-008 (Notifications) | 6 | 6 | 0 | 0 |
 | DOC-009 (Integrations) | 5 | 1 | 2 | 2 |
@@ -612,33 +611,30 @@
 
 Listed in dependency order (prerequisites first, downstream features after):
 
-### Priority 1 — Security Foundation (no dependencies)
-1. **DOC-006 §5.4** — Input sanitization middleware (dompurify/class-sanitizer for XSS prevention)
+### Priority 1 — Infrastructure (foundational)
+1. **DOC-010 §9.2** — Database optimization tooling (EXPLAIN ANALYZE scripts, autovacuum tuning)
+2. **DOC-010 §9.4** — BullMQ worker architecture (queue definitions, retry policies, DLQ)
+3. **DOC-010 §9.5** — Kubernetes manifests + HPA configuration
+4. **DOC-009 §8.5** — Automated backups & disaster recovery (RDS Multi-AZ, WAL archiving, PITR)
 
-### Priority 2 — Infrastructure (foundational for production)
-2. **DOC-010 §9.2** — Database optimization tooling (EXPLAIN ANALYZE scripts, autovacuum tuning)
-3. **DOC-010 §9.4** — BullMQ worker architecture (queue definitions, retry policies, DLQ)
-4. **DOC-010 §9.5** — Kubernetes manifests + HPA configuration
-5. **DOC-009 §8.5** — Automated backups & disaster recovery (RDS Multi-AZ, WAL archiving, PITR)
+### Priority 2 — Observability (depends on Priority 1)
+5. **DOC-009 §8.4** — Winston structured logging + ELK Stack + Datadog APM
+6. **DOC-010 §10.5** — CD pipeline (`.github/workflows/cd.yml`) + branch protection
 
-### Priority 3 — Observability (depends on Priority 2)
-6. **DOC-009 §8.4** — Winston structured logging + ELK Stack + Datadog APM
-7. **DOC-010 §10.5** — CD pipeline (`.github/workflows/cd.yml`) + branch protection
+### Priority 3 — CDN & Performance (depends on Priority 1)
+7. **DOC-007 §6.4** — CloudFront CDN edge caching + cache invalidation strategy
+8. **DOC-002 §2.4** — GIN full-text search index on `products.tsv_menu_search`
+9. **DOC-010 §9.3** — Next.js Image component + dynamic imports audit
 
-### Priority 4 — CDN & Performance (depends on Priority 2)
-8. **DOC-007 §6.4** — CloudFront CDN edge caching + cache invalidation strategy
-9. **DOC-002 §2.4** — GIN full-text search index on `products.tsv_menu_search`
-10. **DOC-010 §9.3** — Next.js Image component + dynamic imports audit
+### Priority 4 — Payment Completeness (independent)
+10. **DOC-009 §8.2** — Complete Stripe subscription lifecycle webhook handler
+11. **DOC-009 §8.3** — Real Tap/PayTabs SDK integration (KNET, Benefit, Mada)
 
-### Priority 5 — Payment Completeness (independent)
-11. **DOC-009 §8.2** — Complete Stripe subscription lifecycle webhook handler
-12. **DOC-009 §8.3** — Real Tap/PayTabs SDK integration (KNET, Benefit, Mada)
-
-### Priority 6 — Code Quality (independent)
-13. **DOC-010 §10.2** — ESLint zero-error CI enforcement + `no-explicit-any` audit
-14. **DOC-010 §10.3** — Zero-downtime migration documentation + CI validation
-15. **DOC-010 §10.6** — Complete environment variable set + staging/production configs
-16. **DOC-002 §2.7** — Database-level triggers for `updated_at`, audit logs, and notifications
+### Priority 5 — Code Quality (independent)
+12. **DOC-010 §10.2** — ESLint zero-error CI enforcement + `no-explicit-any` audit
+13. **DOC-010 §10.3** — Zero-downtime migration documentation + CI validation
+14. **DOC-010 §10.6** — Complete environment variable set + staging/production configs
+15. **DOC-002 §2.7** — Database-level triggers for `updated_at`, audit logs, and notifications
 
 ---
 

@@ -21,9 +21,11 @@ import { AuditInterceptor } from './audit/audit.interceptor';
 import { TenantContextMiddleware } from './common/middleware/tenant-context.middleware';
 import { CsrfModule } from './common/csrf/csrf.module';
 import { CsrfGuard } from './common/csrf/csrf.guard';
+import { SanitizationModule } from './common/sanitization/sanitization.module';
+import { SanitizationMiddleware } from './common/sanitization/sanitization.middleware';
 
 @Module({
-  imports: [CacheModule, CsrfModule, AuthModule, TenantModule, BranchModule, MenuModule, OrderModule, KdsModule, CustomerModule, BillingModule, AdminModule, AssetModule, WebhookModule, DeviceTokenModule, SubscriptionModule, AuditModule, PaymentModule, MediaModule],
+  imports: [CacheModule, CsrfModule, SanitizationModule, AuthModule, TenantModule, BranchModule, MenuModule, OrderModule, KdsModule, CustomerModule, BillingModule, AdminModule, AssetModule, WebhookModule, DeviceTokenModule, SubscriptionModule, AuditModule, PaymentModule, MediaModule],
   providers: [
     {
       provide: APP_INTERCEPTOR,
@@ -38,7 +40,9 @@ import { CsrfGuard } from './common/csrf/csrf.guard';
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
     consumer
+      .apply(SanitizationMiddleware)
+      .forRoutes('*')
       .apply(TenantContextMiddleware)
-      .forRoutes('*'); // Apply tenant scoping globally across all API paths
+      .forRoutes('*');
   }
 }
