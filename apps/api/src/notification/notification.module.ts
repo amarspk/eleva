@@ -5,9 +5,10 @@ import { DispatchService } from './dispatch/dispatch.service';
 import { DeviceTokenModule } from '../device-token/device-token.module';
 import { WebhookModule } from '../webhook/webhook.module';
 import { KdsModule } from '../kds/kds.module';
+import { QueueModule } from '../common/queue/queue.module';
 
 @Module({
-  imports: [DeviceTokenModule, WebhookModule, KdsModule],
+  imports: [DeviceTokenModule, WebhookModule, KdsModule, QueueModule],
   providers: [EmailService, SmsService, DispatchService],
   exports: [EmailService, SmsService, DispatchService],
 })

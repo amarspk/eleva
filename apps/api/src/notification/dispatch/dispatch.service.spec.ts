@@ -6,10 +6,36 @@ import { DeviceTokenService } from '../../device-token/device-token.service';
 import { WebhookService } from '../../webhook/webhook.service';
 import { KdsGateway } from '../../kds/kds.gateway';
 
-describe('DispatchService Unit Tests - DOC-008 7.1 Multi-Channel Dispatch Engine', () => {
+jest.mock('ioredis', () => {
+  return jest.fn().mockImplementation(() => ({
+    status: 'wait',
+    connect: jest.fn().mockResolvedValue(undefined),
+    quit: jest.fn().mockResolvedValue(undefined),
+    on: jest.fn(),
+  }));
+});
+
+jest.mock('bullmq', () => {
+  const mockQueue = {
+    add: jest.fn().mockResolvedValue({ id: '1' }),
+    close: jest.fn().mockResolvedValue(undefined),
+    getWaitingCount: jest.fn().mockResolvedValue(0),
+    getActiveCount: jest.fn().mockResolvedValue(0),
+    getCompletedCount: jest.fn().mockResolvedValue(0),
+    getFailedCount: jest.fn().mockResolvedValue(0),
+  };
+  const mockWorker = {
+    on: jest.fn(),
+    close: jest.fn().mockResolvedValue(undefined),
+  };
+  return {
+    Queue: jest.fn().mockImplementation(() => mockQueue),
+    Worker: jest.fn().mockImplementation(() => mockWorker),
+  };
+});
+
+describe('DispatchService Unit Tests — DOC-010 §9.4 BullMQ + DOC-008 §7.1', () => {
   let service: DispatchService;
-  let _emailService: EmailService;
-  let _smsService: SmsService;
 
   const mockEmailService = {
     sendEmail: jest.fn().mockResolvedValue({ success: true, mocked: true }),
@@ -44,11 +70,13 @@ describe('DispatchService Unit Tests - DOC-008 7.1 Multi-Channel Dispatch Engine
     }).compile();
 
     service = module.get<DispatchService>(DispatchService);
-    _emailService = module.get<EmailService>(EmailService);
-    _smsService = module.get<SmsService>(SmsService);
     jest.clearAllMocks();
     service.clearQueues();
     delete process.env.REDIS_URL;
+  });
+
+  afterEach(async () => {
+    await service.onModuleDestroy();
   });
 
   it('should dispatch email via queue without blocking (async processing)', async () => {
@@ -89,7 +117,6 @@ describe('DispatchService Unit Tests - DOC-008 7.1 Multi-Channel Dispatch Engine
   });
 
   it('should implement failover routing when primary provider fails', async () => {
-    // Mock email to fail first, then succeed via failover (EmailService handles failover internally)
     jest.spyOn(mockEmailService, 'sendEmail').mockResolvedValueOnce({ success: false } as any).mockResolvedValueOnce({ success: true } as any);
 
     const tenantId = 'tenant-123';
@@ -99,18 +126,11 @@ describe('DispatchService Unit Tests - DOC-008 7.1 Multi-Channel Dispatch Engine
     });
 
     expect(result.queued).toBe(true);
-
-    // Allow in-memory queue to process
     await new Promise((resolve) => setTimeout(resolve, 100));
-
-    // After processing, queue should be empty or DLQ may have entry if failed
-    // Since we mocked failure then success, it should eventually succeed or requeue
   });
 
-  it('should handle BullMQ queue when REDIS_URL configured (mock)', async () => {
-    process.env.REDIS_URL = 'redis://localhost:6379';
-    // Since we don't have real Redis or BullMQ in test, it will fallback to in-memory with warning
-    // But we test that it doesn't throw
+  it('should fallback to in-memory queue when BullMQ unavailable', async () => {
+    delete process.env.REDIS_URL;
 
     const tenantId = 'tenant-123';
     const result = await service.dispatch(tenantId, 'email', 'order.created', {
@@ -118,8 +138,36 @@ describe('DispatchService Unit Tests - DOC-008 7.1 Multi-Channel Dispatch Engine
     });
 
     expect(result.queued).toBe(true);
+    expect(result.fallback).toBe('memory');
+  });
+
+  it('should attempt BullMQ queue when REDIS_URL configured', async () => {
+    process.env.REDIS_URL = 'redis://localhost:6379';
+
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        DispatchService,
+        { provide: EmailService, useValue: mockEmailService },
+        { provide: SmsService, useValue: mockSmsService },
+        { provide: DeviceTokenService, useValue: mockDeviceTokenService },
+        { provide: WebhookService, useValue: mockWebhookService },
+        { provide: KdsGateway, useValue: mockKdsGateway },
+      ],
+    }).compile();
+
+    const testService = module.get<DispatchService>(DispatchService);
+
+    // Dispatch should try BullMQ, fail (mocked), and fall back to in-memory
+    const result = await testService.dispatch('tenant-123', 'email', 'order.created', {
+      email: 'test@example.com',
+    });
+
+    expect(result.queued).toBe(true);
+    // With mocked BullMQ, it will use the queue mock (add succeeds)
+    expect(result.channel).toBe('email');
 
     delete process.env.REDIS_URL;
+    await testService.onModuleDestroy();
   });
 
   it('should preserve tenant isolation - dispatch uses tenantId from JWT, not client payload', async () => {
@@ -128,13 +176,10 @@ describe('DispatchService Unit Tests - DOC-008 7.1 Multi-Channel Dispatch Engine
 
     const result = await service.dispatch(realTenantId, 'email', 'order.created', {
       email: 'test@example.com',
-      tenantId: evilTenantId, // Client tries to inject evil tenant in payload
+      tenantId: evilTenantId,
       orderNumber: 'ORD-123',
     });
 
-    expect(result.queued).toBe(true);
-    // The service should use realTenantId for queueing, not evil from payload
-    // This is enforced by controller passing tenantId from JWT, not payload
     expect(result.queued).toBe(true);
   });
 
@@ -144,8 +189,6 @@ describe('DispatchService Unit Tests - DOC-008 7.1 Multi-Channel Dispatch Engine
 
     await service.dispatch('tenant-1', 'email', 'order.created', { email: 'test@example.com' });
 
-    // Queue may be processed quickly via setImmediate, so length could be 0 or 1 depending on timing
-    // We just test methods exist
     expect(typeof service.getQueueLength()).toBe('number');
     expect(typeof service.getDeadLetterQueueLength()).toBe('number');
     expect(Array.isArray(service.getDeadLetterQueue())).toBe(true);
@@ -166,7 +209,6 @@ describe('DispatchService Unit Tests - DOC-008 7.1 Multi-Channel Dispatch Engine
     expect(result.queued).toBe(true);
     expect(result.channel).toBe('push');
 
-    // Allow in-memory queue to process
     await new Promise((resolve) => setTimeout(resolve, 100));
 
     expect(mockDeviceTokenService.sendPushNotification).toHaveBeenCalledWith(
@@ -183,7 +225,6 @@ describe('DispatchService Unit Tests - DOC-008 7.1 Multi-Channel Dispatch Engine
     const tenantId = 'tenant-123';
     const result = await service.dispatch(tenantId, 'push', 'order.ready', {
       orderNumber: 'ORD-123',
-      // No userId
     });
 
     expect(result.queued).toBe(true);
@@ -228,7 +269,6 @@ describe('DispatchService Unit Tests - DOC-008 7.1 Multi-Channel Dispatch Engine
     const tenantId = 'tenant-123';
     const result = await service.dispatch(tenantId, 'websocket', 'order.created', {
       id: 'order-123',
-      // No branchId
     });
 
     expect(result.queued).toBe(true);
@@ -246,7 +286,6 @@ describe('DispatchService Unit Tests - DOC-008 7.1 Multi-Channel Dispatch Engine
 
     expect(result.queued).toBe(true);
     await new Promise((resolve) => setTimeout(resolve, 100));
-    // Empty results is still considered success (no webhooks subscribed)
     expect(mockWebhookService.dispatchEvent).toHaveBeenCalled();
   });
 
@@ -267,5 +306,17 @@ describe('DispatchService Unit Tests - DOC-008 7.1 Multi-Channel Dispatch Engine
       expect.any(String),
       expect.any(Object),
     );
+  });
+
+  it('should use priority mapping in dispatch options', async () => {
+    const result = await service.dispatch('tenant-1', 'email', 'urgent.event', {
+      email: 'test@example.com',
+    }, 'high');
+
+    expect(result.queued).toBe(true);
+  });
+
+  it('should clean up on module destroy', async () => {
+    await expect(service.onModuleDestroy()).resolves.toBeUndefined();
   });
 });

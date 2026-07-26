@@ -513,11 +513,10 @@
 - **Missing:** Systematic Next.js Image component for all product images, dynamic() imports for heavy admin modules, bundle size analysis
 
 ### 9.4 Asynchronous Worker Architecture (BullMQ, Redis Streams)
-- **Status:** ⚠️ Partially Implemented
-- **Description:** Dispatch service offloads notifications. Queue-worker service defined in Docker Compose. Missing: visible BullMQ queue definitions, retry logic, DLQ.
-- **Files:** `docker-compose.yml` (queue-worker service), `apps/api/src/notification/dispatch/dispatch.service.ts`
-- **Commits:** `10460d9`, `d484421`
-- **Missing:** BullMQ queue definitions with retry policies (3 retries, exponential backoff), Dead Letter Queue for failed jobs, worker process separation from API
+- **Status:** ✅ Implemented
+- **Description:** BullMQ queue infrastructure with `bullmq` + `ioredis` dependencies, centralized queue constants, QueueHealthService with Redis-backed DLQ, refactored DispatchService with proper BullMQ imports, standalone worker entry point (`worker.ts`) with NestJS application context, notification + webhook workers with per-queue concurrency and rate limiting, graceful shutdown on SIGTERM/SIGINT, in-memory fallback for development.
+- **Files:** `apps/api/src/common/queue/queue.constants.ts`, `apps/api/src/common/queue/queue.module.ts`, `apps/api/src/common/queue/queue-health.service.ts`, `apps/api/src/common/queue/queue.constants.spec.ts`, `apps/api/src/common/queue/queue-health.service.spec.ts`, `apps/api/src/common/queue/queue.module.spec.ts`, `apps/api/src/worker.ts`, `apps/api/src/notification/dispatch/dispatch.service.ts`, `apps/api/src/notification/dispatch/dispatch.service.spec.ts`, `apps/api/src/notification/notification.module.ts`, `apps/api/package.json`, `docker-compose.yml`
+- **Commits:** `10460d9`, `d484421`, (this commit)
 
 ### 9.5 Kubernetes-Driven Horizontal Pod Autoscaling (HPA)
 - **Status:** ❌ Not Implemented
@@ -586,8 +585,8 @@
 | Metric | Count |
 |--------|-------|
 | **Total Requirements Indexed** | **76** |
-| **Implemented** | **60** |
-| **Partially Implemented** | **11** |
+| **Implemented** | **61** |
+| **Partially Implemented** | **10** |
 | **Not Implemented** | **5** |
 
 ### Breakdown by DOC
@@ -602,7 +601,7 @@
 | DOC-007 (Image Pipeline) | 5 | 4 | 0 | 1 |
 | DOC-008 (Notifications) | 6 | 6 | 0 | 0 |
 | DOC-009 (Integrations) | 5 | 1 | 2 | 2 |
-| DOC-010 (Perf/Testing/Ops) | 13 | 6 | 6 | 1 |
+| DOC-010 (Perf/Testing/Ops) | 13 | 7 | 5 | 1 |
 
 ---
 
@@ -611,28 +610,27 @@
 Listed in dependency order (prerequisites first, downstream features after):
 
 ### Priority 1 — Infrastructure (foundational)
-1. **DOC-010 §9.4** — BullMQ worker architecture (queue definitions, retry policies, DLQ)
-2. **DOC-010 §9.5** — Kubernetes manifests + HPA configuration
-3. **DOC-009 §8.5** — Automated backups & disaster recovery (RDS Multi-AZ, WAL archiving, PITR)
+1. **DOC-010 §9.5** — Kubernetes manifests + HPA configuration
+2. **DOC-009 §8.5** — Automated backups & disaster recovery (RDS Multi-AZ, WAL archiving, PITR)
 
 ### Priority 2 — Observability (depends on Priority 1)
-4. **DOC-009 §8.4** — Winston structured logging + ELK Stack + Datadog APM
-5. **DOC-010 §10.5** — CD pipeline (`.github/workflows/cd.yml`) + branch protection
+3. **DOC-009 §8.4** — Winston structured logging + ELK Stack + Datadog APM
+4. **DOC-010 §10.5** — CD pipeline (`.github/workflows/cd.yml`) + branch protection
 
 ### Priority 3 — CDN & Performance (depends on Priority 1)
-6. **DOC-007 §6.4** — CloudFront CDN edge caching + cache invalidation strategy
-7. **DOC-002 §2.4** — GIN full-text search index on `products.tsv_menu_search`
-8. **DOC-010 §9.3** — Next.js Image component + dynamic imports audit
+5. **DOC-007 §6.4** — CloudFront CDN edge caching + cache invalidation strategy
+6. **DOC-002 §2.4** — GIN full-text search index on `products.tsv_menu_search`
+7. **DOC-010 §9.3** — Next.js Image component + dynamic imports audit
 
 ### Priority 4 — Payment Completeness (independent)
-9. **DOC-009 §8.2** — Complete Stripe subscription lifecycle webhook handler
-10. **DOC-009 §8.3** — Real Tap/PayTabs SDK integration (KNET, Benefit, Mada)
+8. **DOC-009 §8.2** — Complete Stripe subscription lifecycle webhook handler
+9. **DOC-009 §8.3** — Real Tap/PayTabs SDK integration (KNET, Benefit, Mada)
 
 ### Priority 5 — Code Quality (independent)
-11. **DOC-010 §10.2** — ESLint zero-error CI enforcement + `no-explicit-any` audit
-12. **DOC-010 §10.3** — Zero-downtime migration documentation + CI validation
-13. **DOC-010 §10.6** — Complete environment variable set + staging/production configs
-14. **DOC-002 §2.7** — Database-level triggers for `updated_at`, audit logs, and notifications
+10. **DOC-010 §10.2** — ESLint zero-error CI enforcement + `no-explicit-any` audit
+11. **DOC-010 §10.3** — Zero-downtime migration documentation + CI validation
+12. **DOC-010 §10.6** — Complete environment variable set + staging/production configs
+13. **DOC-002 §2.7** — Database-level triggers for `updated_at`, audit logs, and notifications
 
 ---
 
