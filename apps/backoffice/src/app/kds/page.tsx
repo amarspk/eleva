@@ -2,7 +2,12 @@
 /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars, curly, no-console */
 
 import React, { useEffect, useState } from 'react';
-import { KDSTerminal } from '../components/KDSTerminal';
+import dynamic from 'next/dynamic';
+
+const KDSTerminal = dynamic(() => import('../components/KDSTerminal'), {
+  loading: () => <div className="flex items-center justify-center h-64">Loading KDS Terminal...</div>,
+  ssr: false
+});
 
 export default function KDSPage(): React.ReactNode {
   const [branchId, setBranchId] = useState('branch-uuid-1234');

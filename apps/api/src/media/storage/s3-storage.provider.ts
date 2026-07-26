@@ -52,6 +52,7 @@ export class S3StorageProvider implements StorageProvider {
         Key: key,
         Body: buffer,
         ContentType: mimeType,
+        ServerSideEncryption: 'AES256',
       }),
     );
 

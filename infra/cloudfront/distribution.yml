@@ -1,0 +1,179 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  DOC-007 §6.4 — CloudFront CDN Edge Caching & Cache Invalidation.
+  Serves tenant media assets (images, documents) via cdn.zayjar.com.
+
+Parameters:
+  Environment:
+    Type: String
+    AllowedValues: [development, staging, production]
+    Default: development
+
+  S3BucketName:
+    Type: String
+    Description: S3 bucket hosting media assets
+
+  AcmCertificateArn:
+    Type: String
+    Description: ARN of ACM certificate for cdn.zayjar.com (must be in us-east-1)
+
+  WafWebAclArn:
+    Type: String
+    Default: ''
+    Description: Optional WAF Web ACL ARN to attach to the distribution
+
+Resources:
+  # ──────────────────────────────────────────────
+  # Origin Access Control (OAC) — replaces legacy OAI
+  # ──────────────────────────────────────────────
+  S3OriginAccessControl:
+    Type: AWS::CloudFront::OriginAccessControl
+    Properties:
+      OriginAccessControlConfig:
+        Name: !Sub '${Environment}-zayjar-oac'
+        OriginAccessControlOriginType: s3
+        SigningBehavior: always
+        SigningProtocol: sigv4
+
+  # ──────────────────────────────────────────────
+  # CloudFront Distribution
+  # ──────────────────────────────────────────────
+  CdDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        Comment: !Sub 'Zayjar CDN — ${Environment}'
+        Aliases:
+          - cdn.zayjar.com
+        HttpVersion: http2and3
+        IPV6Enabled: true
+        PriceClass: PriceClass_100
+
+        ViewerCertificate:
+          AcmCertificateArn: !Ref AcmCertificateArn
+          SslSupportMethod: sni-only
+          MinimumProtocolVersion: TLSv1.2_2021
+
+        # ── Origins ────────────────────────────
+        Origins:
+          - Id: S3Origin
+            DomainName: !Sub '${S3BucketName}.s3.amazonaws.com'
+            S3OriginConfig:
+              OriginAccessIdentity: ''
+            OriginAccessControlId: !Ref S3OriginAccessControl
+
+        # ── Default cache behavior (images) ────
+        DefaultCacheBehavior:
+          TargetOriginId: S3Origin
+          ViewerProtocolPolicy: redirect-to-https
+          AllowedMethods:
+            - GET
+            - HEAD
+            - OPTIONS
+          CachedMethods:
+            - GET
+            - HEAD
+          Compress: true
+          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6  # Managed-CachingOptimized
+          OriginRequestPolicyId: b689b0a8-53d0-40ab-baf2-68738e2966ac  # Managed-CORS-S3Origin
+          ResponseHeadersPolicyId: !Ref ImageResponseHeadersPolicy
+
+        # ── Custom cache behavior for versioned assets ──
+        CacheBehaviors:
+          - PathPattern: '/tenants/*/products/*'
+            TargetOriginId: S3Origin
+            ViewerProtocolPolicy: redirect-to-https
+            AllowedMethods:
+              - GET
+              - HEAD
+              - OPTIONS
+            CachedMethods:
+              - GET
+              - HEAD
+            Compress: true
+            CachePolicyId: !Ref ImageCachePolicy
+            OriginRequestPolicyId: b689b0a8-53d0-40ab-baf2-68738e2966ac
+
+        # ── Custom error responses ──────────────
+        CustomErrorResponses:
+          # Mask 403 as 404 for private/restricted assets
+          - ErrorCode: 403
+            ResponseCode: 404
+            ResponsePagePath: /404.json
+            ErrorCachingMinTTL: 10
+          - ErrorCode: 502
+            ResponseCode: 502
+            ResponsePagePath: /502.json
+            ErrorCachingMinTTL: 10
+
+        # ── Logging ────────────────────────────
+        Logging:
+          Bucket: !Sub '${S3BucketName}.s3.amazonaws.com'
+          Prefix: !Sub 'cloudfront-logs/${Environment}/'
+          IncludeCookies: false
+
+        # ── WAF ────────────────────────────────
+        WebACLId: !If [HasWaf, !Ref WafWebAclArn, !Ref 'AWS::NoValue']
+
+  # ──────────────────────────────────────────────
+  # Cache Policy — image assets with long TTLs
+  # ──────────────────────────────────────────────
+  ImageCachePolicy:
+    Type: AWS::CloudFront::CachePolicy
+    Properties:
+      CachePolicyConfig:
+        Name: !Sub '${Environment}-zayjar-images'
+        Comment: Cache policy for tenant media images — min 1 day, default 30 days, max 365 days
+        DefaultTTL: 2592000    # 30 days
+        MinTTL: 86400          # 1 day
+        MaxTTL: 31536000       # 365 days
+        ParametersInCacheKeyAndForwardedToOrigin:
+          EnableAcceptEncodingGzip: true
+          EnableAcceptEncodingBrotli: true
+          HeadersConfig:
+            HeaderBehavior: none
+          CookiesConfig:
+            CookieBehavior: none
+          QueryStringsConfig:
+            QueryStringBehavior: whitelist
+            QueryStrings:
+              - v  # cache-busting version param
+
+  # ──────────────────────────────────────────────
+  # Response Headers Policy — immutable cache headers for images
+  # ──────────────────────────────────────────────
+  ImageResponseHeadersPolicy:
+    Type: AWS::CloudFront::ResponseHeadersPolicy
+    Properties:
+      ResponseHeadersPolicyConfig:
+        Name: !Sub '${Environment}-zayjar-immutable-cache'
+        Comment: Sets Cache-Control: public, max-age=31536000, immutable for images
+        CustomHeadersConfig:
+          Items:
+            - Key: Cache-Control
+              Value: 'public, max-age=31536000, immutable'
+              Override: true
+            - Key: X-Content-Type-Options
+              Value: nosniff
+              Override: true
+
+Conditions:
+  HasWaf:
+    Fn::Not:
+      - Fn::Equals:
+          - !Ref WafWebAclArn
+          - ''
+
+Outputs:
+  DistributionId:
+    Description: CloudFront distribution ID (use with invalidation script)
+    Value: !Ref CdDistribution
+  DomainName:
+    Description: CloudFront domain name
+    Value: !GetAtt CdDistribution.DomainName
+  CdnBaseUrl:
+    Description: Full CDN base URL for API integration
+    Value: !Sub 'https://cdn.zayjar.com'
+  ImageCachePolicyId:
+    Value: !Ref ImageCachePolicy

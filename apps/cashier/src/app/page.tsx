@@ -2,7 +2,12 @@
 /* eslint-disable */
 
 import React, { useEffect, useState } from 'react';
-import { CashierTerminal } from './components/CashierTerminal';
+import dynamic from 'next/dynamic';
+
+const CashierTerminal = dynamic(() => import('./components/CashierTerminal'), {
+  loading: () => <div className="flex items-center justify-center h-screen">Loading Cashier Terminal...</div>,
+  ssr: false
+});
 
 export default function Page(): React.ReactNode {
   const [tenantId, setTenantId] = useState('tenant-uuid-1111');

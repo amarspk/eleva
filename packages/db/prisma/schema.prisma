@@ -358,6 +358,9 @@ model Product {
   updatedAt       DateTime  @updatedAt @db.Timestamptz
   deletedAt       DateTime? @db.Timestamptz
 
+  // Database-generated tsvector for full-text search (managed by PostgreSQL, not Prisma)
+  tsvMenuSearch Unsupported("tsvector")? @map("tsv_menu_search")
+
   tenant          Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   category        Category         @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   productSizes    ProductSize[]
@@ -474,6 +477,8 @@ model Order {
   @@index([customerId], map: "idx_orders_customer")
   @@index([tableId], map: "idx_orders_table")
   @@index([status], map: "idx_orders_status")
+  // Composite index for KDS polling optimization (database-level, managed by PostgreSQL)
+  @@index([tenantId, branchId, status, createdAt(sort: Desc)], map: "idx_orders_kds_polling")
   @@map("orders")
 }
 
@@ -499,6 +504,8 @@ model OrderItem {
 
   @@index([orderId], map: "idx_order_items_parent")
   @@index([productId], map: "idx_order_items_product")
+  // Composite index for KDS (database-level, managed by PostgreSQL)
+  @@index([orderId, cookingStatus], map: "idx_order_items_kds")
   @@map("order_items")
 }
 

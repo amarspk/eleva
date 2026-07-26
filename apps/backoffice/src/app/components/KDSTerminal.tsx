@@ -262,3 +262,5 @@ export const KDSTerminal: React.FC<KDSTerminalProps> = ({ branchId, accessToken,
     </div>
   );
 };
+
+export default KDSTerminal;

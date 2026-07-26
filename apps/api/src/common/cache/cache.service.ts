@@ -12,7 +12,18 @@ export class CacheService implements OnModuleInit, OnModuleDestroy {
     this.logger.log(`Initializing Redis client mapping to target: ${redisUrl}`);
 
     try {
-      this.redisClient = createClient({ url: redisUrl });
+      const useTls = process.env.REDIS_TLS === 'true';
+      const clientOptions: Record<string, unknown> = { url: redisUrl };
+
+      if (useTls) {
+        clientOptions.socket = {
+          tls: true,
+          rejectUnauthorized: false,
+        };
+        this.logger.log('Redis TLS enabled via REDIS_TLS=true');
+      }
+
+      this.redisClient = createClient(clientOptions);
 
       this.redisClient.on('error', (err) => {
         this.logger.error(`Redis client connection failure: ${err.message}`);

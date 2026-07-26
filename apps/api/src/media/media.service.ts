@@ -6,6 +6,34 @@ import { ImageProcessorService } from './image-processor.service';
 import { MediaCleanupQueueService } from './media-cleanup-queue.service';
 import { MediaResponseDto } from './dto/media-response.dto';
 
+/**
+ * DOC-007 §6.4 — Returns a public URL for a media asset.
+ *
+ * When CDN_BASE_URL is set (e.g. https://cdn.zayjar.com), the returned URL
+ * is prefixed with the CDN domain so CloudFront serves the asset from edge.
+ * Otherwise falls back to the direct S3/storage URL.
+ */
+function getPublicUrl(url: string): string {
+  const cdnBase = process.env.CDN_BASE_URL;
+  if (!cdnBase) {
+    return url;
+  }
+
+  // Strip the S3 bucket domain from the URL and prepend the CDN base.
+  // Direct S3 URLs look like: https://bucket.s3.amazonaws.com/tenants/...
+  // We want:                  https://cdn.zayjar.com/tenants/...
+  try {
+    const parsed = new URL(url);
+    // Only rewrite S3-hosted URLs (s3.amazonaws.com or .s3-<region>.amazonaws.com)
+    if (/^s3[.-]/.test(parsed.hostname) || parsed.hostname.endsWith('.s3.amazonaws.com')) {
+      return `${cdnBase.replace(/\/+$/, '')}${parsed.pathname}`;
+    }
+  } catch {
+    // If URL parsing fails, return as-is
+  }
+  return url;
+}
+
 const ENTITY_URL_MAP: Record<string, Record<string, string>> = {
   restaurant: {
     LOGO: 'logoUrl',
@@ -427,10 +455,10 @@ export class MediaService {
       height: media.height,
       storageKey: media.storageKey,
       storageProvider: media.storageProvider,
-      originalUrl: media.originalUrl,
-      thumbnailUrl: media.thumbnailUrl,
-      mediumUrl: media.mediumUrl,
-      largeUrl: media.largeUrl,
+      originalUrl: getPublicUrl(media.originalUrl),
+      thumbnailUrl: media.thumbnailUrl ? getPublicUrl(media.thumbnailUrl) : null,
+      mediumUrl: media.mediumUrl ? getPublicUrl(media.mediumUrl) : null,
+      largeUrl: media.largeUrl ? getPublicUrl(media.largeUrl) : null,
       status: media.status,
       createdAt: media.createdAt,
       updatedAt: media.updatedAt,

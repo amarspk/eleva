@@ -175,43 +175,50 @@ export const MenuBrowser: React.FC<MenuBrowserProps> = ({ categories, primaryCol
 
       {/* Structured Category Lists */}
       <main className="px-4 py-4 space-y-8">
-        {filteredCategories.map((category) => (
-          <section key={category.id}>
-            <h2 className="text-lg font-bold text-gray-900 border-l-4 pl-2 mb-4" style={{ borderColor: primaryColor }}>
-              {category.name}
-            </h2>
-            <div className="grid grid-cols-1 gap-4">
-              {category.products.map((product) => (
-                <div
-                  key={product.id}
-                  onClick={() => setActiveCartProduct(product)}
-                  className="bg-white p-3 rounded-xl flex shadow-sm cursor-pointer hover:shadow-md transition-shadow"
-                >
-                  <div className="flex-1 pr-3">
-                    <h3 className="font-semibold text-gray-900 text-sm">{product.name}</h3>
-                    <p className="text-gray-500 text-xs mt-1 line-clamp-2">{product.description}</p>
-                    <span className="text-gray-900 font-bold text-sm block mt-2">
-                      ${Number(product.basePrice).toFixed(2)}
-                    </span>
-                  </div>
-                  {product.imageUrl && (
-                    <div className="relative w-20 h-20 rounded-lg overflow-hidden flex-shrink-0">
-                      <Image
-                        src={product.imageUrl}
-                        alt={product.name}
-                        fill
-                        sizes="80px"
-                        className="object-cover"
-                        loading="lazy"
-                        unoptimized
-                      />
+        {(() => {
+          let globalProductIndex = 0;
+          return filteredCategories.map((category) => (
+            <section key={category.id}>
+              <h2 className="text-lg font-bold text-gray-900 border-l-4 pl-2 mb-4" style={{ borderColor: primaryColor }}>
+                {category.name}
+              </h2>
+              <div className="grid grid-cols-1 gap-4">
+                {category.products.map((product) => {
+                  const productIndex = globalProductIndex++;
+                  const isAboveFold = productIndex < 3;
+                  return (
+                    <div
+                      key={product.id}
+                      onClick={() => setActiveCartProduct(product)}
+                      className="bg-white p-3 rounded-xl flex shadow-sm cursor-pointer hover:shadow-md transition-shadow"
+                    >
+                      <div className="flex-1 pr-3">
+                        <h3 className="font-semibold text-gray-900 text-sm">{product.name}</h3>
+                        <p className="text-gray-500 text-xs mt-1 line-clamp-2">{product.description}</p>
+                        <span className="text-gray-900 font-bold text-sm block mt-2">
+                          ${Number(product.basePrice).toFixed(2)}
+                        </span>
+                      </div>
+                      {product.imageUrl && (
+                        <div className="relative w-20 h-20 rounded-lg overflow-hidden flex-shrink-0">
+                          <Image
+                            src={product.imageUrl}
+                            alt={product.name}
+                            fill
+                            sizes="80px"
+                            className="object-cover"
+                            priority={isAboveFold}
+                            loading={isAboveFold ? undefined : 'lazy'}
+                          />
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          </section>
-        ))}
+                  );
+                })}
+              </div>
+            </section>
+          ));
+        })()}
       </main>
 
       {/* Item Customization Drawer / Modal Container */}

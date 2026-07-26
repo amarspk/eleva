@@ -355,3 +355,5 @@ export const CashierTerminal: React.FC<{ tenantId: string; branchId: string; api
     </div>
   );
 };
+
+export default CashierTerminal;
