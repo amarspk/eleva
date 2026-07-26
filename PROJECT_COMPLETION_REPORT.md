@@ -83,8 +83,8 @@ The Zayjar Restaurant SaaS Platform has reached **98.7% engineering completion**
 | **Docker services** | 8 |
 | **CI/CD workflows** | 2 |
 | **Documentation files** | 14 |
-| **Test spec files** | 60 |
-| **Passing tests** | 421 |
+| **Test spec files** | 55 |
+| **Passing tests** | 445 |
 | **E2E test files** | 5 |
 
 ---
@@ -174,7 +174,7 @@ The Zayjar Restaurant SaaS Platform has reached **98.7% engineering completion**
 - [x] Database health monitoring views
 
 ### Testing ✅
-- [x] 421 passing tests across 60 spec files
+- [x] 445 passing tests across 55 spec suites
 - [x] Unit tests for all major services
 - [x] Integration tests (tenant middleware, media pipeline, order checkout)
 - [x] E2E tests (checkout, order lifecycle, KDS, tenant isolation)

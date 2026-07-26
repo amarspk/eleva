@@ -3,6 +3,7 @@ import { APP_INTERCEPTOR, APP_GUARD } from '@nestjs/core';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { CacheModule } from './common/cache/cache.module';
 import { LoggingModule } from './common/logging/logging.module';
+import { HealthModule } from './common/health/health.module';
 import { AuthModule } from './auth/auth.module';
 import { TenantModule } from './tenant/tenant.module';
 import { BranchModule } from './branch/branch.module';
@@ -29,7 +30,7 @@ import { CorrelationIdMiddleware } from './common/logging/correlation-id.middlew
 import { HttpLoggingMiddleware } from './common/logging/http-logging.middleware';
 
 @Module({
-  imports: [EventEmitterModule.forRoot(), CacheModule, LoggingModule, CsrfModule, SanitizationModule, AuthModule, TenantModule, BranchModule, MenuModule, OrderModule, KdsModule, CustomerModule, BillingModule, AdminModule, AssetModule, WebhookModule, DeviceTokenModule, SubscriptionModule, AuditModule, PaymentModule, MediaModule],
+  imports: [EventEmitterModule.forRoot(), CacheModule, LoggingModule, HealthModule, CsrfModule, SanitizationModule, AuthModule, TenantModule, BranchModule, MenuModule, OrderModule, KdsModule, CustomerModule, BillingModule, AdminModule, AssetModule, WebhookModule, DeviceTokenModule, SubscriptionModule, AuditModule, PaymentModule, MediaModule],
   providers: [
     {
       provide: APP_INTERCEPTOR,

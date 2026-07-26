@@ -306,18 +306,20 @@ zayjar-platform-monorepo/
 
 ## Testing
 
-### Unit & Integration Tests (60 spec files, 421 passing tests)
+### Unit & Integration Tests (55 suites, 445 passing tests)
 
 | Area | Spec Files |
 |------|-----------|
 | Auth | `auth.service.spec.ts`, `rbac-permission.guard.spec.ts` |
 | Tenant | `tenant.service.spec.ts`, `tenant.branding.spec.ts` |
 | Branch | `branch.service.spec.ts` |
+| Menu | `menu.service.spec.ts` |
 | Order | `order.service.spec.ts`, `order.checkout.integration.spec.ts` |
-| KDS | `kds.gateway.spec.ts`, `kds.gateway.integration.spec.ts`, `kds.gateway.e2e.spec.ts` |
+| KDS | `kds.service.spec.ts`, `kds.gateway.spec.ts`, `kds.gateway.integration.spec.ts`, `kds.gateway.e2e.spec.ts` |
 | Customer | `customer.service.spec.ts` |
-| Billing | `billing.service.spec.ts` |
+| Billing | `billing.service.spec.ts`, `billing-notification.listener.spec.ts` |
 | Admin | `admin.service.spec.ts` |
+| Health | `health.controller.spec.ts` |
 | Asset | `asset.service.spec.ts`, `asset-optimization.service.spec.ts` |
 | Media | `media.service.spec.ts`, `media.controller.integration.spec.ts`, `media-cleanup.service.spec.ts`, `media-cleanup-queue.service.spec.ts`, `media-retry-cleanup.spec.ts`, `image-processor.service.spec.ts`, `local-storage.provider.spec.ts`, `s3-storage.provider.spec.ts` |
 | Webhook | `webhook.service.spec.ts` |
@@ -411,7 +413,7 @@ zayjar-platform-monorepo/
 - [x] Next.js Image optimization (priority loading, lazy loading)
 - [x] Dynamic imports for heavy components (KDSTerminal, CashierTerminal)
 - [x] E2E checkout flow test (Playwright)
-- [x] 421 passing unit/integration/E2E tests across 60 spec files
+- [x] 445 passing unit/integration/E2E tests across 55 spec suites
 
 ### External Vendor Dependency (1 requirement)
 
@@ -448,8 +450,8 @@ zayjar-platform-monorepo/
 | **DTOs** | 18 |
 | **Repository classes** | 18 |
 | **Kubernetes manifests** | 26 |
-| **Test spec files** | 60 |
-| **Passing tests** | 421 |
+| **Test spec files** | 55 |
+| **Passing tests** | 445 |
 | **E2E test files** | 5 |
 | **Docker services** | 8 |
 | **CI/CD workflows** | 2 (ci.yml, cd.yml) |

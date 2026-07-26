@@ -545,9 +545,9 @@
 
 ### 10.4 Test Suite Execution Standards (Unit, Integration, E2E)
 - **Status:** ✅ Implemented
-- **Description:** Jest 29 unit/integration tests (273 total, 271 passing), Playwright 1.44 E2E (checkout, order lifecycle, KDS, tenant isolation).
+- **Description:** Jest 29 unit/integration tests (55 suites, 445 passing, 2 skipped), Playwright 1.44 E2E (checkout, order lifecycle, KDS, tenant isolation). Coverage includes MenuService CRUD (7 tests), KdsService cooking transitions (7 tests), Health endpoint (2 tests), BillingNotificationListener event dispatch (3 tests), DispatchService multi-channel logging, AuthService MFA enforcement (3 tests), and all pre-existing service tests.
 - **Files:** `apps/api/src/**/*.spec.ts`, `tests/e2e/*.spec.ts`, `jest.config.js`, `playwright.config.ts`
-- **Commits:** `3088aac`, `3e54bd7`, `23e63a8`
+- **Commits:** `3088aac`, `3e54bd7`, `23e63a8`, current commit
 - **TSK/Roadmap:** TSK-5.1, TSK-5.2, TSK-5.5
 
 ### 10.5 Git Workflow & CI/CD Pipelines

@@ -216,7 +216,8 @@ export class DispatchService implements OnModuleDestroy {
         try {
           const result = await this.emailService.sendEmail(emailTo, template, payload);
           return { success: result.success, provider: 'sendgrid' };
-        } catch {
+        } catch (err) {
+          this.logger.error(`Email dispatch failed for event [${event}] tenant [${tenantId}]: ${(err as Error).message}`);
           return { success: false };
         }
       }
@@ -228,7 +229,8 @@ export class DispatchService implements OnModuleDestroy {
         try {
           const result = await this.smsService.sendSms(phone, smsMessage, tenantId);
           return { success: result.success, provider: result.provider };
-        } catch {
+        } catch (err) {
+          this.logger.error(`SMS dispatch failed for event [${event}] tenant [${tenantId}]: ${(err as Error).message}`);
           return { success: false };
         }
       }
@@ -244,7 +246,8 @@ export class DispatchService implements OnModuleDestroy {
           }
           const result = await this.deviceTokenService.sendPushNotification(tenantId, userId, title, body, payload);
           return { success: result.sent > 0, provider: 'fcm' };
-        } catch {
+        } catch (err) {
+          this.logger.error(`Push dispatch failed for event [${event}] tenant [${tenantId}]: ${(err as Error).message}`);
           return { success: false };
         }
       }
@@ -254,7 +257,8 @@ export class DispatchService implements OnModuleDestroy {
           const results = await this.webhookService.dispatchEvent(tenantId, event, payload);
           const successCount = results.filter((r) => r.success).length;
           return { success: successCount > 0 || results.length > 0, provider: 'webhook' };
-        } catch {
+        } catch (err) {
+          this.logger.error(`Webhook dispatch failed for event [${event}] tenant [${tenantId}]: ${(err as Error).message}`);
           return { success: false };
         }
       }
@@ -268,7 +272,8 @@ export class DispatchService implements OnModuleDestroy {
           }
           this.kdsGateway.broadcastOrderEvent(tenantId, branchId, event, payload);
           return { success: true, provider: 'socket.io' };
-        } catch {
+        } catch (err) {
+          this.logger.error(`WebSocket broadcast failed for event [${event}] tenant [${tenantId}]: ${(err as Error).message}`);
           return { success: false };
         }
       }

@@ -45,6 +45,7 @@ export class BillingNotificationListener {
       this.logger.error(
         `Failed to dispatch [${notificationType}] notification for tenant [${event.tenantId}]: ${(err as Error).message}`,
       );
+      throw err;
     }
   }
 

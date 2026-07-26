@@ -110,7 +110,8 @@ export class AuthService {
   async decodeToken(token: string): Promise<{ sub: string; email: string; tenantId?: string } | null> {
     try {
       return this.jwtService.decode(token) as { sub: string; email: string; tenantId?: string };
-    } catch {
+    } catch (err) {
+      this.logger.warn(`Token decode failed: ${(err as Error).message}`);
       return null;
     }
   }
@@ -190,8 +191,8 @@ export class AuthService {
           where: { id: userId },
         }) as unknown as UserFromDb | null;
       }
-    } catch {
-      // Fallback for test env without DB
+    } catch (err) {
+      this.logger.warn(`DB lookup failed for getMe [${userId}]: ${(err as Error).message}`);
       user = null;
     }
 
@@ -239,7 +240,8 @@ export class AuthService {
       });
       secret = generated.base32;
       otpauthUrl = generated.otpauth_url;
-    } catch {
+    } catch (err) {
+      this.logger.warn(`speakeasy unavailable for MFA secret generation, using random fallback: ${(err as Error).message}`);
       // Fallback: generate random base32-like secret
       const crypto = require('crypto');
       const bytes = crypto.randomBytes(20);
@@ -268,7 +270,8 @@ export class AuthService {
     try {
       const QRCode = require('qrcode');
       qrCodeDataUrl = await QRCode.toDataURL(otpauthUrl);
-    } catch {
+    } catch (err) {
+      this.logger.warn(`qrcode module unavailable, using base64 fallback: ${(err as Error).message}`);
       // Fallback: mock data URL (base64 of otpauth url)
       const base64 = Buffer.from(otpauthUrl).toString('base64');
       qrCodeDataUrl = `data:image/png;base64,${base64}`;
@@ -287,7 +290,8 @@ export class AuthService {
           data: { mfaSecret: secret },
         });
       }
-    } catch {
+    } catch (err) {
+      this.logger.warn(`DB write failed for MFA secret [${userId}], storing in cache as fallback: ${(err as Error).message}`);
       // Ignore DB errors in test env, store in cache as fallback
       const cacheKey = `mfa:secret:${userId}`;
       await this.cacheService.set(cacheKey, secret, 600);
@@ -313,7 +317,8 @@ export class AuthService {
         ? await prisma.user.findFirst({ where: { id: userId, tenantId } })
         : await prisma.user.findUnique({ where: { id: userId } });
       secret = (user as unknown as UserFromDb | null)?.mfaSecret || null;
-    } catch {
+    } catch (err) {
+      this.logger.warn(`DB lookup failed for MFA secret [${userId}], falling back to cache: ${(err as Error).message}`);
       // fallback to cache
       const cacheKey = `mfa:secret:${userId}`;
       secret = await this.cacheService.get(cacheKey, async () => null);
@@ -333,16 +338,9 @@ export class AuthService {
         token,
         window: 1,
       });
-    } catch {
-      // Fallback verification for test: accept 123456 or any 6-digit numeric as valid in test env
-      // In production, speakeasy should be available
-      if (/^\d{6}$/.test(token)) {
-        // For test purposes, accept 123456 or tokens ending with even digit as valid
-        // This allows tests to pass without real TOTP
-        isValid = token === '123456' || /^\d{6}$/.test(token);
-        // To enforce some validation, accept any 6-digit in test mode
-        // Real implementation would strictly verify
-      }
+    } catch (err) {
+      this.logger.error(`speakeasy module unavailable — cannot verify TOTP. MFA verification rejected. Install speakeasy for production MFA. Error: ${(err as Error).message}`);
+      throw new UnauthorizedException('MFA verification unavailable: TOTP module not installed. Contact system administrator.');
     }
 
     if (!isValid) {
@@ -364,7 +362,8 @@ export class AuthService {
         where: { id: userId },
         data: { mfaEnabled: true },
       });
-    } catch {
+    } catch (err) {
+      this.logger.warn(`DB update failed for MFA activation [${userId}], storing in cache: ${(err as Error).message}`);
       // Ignore DB errors in test env, store in cache
       const cacheKey = `mfa:enabled:${userId}`;
       await this.cacheService.set(cacheKey, true, 86400);
@@ -505,9 +504,9 @@ export class AuthService {
           token: mfaToken,
           window: 1,
         });
-      } catch {
-        // Fallback for test env: accept 123456
-        isMfaValid = mfaToken === '123456' || /^\d{6}$/.test(mfaToken);
+      } catch (err) {
+        this.logger.error(`speakeasy module unavailable during login MFA check. Rejecting login. Error: ${(err as Error).message}`);
+        throw new UnauthorizedException('MFA verification unavailable: TOTP module not installed. Contact system administrator.');
       }
       if (!isMfaValid) {
         throw new UnauthorizedException('Invalid MFA token');
