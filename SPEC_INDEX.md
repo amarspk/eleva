@@ -2,7 +2,7 @@
 
 > Comprehensive specification index mapping every DOC-001 through DOC-010 section and requirement to implementation status, files, commit SHAs, and related TSK/Roadmap items.
 >
-> Generated: 2026-07-26 | HEAD: `d484421` | Branch: `main`
+> Generated: 2026-07-26 | HEAD: `d8e5560` | Branch: `main`
 
 ---
 
@@ -503,7 +503,7 @@
 - **Status:** ✅ Implemented
 - **Description:** EXPLAIN ANALYZE profiling scripts for 15 hot-path queries, PostgreSQL autovacuum tuning (global + per-table overrides for high-write tables), database health monitoring views (dead tuples, bloat, index usage, locks), PgBouncer connection pooling config, maintenance shell script orchestrator.
 - **Files:** `packages/db/scripts/query-profiling.sql`, `packages/db/scripts/db-health-checks.sql`, `packages/db/scripts/optimize-tables.sql`, `packages/db/scripts/maintenance.sh`, `packages/db/config/postgresql-autovacuum.conf`, `packages/db/config/pgbouncer.ini`, `packages/db/package.json`
-- **Commits:** (this commit)
+- **Commits:** `d8e5560`
 
 ### 9.3 Client-Side Performance & Bundle Optimizations
 - **Status:** ⚠️ Partially Implemented
