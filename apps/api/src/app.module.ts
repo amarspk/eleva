@@ -42,7 +42,7 @@ import { HttpLoggingMiddleware } from './common/logging/http-logging.middleware'
   ],
 })
 export class AppModule implements NestModule {
-  configure(consumer: MiddlewareConsumer) {
+  configure(consumer: MiddlewareConsumer): void {
     consumer
       .apply(CorrelationIdMiddleware)
       .forRoutes('*')

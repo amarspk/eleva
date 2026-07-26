@@ -3,6 +3,7 @@ import { Reflector } from '@nestjs/core';
 import { Request } from 'express';
 import { CsrfService } from './csrf.service';
 import { IS_PUBLIC_KEY } from '../../auth/decorators/public.decorator';
+import { AuthenticatedRequest } from '../types/request.types';
 
 const CSRF_HEADER = 'x-csrf-token';
 const MUTATING_METHODS = new Set(['POST', 'PUT', 'DELETE', 'PATCH']);
@@ -35,7 +36,7 @@ export class CsrfGuard implements CanActivate {
     }
 
     // Extract user ID from the authenticated request (JwtAuthGuard runs first)
-    const user = (request as any).user;
+    const user = (request as AuthenticatedRequest).user;
     if (!user?.id) {
       // If no user context, let JwtAuthGuard handle the auth failure
       return true;

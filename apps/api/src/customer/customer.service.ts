@@ -1,6 +1,6 @@
 import { Injectable, Logger, ConflictException } from '@nestjs/common';
 import { CreateCustomerRequestDto } from './dto/create-customer-request.dto';
-import { TenantCustomerRepository } from '@zayjar/db';
+import { TenantCustomerRepository, Customer } from '@zayjar/db';
 
 @Injectable()
 export class CustomerService {
@@ -11,7 +11,14 @@ export class CustomerService {
    * Registers a new customer profile under tenant context.
    * Public registration – tenantId resolved from authenticated context / middleware, never from client payload.
    */
-  async createCustomer(dto: CreateCustomerRequestDto) {
+  async createCustomer(dto: CreateCustomerRequestDto): Promise<{
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    loyaltyPoints: number;
+    createdAt: Date;
+  }> {
     this.logger.log(`Registering customer profile: [${dto.email}]`);
 
     // Check for existing email within tenant scope (fail-safe via repository scoping)
@@ -37,12 +44,12 @@ export class CustomerService {
       firstName: customer.firstName,
       lastName: customer.lastName,
       email: customer.email,
-      loyaltyPoints: (customer as any).loyaltyPoints || 0,
-      createdAt: (customer as any).createdAt,
+      loyaltyPoints: customer.loyaltyPoints || 0,
+      createdAt: customer.createdAt,
     };
   }
 
-  async getCustomers() {
+  async getCustomers(): Promise<Customer[]> {
     return this.customerRepository.findMany();
   }
 }

@@ -1,6 +1,13 @@
 import { ZayjarLogger } from './logger.service';
 
-export function createPerformanceLogger(context: string) {
+export interface PerformanceLogger {
+  start(operation: string): void;
+  end(operation: string, meta?: Record<string, unknown>): number;
+  measure<T>(operation: string, fn: () => T, meta?: Record<string, unknown>): T;
+  measureAsync<T>(operation: string, fn: () => Promise<T>, meta?: Record<string, unknown>): Promise<T>;
+}
+
+export function createPerformanceLogger(context: string): PerformanceLogger {
   const logger = new ZayjarLogger(context);
   const timers = new Map<string, number>();
 

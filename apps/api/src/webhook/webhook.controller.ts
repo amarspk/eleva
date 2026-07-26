@@ -2,6 +2,7 @@ import { Controller, Post, Get, Delete, Param, Body, Req, UseGuards, HttpCode, H
 import { WebhookService } from './webhook.service';
 import { CreateWebhookRequestDto } from './dto/create-webhook-request.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { AuthenticatedRequest } from '../common/types/request.types';
 
 @Controller('api/v1/webhooks')
 @UseGuards(JwtAuthGuard)
@@ -15,7 +16,13 @@ export class WebhookController {
    */
   @Post()
   @HttpCode(HttpStatus.CREATED)
-  async createWebhook(@Body() dto: CreateWebhookRequestDto, @Req() req: any) {
+  async createWebhook(@Body() dto: CreateWebhookRequestDto, @Req() req: AuthenticatedRequest): Promise<{
+    id: string;
+    targetUrl: string;
+    events: string[];
+    isActive: boolean;
+    createdAt: unknown;
+  }> {
     const user = req.user;
     if (!user?.tenantId) {
       throw new ForbiddenException('Tenant context missing');
@@ -30,7 +37,13 @@ export class WebhookController {
 
   @Get()
   @HttpCode(HttpStatus.OK)
-  async listWebhooks(@Req() req: any) {
+  async listWebhooks(@Req() req: AuthenticatedRequest): Promise<Array<{
+    id: string;
+    targetUrl: string;
+    events: string[];
+    isActive: boolean;
+    createdAt: unknown;
+  }>> {
     const user = req.user;
     if (!user?.tenantId) {
       throw new ForbiddenException('Tenant context missing');
@@ -40,7 +53,7 @@ export class WebhookController {
 
   @Delete(':id')
   @HttpCode(HttpStatus.OK)
-  async deleteWebhook(@Param('id') id: string, @Req() req: any) {
+  async deleteWebhook(@Param('id') id: string, @Req() req: AuthenticatedRequest): Promise<{ success: boolean; id: string }> {
     const user = req.user;
     if (!user?.tenantId) {
       throw new ForbiddenException('Tenant context missing');

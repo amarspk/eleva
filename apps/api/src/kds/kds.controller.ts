@@ -4,6 +4,7 @@ import { UpdateCookingStatusRequestDto } from './dto/update-cooking-status-reque
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RbacPermissionGuard } from '../auth/guards/rbac-permission.guard';
 import { RequirePermission } from '../auth/decorators/require-permission.decorator';
+import { AuthenticatedRequest } from '../common/types/request.types';
 
 @Controller('api/v1/kds')
 @UseGuards(JwtAuthGuard, RbacPermissionGuard)
@@ -18,7 +19,23 @@ export class KdsController {
   @Get('tickets')
   @HttpCode(HttpStatus.OK)
   @RequirePermission('read', 'Order')
-  async getTickets(@Query('branchId') branchId: string, @Req() req: any) {
+  async getTickets(@Query('branchId') branchId: string, @Req() req: AuthenticatedRequest): Promise<Array<{
+    ticketId: string;
+    orderId: string;
+    ticketNumber: string;
+    priority: string;
+    elapsedMinutes: number;
+    createdAt: unknown;
+    orderStatus: string;
+    items: Array<{
+      orderItemId: string;
+      name: string;
+      quantity: number;
+      size: string | null;
+      addons: string[];
+      cookingStatus: string;
+    }>;
+  }>> {
     const tenantId = req.user?.tenantId;
     if (!tenantId) {
       throw new Error('Tenant context missing from authenticated request');
@@ -40,8 +57,8 @@ export class KdsController {
   async updateItemStatus(
     @Param('orderItemId') orderItemId: string,
     @Body() dto: UpdateCookingStatusRequestDto,
-    @Req() req: any,
-  ) {
+    @Req() req: AuthenticatedRequest,
+  ): Promise<{ orderItemId: string; cookingStatus: string; updatedAt: string }> {
     const tenantId = req.user?.tenantId;
     if (!tenantId) {
       throw new Error('Tenant context missing from authenticated request');
@@ -49,3 +66,4 @@ export class KdsController {
     return this.kdsService.updateCookingStatus(orderItemId, dto.status, tenantId);
   }
 }
+

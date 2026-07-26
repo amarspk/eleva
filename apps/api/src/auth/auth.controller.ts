@@ -1,5 +1,5 @@
 import { Controller, Post, Get, Body, Req, Res, HttpStatus, HttpCode, UseGuards, Logger } from '@nestjs/common';
-import { Request, Response } from 'express';
+import { Response } from 'express';
 import { AuthService } from './auth.service';
 import { JWT_CONFIG } from './config/jwt.config';
 import { Public } from './decorators/public.decorator';
@@ -9,6 +9,7 @@ import { LoginDto } from '@zayjar/types';
 import { MfaVerifyRequestDto } from './dto/mfa-verify-request.dto';
 import { RateLimitGuard, RateLimit } from '../common/rate-limit/rate-limit.guard';
 import { CsrfService } from '../common/csrf/csrf.service';
+import { AuthenticatedRequest, AuthenticatedUser } from '../common/types/request.types';
 
 @Controller('api/v1/auth')
 export class AuthController {
@@ -26,18 +27,18 @@ export class AuthController {
   @RateLimit('auth')
   async login(
     @Body() dto: LoginDto,
-    @Req() req: Request,
+    @Req() req: AuthenticatedRequest,
     @Res({ passthrough: true }) res: Response,
-  ) {
+  ): Promise<{ accessToken: string; csrfToken: string; expiresIn: number; user: Record<string, unknown> }> {
     // Resolve tenantId from middleware (subdomain, custom domain, x-tenant-id header) for tenant isolation
-    const tenantId = (req as any).tenantId || null;
+    const tenantId = req.tenantId || null;
 
     if (!dto.email || !dto.password) {
       throw new Error('Email and password are required');
     }
 
     // Real DB login with tenant isolation, password verification, and MFA check
-    const userProfile = await this.authService.validateLogin(dto.email, dto.password!, (dto as any).mfaToken, tenantId);
+    const userProfile = await this.authService.validateLogin(dto.email, dto.password!, (dto as { mfaToken?: string }).mfaToken, tenantId);
 
     const payload = {
       sub: userProfile.id,
@@ -82,9 +83,9 @@ export class AuthController {
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
   async refresh(
-    @Req() req: Request,
+    @Req() req: AuthenticatedRequest,
     @Res({ passthrough: true }) res: Response,
-  ) {
+  ): Promise<{ accessToken: string; csrfToken: string; expiresIn: number }> {
     // Extract token from secure cookie
     const oldRefreshToken = req.cookies?.['__Host-Refresh-Token'];
 
@@ -119,10 +120,10 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
   async logout(
-    @Req() req: Request,
+    @Req() req: AuthenticatedRequest,
     @Res({ passthrough: true }) res: Response,
-    @CurrentUser() user: any,
-  ) {
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<{ success: boolean; message: string }> {
     this.logger.log(`Logging out user session for sub: ${user?.id || 'unknown'}`);
     const authHeader = req.headers.authorization;
     if (authHeader) {
@@ -154,7 +155,7 @@ export class AuthController {
   @Get('me')
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
-  async getMe(@CurrentUser() user: any) {
+  async getMe(@CurrentUser() user: AuthenticatedUser): Promise<{ user: Record<string, unknown> }> {
     // user contains id, tenantId, email, roles, permissions from JWT
     const profile = await this.authService.getMe(user.id, user.tenantId);
 
@@ -162,12 +163,12 @@ export class AuthController {
       user: {
         id: profile.id,
         tenantId: profile.tenantId,
-        firstName: (profile as any).firstName,
-        lastName: (profile as any).lastName,
-        email: user.email || (profile as any).email,
+        firstName: profile.firstName,
+        lastName: profile.lastName,
+        email: user.email || profile.email,
         roles: user.roles || [],
         permissions: user.permissions || [],
-        mfaEnabled: (profile as any).mfaEnabled || false,
+        mfaEnabled: profile.mfaEnabled || false,
       },
     };
   }
@@ -175,7 +176,7 @@ export class AuthController {
   @Post('mfa/enable')
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
-  async enableMfa(@CurrentUser() user: any) {
+  async enableMfa(@CurrentUser() user: AuthenticatedUser): Promise<{ secret: string; qrCodeDataUrl: string }> {
     const result = await this.authService.generateMfaSecret(user.id, user.tenantId, user.email);
     return result;
   }
@@ -183,7 +184,7 @@ export class AuthController {
   @Post('mfa/verify')
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
-  async verifyMfa(@CurrentUser() user: any, @Body() dto: MfaVerifyRequestDto) {
+  async verifyMfa(@CurrentUser() user: AuthenticatedUser, @Body() dto: MfaVerifyRequestDto): Promise<{ mfaEnabled: boolean; backupCodes: string[] }> {
     const result = await this.authService.verifyMfaSetup(user.id, user.tenantId, dto.mfaToken);
     return result;
   }

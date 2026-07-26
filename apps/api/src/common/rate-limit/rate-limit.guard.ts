@@ -1,9 +1,9 @@
-import { Injectable, CanActivate, ExecutionContext, HttpException, HttpStatus, Logger } from '@nestjs/common';
+import { Injectable, CanActivate, ExecutionContext, HttpException, HttpStatus, Logger, CustomDecorator } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { RateLimitService } from './rate-limit.service';
 
 export const RATE_LIMIT_KEY = 'rateLimitTier';
-export const RateLimit = (tier: 'public' | 'checkout' | 'auth', customLimit?: number, customWindowMs?: number) => {
+export const RateLimit = (tier: 'public' | 'checkout' | 'auth', customLimit?: number, customWindowMs?: number): CustomDecorator<string> => {
   const { SetMetadata } = require('@nestjs/common');
   return SetMetadata(RATE_LIMIT_KEY, { tier, customLimit, customWindowMs });
 };

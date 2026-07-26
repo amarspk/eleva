@@ -33,7 +33,10 @@ export class BillingService {
    * Tenant isolation: plan must exist, tenant context validated.
    * If STRIPE_SECRET_KEY not configured, returns mock session for dev/test.
    */
-  async createCheckoutSession(dto: CreateBillingSessionRequestDto, tenantId: string, userId: string) {
+  async createCheckoutSession(dto: CreateBillingSessionRequestDto, tenantId: string, userId: string): Promise<{
+    checkoutSessionId: string;
+    stripeCheckoutUrl: string;
+  }> {
     this.logger.log(`Creating Stripe checkout session for tenant [${tenantId}] plan [${dto.planId}] user [${userId}]`);
 
     // Validate plan exists
@@ -77,7 +80,7 @@ export class BillingService {
 
       const session = await stripe.checkout.sessions.create({
         mode: 'subscription',
-        customer: (tenant as any).stripeCustomerId || undefined,
+        customer: (tenant as Record<string, unknown>).stripeCustomerId || undefined,
         line_items: [
           {
             price: plan.stripePriceId,
@@ -113,10 +116,18 @@ export class BillingService {
    * Updates tenant and subscription statuses atomically.
    * Emits BillingStatusChangedEvent domain events for notification dispatch.
    */
-  async handleStripeWebhook(event: any) {
-    const eventType = event.type;
-    const dataObject = event.data?.object;
-    const eventId = event.id;
+  async handleStripeWebhook(event: Record<string, unknown>): Promise<{
+    received: boolean;
+    eventType: string;
+    eventId: string;
+    tenantId?: string | null;
+    newSubscriptionStatus?: string | null;
+    newTenantStatus?: string | null;
+    action: string;
+  }> {
+    const eventType = event.type as string;
+    const dataObject = (event.data as Record<string, unknown>)?.object as Record<string, unknown> | undefined;
+    const eventId = event.id as string | undefined;
 
     this.logger.log(`Received Stripe webhook event: ${eventType} [${eventId}]`);
 
@@ -243,8 +254,7 @@ export class BillingService {
     let previousSubscriptionStatus: string | null = null;
     if (newSubscriptionStatus && newTenantStatus) {
       try {
-        await prisma.$transaction(async (tx: any) => {
-          // Fetch current subscription status before update for domain event
+        await prisma.$transaction(async (tx) => {
           if (stripeSubscriptionId) {
             const current = await tx.subscription.findFirst({
               where: { stripeSubscriptionId },
@@ -252,7 +262,7 @@ export class BillingService {
             });
             previousSubscriptionStatus = current?.status || null;
 
-            const updateData: Record<string, any> = { status: newSubscriptionStatus };
+            const updateData: Record<string, unknown> = { status: newSubscriptionStatus };
 
             // DOC-009 §8.2: Update billing period and cancellation fields from Stripe data
             if (eventType === 'customer.subscription.updated') {
@@ -340,7 +350,13 @@ export class BillingService {
    * Persists stripeCustomerId on tenant and stripeSubscriptionId on subscription
    * after a successful Stripe Checkout session.
    */
-  private async handleCheckoutSessionCompleted(dataObject: any, eventId?: string) {
+  private async handleCheckoutSessionCompleted(dataObject: Record<string, unknown>, eventId?: string): Promise<{
+    received: boolean;
+    eventType: string;
+    eventId?: string;
+    action: string;
+    tenantId?: string | null;
+  }> {
     const stripeCustomerId = dataObject.customer as string | null;
     const stripeSubscriptionId = dataObject.subscription as string | null;
     const metadataTenantId = dataObject.metadata?.tenantId as string | null;
@@ -357,8 +373,7 @@ export class BillingService {
     }
 
     try {
-      await prisma.$transaction(async (tx: any) => {
-        // Persist stripeCustomerId on tenant if not already set
+      await prisma.$transaction(async (tx) => {
         if (stripeCustomerId && !tenant.stripeCustomerId) {
           await tx.tenant.update({
             where: { id: metadataTenantId },
@@ -409,7 +424,13 @@ export class BillingService {
    * Emits domain event so BillingNotificationListener can dispatch
    * trial expiry reminder notifications.
    */
-  private async handleTrialWillEnd(dataObject: any, eventId?: string) {
+  private async handleTrialWillEnd(dataObject: Record<string, unknown>, eventId?: string): Promise<{
+    received: boolean;
+    eventType: string;
+    eventId?: string;
+    action: string;
+    tenantId?: string | null;
+  }> {
     const stripeCustomerId = dataObject.customer as string | null;
     const stripeSubscriptionId = dataObject.id as string | null;
 
@@ -471,16 +492,16 @@ export class BillingService {
    * Verifies Stripe webhook signature if STRIPE_WEBHOOK_SECRET configured
    * Returns event payload or throws BadRequestException
    */
-  verifyWebhookSignature(rawBody: string | Buffer, signature: string | undefined): any {
+  verifyWebhookSignature(rawBody: string | Buffer, signature: string | undefined): Record<string, unknown> {
     const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
     if (!webhookSecret) {
       this.logger.warn('STRIPE_WEBHOOK_SECRET not configured, skipping signature verification (dev mode)');
       try {
-        if (typeof rawBody === 'string') {return JSON.parse(rawBody);}
-        return JSON.parse(rawBody.toString());
+        if (typeof rawBody === 'string') {return JSON.parse(rawBody) as Record<string, unknown>;}
+        return JSON.parse(rawBody.toString()) as Record<string, unknown>;
       } catch {
-        return rawBody;
+        return rawBody as unknown as Record<string, unknown>;
       }
     }
 

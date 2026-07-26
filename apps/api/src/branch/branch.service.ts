@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { CreateBranchRequestDto } from './dto/create-branch-request.dto';
 import { CreateTableRequestDto } from './dto/create-table-request.dto';
-import { TenantBranchRepository, TenantTableRepository } from '@zayjar/db';
+import { TenantBranchRepository, TenantTableRepository, Branch, Table } from '@zayjar/db';
 import * as crypto from 'crypto';
 
 @Injectable()
@@ -13,7 +13,7 @@ export class BranchService {
   /**
    * Creates a physical branch location under a restaurant brand.
    */
-  async createBranch(dto: CreateBranchRequestDto) {
+  async createBranch(dto: CreateBranchRequestDto): Promise<Branch> {
     this.logger.log(`Creating branch location: [${dto.name}]`);
     return this.branchRepository.create({
       restaurantId: dto.restaurantId,
@@ -30,14 +30,14 @@ export class BranchService {
   /**
    * Retrieves all branches scoping to the active tenant.
    */
-  async getBranches() {
+  async getBranches(): Promise<Branch[]> {
     return this.branchRepository.findMany();
   }
 
   /**
    * Provisions a seating table and generates its secure cryptographic QR token.
    */
-  async createTable(dto: CreateTableRequestDto) {
+  async createTable(dto: CreateTableRequestDto): Promise<Table> {
     this.logger.log(`Provisioning seating table number: [${dto.number}]`);
 
     // 1. Fetch current tenantId from active repository thread
@@ -71,7 +71,7 @@ export class BranchService {
   /**
    * Retrieves all seating tables scoped to the branch.
    */
-  async getTables(branchId: string) {
+  async getTables(branchId: string): Promise<Table[]> {
     return this.tableRepository.findMany({ branchId });
   }
 }

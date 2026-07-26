@@ -2,6 +2,7 @@ import { Controller, Post, Get, Delete, Param, Body, Req, UseGuards, HttpCode, H
 import { DeviceTokenService } from './device-token.service';
 import { CreateDeviceTokenRequestDto } from './dto/create-device-token-request.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { AuthenticatedRequest } from '../common/types/request.types';
 
 @Controller('api/v1/device-tokens')
 @UseGuards(JwtAuthGuard)
@@ -15,7 +16,13 @@ export class DeviceTokenController {
    */
   @Post()
   @HttpCode(HttpStatus.CREATED)
-  async registerToken(@Body() dto: CreateDeviceTokenRequestDto, @Req() req: any) {
+  async registerToken(@Body() dto: CreateDeviceTokenRequestDto, @Req() req: AuthenticatedRequest): Promise<{
+    id: string;
+    token: string;
+    deviceType: string;
+    userId: string;
+    createdAt?: unknown;
+  }> {
     const user = req.user;
     if (!user?.tenantId) {
       throw new ForbiddenException('Tenant context missing');
@@ -26,7 +33,13 @@ export class DeviceTokenController {
 
   @Get()
   @HttpCode(HttpStatus.OK)
-  async listTokens(@Req() req: any, @Query('userId') userId?: string) {
+  async listTokens(@Req() req: AuthenticatedRequest, @Query('userId') userId?: string): Promise<Array<{
+    id: string;
+    token: string;
+    deviceType: string;
+    userId: string;
+    createdAt?: unknown;
+  }>> {
     const user = req.user;
     if (!user?.tenantId) {
       throw new ForbiddenException('Tenant context missing');
@@ -40,7 +53,7 @@ export class DeviceTokenController {
 
   @Delete(':id')
   @HttpCode(HttpStatus.OK)
-  async deleteToken(@Param('id') id: string, @Req() req: any) {
+  async deleteToken(@Param('id') id: string, @Req() req: AuthenticatedRequest): Promise<{ success: boolean; id: string }> {
     const user = req.user;
     if (!user?.tenantId) {
       throw new ForbiddenException('Tenant context missing');

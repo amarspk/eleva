@@ -5,6 +5,11 @@ import { AppModule } from './app.module';
 import { SecretsManagerService } from './common/secrets/secrets-manager.service';
 import { QUEUE_NAMES, WORKER_CONFIG, getRedisUrl, isRedisConfigured } from './common/queue/queue.constants';
 import IORedis from 'ioredis';
+import { EmailService } from './notification/email/email.service';
+import { SmsService } from './notification/sms/sms.service';
+import { DeviceTokenService } from './device-token/device-token.service';
+import { WebhookService } from './webhook/webhook.service';
+import { KdsGateway } from './kds/kds.gateway';
 
 /**
  * DOC-010 §9.4 — Standalone Worker Process
@@ -21,7 +26,7 @@ import IORedis from 'ioredis';
 
 const logger = new Logger('Worker');
 
-async function bootstrapWorker() {
+async function bootstrapWorker(): Promise<void> {
   logger.log('Starting Zayjar worker process...');
 
   // DOC-006 §5.9: Load secrets before module initialization
@@ -48,12 +53,6 @@ async function bootstrapWorker() {
   });
 
   // Import services from the NestJS context
-  const { EmailService } = await import('./notification/email/email.service');
-  const { SmsService } = await import('./notification/sms/sms.service');
-  const { DeviceTokenService } = await import('./device-token/device-token.service');
-  const { WebhookService } = await import('./webhook/webhook.service');
-  const { KdsGateway } = await import('./kds/kds.gateway');
-
   const emailService = app.get(EmailService);
   const smsService = app.get(SmsService);
   const deviceTokenService = app.get(DeviceTokenService);
@@ -103,7 +102,7 @@ async function bootstrapWorker() {
       const { tenantId, event, payload } = job.data;
       logger.log(`Processing webhook job ${job.id}: ${event} tenant ${tenantId}`);
       const results = await webhookService.dispatchEvent(tenantId, event, payload);
-      return { dispatched: results.length, successful: results.filter((r: any) => r.success).length };
+      return { dispatched: results.length, successful: results.filter((r) => r.success).length };
     },
     {
       connection,
@@ -124,7 +123,7 @@ async function bootstrapWorker() {
   logger.log(`Webhook worker started (concurrency: ${webhookConfig.concurrency})`);
 
   // Graceful shutdown
-  const shutdown = async (signal: string) => {
+  const shutdown = async (signal: string): Promise<void> => {
     logger.log(`Received ${signal}, shutting down workers...`);
     for (const worker of workers) {
       await worker.close();
@@ -145,14 +144,14 @@ async function bootstrapWorker() {
 async function processChannel(
   channel: string,
   event: string,
-  payload: any,
+  payload: Record<string, unknown>,
   tenantId: string,
   services: {
-    emailService: any;
-    smsService: any;
-    deviceTokenService: any;
-    webhookService: any;
-    kdsGateway: any;
+    emailService: EmailService;
+    smsService: SmsService;
+    deviceTokenService: DeviceTokenService;
+    webhookService: WebhookService;
+    kdsGateway: KdsGateway;
   },
 ): Promise<{ success: boolean; provider?: string }> {
   switch (channel) {
@@ -187,7 +186,7 @@ async function processChannel(
 
     case 'webhook': {
       const results = await services.webhookService.dispatchEvent(tenantId, event, payload);
-      const successCount = results.filter((r: any) => r.success).length;
+      const successCount = results.filter((r) => r.success).length;
       return { success: successCount > 0 || results.length > 0, provider: 'webhook' };
     }
 

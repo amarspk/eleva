@@ -2,6 +2,7 @@ import { Controller, Post, Get, Body, HttpCode, HttpStatus, Req } from '@nestjs/
 import { CustomerService } from './customer.service';
 import { CreateCustomerRequestDto } from './dto/create-customer-request.dto';
 import { Public } from '../auth/decorators/public.decorator';
+import { AuthenticatedRequest } from '../common/types/request.types';
 
 @Controller('api/v1/customers')
 export class CustomerController {
@@ -15,7 +16,14 @@ export class CustomerController {
   @Public()
   @Post()
   @HttpCode(HttpStatus.CREATED)
-  async createCustomer(@Body() dto: CreateCustomerRequestDto, @Req() _req: any) {
+  async createCustomer(@Body() dto: CreateCustomerRequestDto, @Req() _req: AuthenticatedRequest): Promise<{
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    loyaltyPoints: number;
+    createdAt: unknown;
+  }> {
     // Tenant context is already enforced via dbTenantContext by repository layer
     // The middleware ensures tenantId exists, but we don't accept it from body
     return this.customerService.createCustomer(dto);
@@ -23,7 +31,7 @@ export class CustomerController {
 
   @Get()
   @HttpCode(HttpStatus.OK)
-  async getCustomers(@Req() _req: any) {
+  async getCustomers(@Req() _req: AuthenticatedRequest): Promise<unknown> {
     // For internal use / staff, list customers under tenant
     return this.customerService.getCustomers();
   }

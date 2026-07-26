@@ -1,6 +1,7 @@
 import { Injectable, NestInterceptor, ExecutionContext, CallHandler, Logger } from '@nestjs/common';
 import { Observable, tap } from 'rxjs';
 import { AuditService } from './audit.service';
+import { AuthenticatedRequest } from '../common/types/request.types';
 
 @Injectable()
 export class AuditInterceptor implements NestInterceptor {
@@ -8,8 +9,8 @@ export class AuditInterceptor implements NestInterceptor {
 
   constructor(private readonly auditService: AuditService) {}
 
-  intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
-    const request = context.switchToHttp().getRequest();
+  intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
+    const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
     const method = request.method;
     const url = request.originalUrl || request.url;
 
@@ -26,8 +27,8 @@ export class AuditInterceptor implements NestInterceptor {
     }
 
     const user = request.user;
-    const tenantId = user?.tenantId || request.tenantId || (request as any).tenantId || null;
-    const userId = user?.id || user?.sub || null;
+    const tenantId = user?.tenantId || request.tenantId || null;
+    const userId = user?.id || (user as Record<string, unknown>)?.sub || null;
     const ipAddress = request.ip || request.headers['x-forwarded-for'] || request.connection?.remoteAddress || 'unknown';
     const userAgent = request.headers['user-agent'] || 'unknown';
 
@@ -79,7 +80,7 @@ export class AuditInterceptor implements NestInterceptor {
     );
   }
 
-  private parseEntityFromUrl(url: string, params: any, responseData: any): { entityName: string; entityId: string | null } {
+  private parseEntityFromUrl(url: string, params: Record<string, string> | undefined, responseData: Record<string, unknown> | undefined): { entityName: string; entityId: string | null } {
     // Extract entity from URL pattern /api/v1/{entity}/...
     // e.g., /api/v1/branches -> Branch, /api/v1/menu/products -> Product, /api/v1/orders/:id/status -> Order
     const parts = url.split('/').filter(Boolean);
@@ -115,16 +116,16 @@ export class AuditInterceptor implements NestInterceptor {
 
     // Try to get ID from params or response
     let entityId: string | null = null;
-    if (params?.id) {entityId = params.id;}
-    else if (params?.orderItemId) {entityId = params.orderItemId;}
-    else if (responseData?.id) {entityId = responseData.id;}
-    else if (responseData?.tenant?.id) {entityId = responseData.tenant.id;}
-    else if (responseData?.orderId) {entityId = responseData.orderId;}
+    if (params?.id) {entityId = String(params.id);}
+    else if (params?.orderItemId) {entityId = String(params.orderItemId);}
+    else if (responseData?.id) {entityId = String(responseData.id);}
+    else if (responseData?.tenant && typeof responseData.tenant === 'object') {entityId = String((responseData.tenant as Record<string, unknown>).id);}
+    else if (responseData?.orderId) {entityId = String(responseData.orderId);}
 
     return { entityName, entityId };
   }
 
-  private sanitizeValues(values: any): any {
+  private sanitizeValues(values: unknown): unknown {
     if (!values) {return null;}
     // Remove sensitive fields
     const sensitive = ['password', 'passwordHash', 'secret', 'mfaSecret', 'secretKey'];

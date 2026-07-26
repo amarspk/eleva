@@ -40,7 +40,7 @@ export class MediaCleanupService implements OnApplicationBootstrap {
 
   private async cleanupDeletedEntityReferences(): Promise<void> {
     try {
-      const orphanMedia = await prisma.$queryRawUnsafe<any[]>(`
+      const orphanMedia = await prisma.$queryRawUnsafe<Array<Record<string, unknown>>>(`
         SELECT m.id FROM media m
         WHERE m.status = 'ready'
         AND m.entityType = 'product'
@@ -51,7 +51,7 @@ export class MediaCleanupService implements OnApplicationBootstrap {
 
       if (orphanMedia.length > 0) {
         this.logger.warn(`Found ${orphanMedia.length} orphan media records for deleted products`);
-        const ids = orphanMedia.map((m: any) => m.id);
+        const ids = orphanMedia.map((m) => m.id as string);
         await prisma.media.deleteMany({
           where: { id: { in: ids } },
         });

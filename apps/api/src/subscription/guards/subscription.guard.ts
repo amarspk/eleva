@@ -1,14 +1,14 @@
-import { Injectable, CanActivate, ExecutionContext, ForbiddenException } from '@nestjs/common';
+import { Injectable, CanActivate, ExecutionContext, ForbiddenException, SetMetadata } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { SubscriptionService } from '../subscription.service';
+import { AuthenticatedRequest } from '../../common/types/request.types';
 
 export const SUBSCRIPTION_CHECK_KEY = 'subscriptionCheck';
 export interface SubscriptionCheck {
   type: 'branch' | 'product' | 'customDomain' | 'onlinePayment' | 'analytics' | 'status';
 }
 
-export const RequireSubscriptionCheck = (type: SubscriptionCheck['type']) => {
-  const { SetMetadata } = require('@nestjs/common');
+export const RequireSubscriptionCheck = (type: SubscriptionCheck['type']): MethodDecorator => {
   return SetMetadata(SUBSCRIPTION_CHECK_KEY, { type });
 };
 
@@ -29,9 +29,9 @@ export class SubscriptionGuard implements CanActivate {
       return true; // No subscription check required
     }
 
-    const request = context.switchToHttp().getRequest();
+    const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
     const user = request.user;
-    const tenantId = user?.tenantId || request.tenantId || (request as any).tenantId;
+    const tenantId = user?.tenantId || request.tenantId || null;
 
     if (!tenantId) {
       throw new ForbiddenException('Tenant context missing for subscription check');

@@ -4,6 +4,7 @@ import { subject } from '@casl/ability';
 import { CaslAbilityFactory, Action, Subjects } from '../casl-ability.factory';
 import { REQUIRE_PERMISSION_KEY, RequiredPermission } from '../decorators/require-permission.decorator';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
+import { AuthenticatedRequest } from '../../common/types/request.types';
 import {
   TenantProductRepository,
   TenantOrderRepository,
@@ -50,7 +51,7 @@ export class RbacPermissionGuard implements CanActivate {
       return true; // No special permissions required
     }
 
-    const request = context.switchToHttp().getRequest();
+    const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
     const user = request.user;
 
     if (!user) {
@@ -66,7 +67,7 @@ export class RbacPermissionGuard implements CanActivate {
     // ==========================================
     // REFINEMENT: Authoritative Database Scoping via Repository Layer
     // ==========================================
-    let resourceInstance: any = {
+    let resourceInstance: Record<string, unknown> = {
       __type: resource,
       ...(request.params || {}),
       ...(request.body || {}),
@@ -74,11 +75,11 @@ export class RbacPermissionGuard implements CanActivate {
 
     const recordId = request.params?.id || request.body?.id;
     if (recordId && (action === 'update' || action === 'delete' || action === 'read')) {
-      let realEntity: any = null;
+      let realEntity: Record<string, unknown> | null = null;
 
       // A. Tenant-scoped models utilize strongly typed repositories
       if (resource !== 'Tenant') {
-        const repository = (tenantRepositoryRegistry as any)[resource];
+        const repository = (tenantRepositoryRegistry as Record<string, { findById: (id: string) => Promise<Record<string, unknown> | null> }>)[resource];
         if (repository) {
           // repository.findById automatically checks AsyncLocalStorage context
           realEntity = await repository.findById(recordId);
@@ -88,7 +89,7 @@ export class RbacPermissionGuard implements CanActivate {
       else {
         realEntity = await prisma.tenant.findUnique({
           where: { id: recordId }
-        });
+        }) as unknown as Record<string, unknown> | null;
       }
 
       if (!realEntity) {

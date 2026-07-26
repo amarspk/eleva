@@ -2,6 +2,15 @@ import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import * as crypto from 'crypto';
 import { MEDIA_TYPE_CONFIG } from '@zayjar/types';
 
+interface SharpInstance {
+  rotate(): SharpInstance;
+  resize(w: number, h: number, opts: Record<string, unknown>): SharpInstance;
+  webp(opts: Record<string, unknown>): SharpInstance;
+  toBuffer(opts: Record<string, unknown>): Promise<{ data: Buffer; info: { width: number; height: number } }>;
+}
+
+type SharpFactory = (input: Buffer) => SharpInstance;
+
 export interface ProcessedImage {
   buffer: Buffer;
   width: number;
@@ -60,7 +69,7 @@ export class ImageProcessorService {
   }
 
   private async resizeBuffer(
-    sharp: any,
+    sharp: SharpFactory,
     inputBuffer: Buffer,
     width: number,
     height: number,
@@ -69,7 +78,7 @@ export class ImageProcessorService {
     const { data, info } = await sharp(inputBuffer)
       .rotate()
       .resize(width, height, {
-        fit: fit as any,
+        fit: fit as 'cover' | 'contain' | 'fill' | 'inside' | 'outside',
         withoutEnlargement: true,
       })
       .webp({ quality: 80 })

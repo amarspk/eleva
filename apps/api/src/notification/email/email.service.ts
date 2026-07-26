@@ -16,7 +16,7 @@ export class EmailService {
   /**
    * Compiles Handlebars template with variables per DOC-008 7.2 Template System
    */
-  private compileTemplate(templateName: string, variables: Record<string, any>): string {
+  private compileTemplate(templateName: string, variables: Record<string, unknown>): string {
     try {
       // Try to load from file system
       const templatePath = path.join(this.templatesPath, `${templateName}.hbs`);
@@ -59,7 +59,18 @@ export class EmailService {
    * Sends transactional email via SendGrid per DOC-008 7.2
    * Implements failover routing and hard bounce blocking
    */
-  async sendEmail(to: string, templateName: string, variables: Record<string, any>, subject?: string) {
+  async sendEmail(to: string, templateName: string, variables: Record<string, unknown>, subject?: string): Promise<{
+    success: boolean;
+    blocked?: boolean;
+    reason?: string;
+    mocked?: boolean;
+    to: string;
+    subject: string;
+    template: string;
+    messageId: string;
+    failover?: boolean;
+    error?: string;
+  }> {
     // Check hard bounce blocklist
     if (this.bouncedEmails.has(to.toLowerCase())) {
       this.logger.warn(`Email to [${to}] blocked due to previous hard bounce`);
@@ -135,7 +146,7 @@ export class EmailService {
     }
   }
 
-  private getDefaultSubject(templateName: string, variables: any): string {
+  private getDefaultSubject(templateName: string, variables: Record<string, unknown>): string {
     const subjects: Record<string, string> = {
       welcome: `Welcome to Zayjar, ${variables.companyName || 'your workspace'}!`,
       invoice: `Invoice ${variables.invoiceNumber || ''} - Order ${variables.orderNumber || ''}`,
@@ -148,7 +159,11 @@ export class EmailService {
   /**
    * Handles SendGrid webhook feedback for bounces and spam complaints per DOC-008 7.2 Delivery Monitoring
    */
-  async handleDeliveryEvent(event: any) {
+  async handleDeliveryEvent(event: Record<string, unknown>): Promise<{
+    processed: boolean;
+    eventType: unknown;
+    email: string | undefined;
+  } | undefined> {
     const eventType = event.event; // e.g., bounce, dropped, spamreport
     const email = event.email?.toLowerCase();
 
@@ -176,15 +191,48 @@ export class EmailService {
 
   // Convenience methods for specific transactional emails
 
-  async sendWelcomeEmail(to: string, variables: { companyName: string; ownerFirstName: string; ownerLastName: string; subdomain: string; status: string }) {
+  async sendWelcomeEmail(to: string, variables: { companyName: string; ownerFirstName: string; ownerLastName: string; subdomain: string; status: string }): Promise<{
+    success: boolean;
+    blocked?: boolean;
+    reason?: string;
+    mocked?: boolean;
+    to: string;
+    subject: string;
+    template: string;
+    messageId: string;
+    failover?: boolean;
+    error?: string;
+  }> {
     return this.sendEmail(to, 'welcome', variables);
   }
 
-  async sendInvoiceEmail(to: string, variables: { invoiceNumber: string; orderNumber: string; customerName: string; branchName: string; subtotal: number; taxAmount: number; total: number; pdfUrl: string; companyName: string }) {
+  async sendInvoiceEmail(to: string, variables: { invoiceNumber: string; orderNumber: string; customerName: string; branchName: string; subtotal: number; taxAmount: number; total: number; pdfUrl: string; companyName: string }): Promise<{
+    success: boolean;
+    blocked?: boolean;
+    reason?: string;
+    mocked?: boolean;
+    to: string;
+    subject: string;
+    template: string;
+    messageId: string;
+    failover?: boolean;
+    error?: string;
+  }> {
     return this.sendEmail(to, 'invoice', variables);
   }
 
-  async sendPasswordResetEmail(to: string, variables: { firstName: string; email: string; resetUrl: string }) {
+  async sendPasswordResetEmail(to: string, variables: { firstName: string; email: string; resetUrl: string }): Promise<{
+    success: boolean;
+    blocked?: boolean;
+    reason?: string;
+    mocked?: boolean;
+    to: string;
+    subject: string;
+    template: string;
+    messageId: string;
+    failover?: boolean;
+    error?: string;
+  }> {
     return this.sendEmail(to, 'password-reset', variables);
   }
 }

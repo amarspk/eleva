@@ -3,6 +3,7 @@ import { BillingService } from './billing.service';
 import { CreateBillingSessionRequestDto } from './dto/create-billing-session-request.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { Public } from '../auth/decorators/public.decorator';
+import { AuthenticatedRequest } from '../common/types/request.types';
 
 @Controller('api/v1/billing')
 export class BillingController {
@@ -17,7 +18,10 @@ export class BillingController {
   @Post('subscriptions/create-session')
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
-  async createSession(@Body() dto: CreateBillingSessionRequestDto, @Req() req: any) {
+  async createSession(@Body() dto: CreateBillingSessionRequestDto, @Req() req: AuthenticatedRequest): Promise<{
+    checkoutSessionId: string;
+    stripeCheckoutUrl: string;
+  }> {
     const user = req.user;
     if (!user) {
       throw new ForbiddenException('Authentication required');
@@ -48,8 +52,8 @@ export class BillingController {
   @Public()
   @Post('webhooks')
   @HttpCode(HttpStatus.OK)
-  async handleWebhook(@Req() req: any, @Headers('stripe-signature') signature?: string) {
-    const rawBody: Buffer | undefined = (req as any).rawBody;
+  async handleWebhook(@Req() req: AuthenticatedRequest, @Headers('stripe-signature') signature?: string): Promise<{ received: boolean; action?: string; eventType?: string; eventId?: string; tenantId?: string | null; newSubscriptionStatus?: string | null; newTenantStatus?: string | null }> {
+    const rawBody: Buffer | undefined = (req as Record<string, unknown>).rawBody as Buffer | undefined;
     if (!rawBody) {
       return { received: true, action: 'missing_raw_body' };
     }

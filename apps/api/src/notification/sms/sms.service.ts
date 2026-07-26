@@ -20,19 +20,19 @@ export class SmsService {
     // Primary: Twilio
     this.primaryProvider = {
       name: 'twilio',
-      send: async (to: string, message: string) => this.sendViaTwilio(to, message),
+      send: async (to: string, message: string): Promise<{ success: boolean; provider: string; messageId?: string; error?: string }> => this.sendViaTwilio(to, message),
     };
 
     // Regional: Unifonic / SAPTCO for Middle East
     this.regionalProvider = {
       name: 'unifonic',
-      send: async (to: string, message: string) => this.sendViaUnifonic(to, message),
+      send: async (to: string, message: string): Promise<{ success: boolean; provider: string; messageId?: string; error?: string }> => this.sendViaUnifonic(to, message),
     };
 
     // Secondary: Mock fallback
     this.secondaryProvider = {
       name: 'mock-sms',
-      send: async (to: string, message: string) => this.sendViaMock(to, message),
+      send: async (to: string, message: string): Promise<{ success: boolean; provider: string; messageId?: string }> => this.sendViaMock(to, message),
     };
   }
 
@@ -111,12 +111,12 @@ export class SmsService {
 
   // Convenience methods for transactional notifications
 
-  async sendOrderStatusSms(to: string, orderNumber: string, status: string, tenantId?: string) {
+  async sendOrderStatusSms(to: string, orderNumber: string, status: string, tenantId?: string): Promise<{ success: boolean; provider: string; messageId?: string; attempts: number }> {
     const message = `Zayjar: Order ${orderNumber} is now ${status}. Thank you!`;
     return this.sendSms(to, message, tenantId);
   }
 
-  async sendOtpSms(to: string, otp: string, tenantId?: string) {
+  async sendOtpSms(to: string, otp: string, tenantId?: string): Promise<{ success: boolean; provider: string; messageId?: string; attempts: number }> {
     const message = `Your Zayjar verification code is ${otp}. Valid for 5 minutes.`;
     return this.sendSms(to, message, tenantId);
   }

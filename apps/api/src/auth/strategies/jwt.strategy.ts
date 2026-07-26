@@ -3,6 +3,21 @@ import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { JWT_CONFIG } from '../config/jwt.config';
 import { AuthService } from '../auth.service';
+import { AuthenticatedUser } from '../../common/types/request.types';
+
+interface JwtTokenPayload {
+  sub: string;
+  email: string;
+  tenantId: string | null;
+  roles: string[];
+  permissions: string[];
+}
+
+interface JwtRequest {
+  headers: {
+    authorization?: string;
+  };
+}
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
@@ -19,13 +34,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
    * Decodes and validates active JWT payloads.
    * Verifies that the token has not been blacklisted via logouts.
    */
-  async validate(req: any, payload: {
-    sub: string;
-    email: string;
-    tenantId: string | null;
-    roles: string[];
-    permissions: string[];
-  }) {
+  async validate(req: JwtRequest, payload: JwtTokenPayload): Promise<AuthenticatedUser> {
     // Extract raw bearer token from request header to check blacklist
     const authHeader = req.headers.authorization;
     if (authHeader) {

@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { createMongoAbility, AbilityBuilder, MongoAbility } from '@casl/ability';
+import { createMongoAbility, AbilityBuilder, MongoAbility, MongoQuery } from '@casl/ability';
 
 export type Action = 'manage' | 'create' | 'read' | 'update' | 'delete';
 export type Subjects = 'Product' | 'Order' | 'Branch' | 'Tenant' | 'User' | 'Table' | 'all';
@@ -48,13 +48,13 @@ export class CaslAbilityFactory {
 
       // A. Cashier: Cannot update PAID orders (takes absolute precedence over general can)
       if (user.roles.includes('CASHIER')) {
-        cannot('update', 'Order', { status: 'PAID' } as any);
+        cannot('update', 'Order', { status: 'PAID' } as MongoQuery);
       }
 
       // B. Branch Manager: Cannot read Orders or update Products belonging to unassigned branches
       if (user.roles.includes('BRANCH_MANAGER') && user.branches && user.branches.length > 0) {
-        cannot('read', 'Order', { branchId: { $nin: user.branches } } as any);
-        cannot('update', 'Product', { branchId: { $nin: user.branches } } as any);
+        cannot('read', 'Order', { branchId: { $nin: user.branches } } as MongoQuery);
+        cannot('update', 'Product', { branchId: { $nin: user.branches } } as MongoQuery);
       }
 
       // 3. Default fallback rules for logged-in tenants
@@ -62,11 +62,11 @@ export class CaslAbilityFactory {
     }
 
     return build({
-      detectSubjectType: (item: any) => {
+      detectSubjectType: (item: Record<string, unknown>) => {
         if (item && item.constructor && item.constructor.name !== 'Object') {
-          return item.constructor.name;
+          return item.constructor.name as Subjects;
         }
-        return item?.__type || item;
+        return (item?.__type || item) as Subjects;
       },
     });
   }

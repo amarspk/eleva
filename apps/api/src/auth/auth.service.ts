@@ -5,6 +5,41 @@ import { JWT_CONFIG } from './config/jwt.config';
 import { CacheService } from '../common/cache/cache.service';
 import { prisma } from '@zayjar/db';
 
+export interface UserProfile {
+  id: string;
+  tenantId: string | null;
+  email: string | null;
+  firstName: string | null;
+  lastName: string | null;
+  isActive?: boolean;
+  mfaEnabled?: boolean;
+}
+
+interface UserRoleWithPermissions {
+  role?: {
+    name?: string;
+    rolePermissions?: Array<{
+      permission?: {
+        action?: string;
+        resource?: string;
+      };
+    }>;
+  };
+}
+
+interface UserFromDb {
+  id: string;
+  email: string;
+  tenantId: string | null;
+  firstName: string | null;
+  lastName: string | null;
+  passwordHash: string;
+  isActive: boolean;
+  mfaEnabled: boolean;
+  mfaSecret: string | null;
+  userRoles?: UserRoleWithPermissions[];
+}
+
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger('AuthService');
@@ -52,17 +87,17 @@ export class AuthService {
     tenantId: string | null;
     roles: string[];
     permissions: string[];
-  }) {
+  }): Promise<{ accessToken: string; refreshToken: string }> {
     const accessToken = await this.jwtService.signAsync(payload, {
       secret: JWT_CONFIG.accessTokenSecret,
-      expiresIn: JWT_CONFIG.accessTokenExpiry as any,
+      expiresIn: JWT_CONFIG.accessTokenExpiry,
     });
 
     const refreshToken = await this.jwtService.signAsync(
       { sub: payload.sub, email: payload.email, tenantId: payload.tenantId },
       {
         secret: JWT_CONFIG.refreshTokenSecret,
-        expiresIn: JWT_CONFIG.refreshTokenExpiry as any,
+        expiresIn: JWT_CONFIG.refreshTokenExpiry,
       },
     );
 
@@ -84,7 +119,7 @@ export class AuthService {
    * Core Refresh Token Rotation (RTR) Engine.
    * If token is reused or blacklisted, flags tree invalidation and rejects immediately.
    */
-  async rotateRefreshToken(oldToken: string) {
+  async rotateRefreshToken(oldToken: string): Promise<{ accessToken: string; refreshToken: string }> {
     try {
       // 1. Verify token signature and expiration
       const decoded = await this.jwtService.verifyAsync(oldToken, {
@@ -138,22 +173,22 @@ export class AuthService {
    * Returns authenticated user profile with roles and permissions per DOC-003 3.2.4
    * Tenant isolation enforced: user must belong to tenantId from JWT
    */
-  async getMe(userId: string, tenantId: string | null) {
+  async getMe(userId: string, tenantId: string | null): Promise<UserProfile> {
     if (!userId) {
       throw new UnauthorizedException('User ID missing from token');
     }
 
     // Try to fetch user from DB with tenant scoping
-    let user: any = null;
+    let user: UserFromDb | null = null;
     try {
       if (tenantId) {
         user = await prisma.user.findFirst({
           where: { id: userId, tenantId },
-        });
+        }) as unknown as UserFromDb | null;
       } else {
         user = await prisma.user.findUnique({
           where: { id: userId },
-        });
+        }) as unknown as UserFromDb | null;
       }
     } catch {
       // Fallback for test env without DB
@@ -187,7 +222,7 @@ export class AuthService {
    * Generates TOTP secret and QR code for MFA setup per DOC-003 3.2.5
    * Tenant isolation enforced
    */
-  async generateMfaSecret(userId: string, tenantId: string | null, email: string) {
+  async generateMfaSecret(userId: string, tenantId: string | null, email: string): Promise<{ secret: string; qrCodeDataUrl: string }> {
     this.logger.log(`Generating MFA secret for user [${userId}] tenant [${tenantId}]`);
 
     // Generate secret using speakeasy if available, otherwise fallback to random base32
@@ -268,7 +303,7 @@ export class AuthService {
    * Verifies TOTP token and activates MFA per DOC-003 3.2.6
    * Returns backup codes
    */
-  async verifyMfaSetup(userId: string, tenantId: string | null, token: string) {
+  async verifyMfaSetup(userId: string, tenantId: string | null, token: string): Promise<{ mfaEnabled: boolean; backupCodes: string[] }> {
     this.logger.log(`Verifying MFA token for user [${userId}]`);
 
     // Retrieve secret from DB or cache
@@ -277,7 +312,7 @@ export class AuthService {
       const user = tenantId
         ? await prisma.user.findFirst({ where: { id: userId, tenantId } })
         : await prisma.user.findUnique({ where: { id: userId } });
-      secret = (user as any)?.mfaSecret || null;
+      secret = (user as unknown as UserFromDb | null)?.mfaSecret || null;
     } catch {
       // fallback to cache
       const cacheKey = `mfa:secret:${userId}`;
@@ -349,11 +384,25 @@ export class AuthService {
    * Real DB login with tenant isolation, password verification, and MFA check per DOC-003 3.2.1
    * Previously mocked, now implements secure credential validation.
    */
-  async validateLogin(email: string, password: string, mfaToken?: string, tenantId?: string | null) {
+  async validateLogin(
+    email: string,
+    password: string,
+    mfaToken?: string,
+    tenantId?: string | null,
+  ): Promise<{
+    id: string;
+    email: string;
+    tenantId: string | null;
+    firstName: string | null;
+    lastName: string | null;
+    roles: string[];
+    permissions: string[];
+    mfaEnabled: boolean;
+  }> {
     const normalizedEmail = email.toLowerCase().trim();
 
     // Find user with tenant scoping, include roles and permissions
-    let user: any = null;
+    let user: UserFromDb | null = null;
     try {
       if (tenantId) {
         user = await prisma.user.findFirst({
@@ -371,7 +420,7 @@ export class AuthService {
               },
             },
           },
-        });
+        }) as unknown as UserFromDb | null;
       } else {
         // If no tenantId, find first user by email across tenants (or with tenantId null for platform owners)
         user = await prisma.user.findFirst({
@@ -389,7 +438,7 @@ export class AuthService {
               },
             },
           },
-        });
+        }) as unknown as UserFromDb | null;
       }
     } catch (err) {
       this.logger.error(`DB lookup failed for login [${normalizedEmail}]: ${(err as Error).message}`);

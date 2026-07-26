@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { prisma } from '@zayjar/db';
+import { prisma, AuditLog } from '@zayjar/db';
 
 export interface AuditLogEntry {
   tenantId?: string | null;
@@ -7,8 +7,8 @@ export interface AuditLogEntry {
   action: string;
   entityName: string;
   entityId?: string | null;
-  oldValues?: any;
-  newValues?: any;
+  oldValues?: Record<string, unknown>;
+  newValues?: Record<string, unknown>;
   ipAddress: string;
   userAgent: string;
 }
@@ -22,7 +22,7 @@ export class AuditService {
    * Write-only: only INSERT allowed, UPDATE/DELETE blocked at service level
    * Logs are enriched with tenantId, userId, ip, userAgent, and change details
    */
-  async log(entry: AuditLogEntry) {
+  async log(entry: AuditLogEntry): Promise<AuditLog | null> {
     try {
       const auditLog = await prisma.auditLog.create({
         data: {
@@ -56,8 +56,8 @@ export class AuditService {
   /**
    * Retrieves audit logs for a tenant with isolation
    */
-  async getLogs(tenantId: string, filters?: { userId?: string; entityName?: string; limit?: number }) {
-    const where: any = {};
+  async getLogs(tenantId: string, filters?: { userId?: string; entityName?: string; limit?: number }): Promise<AuditLog[]> {
+    const where: Record<string, unknown> = {};
     if (tenantId) {where.tenantId = tenantId;}
     if (filters?.userId) {where.userId = filters.userId;}
     if (filters?.entityName) {where.entityName = filters.entityName;}
@@ -75,11 +75,11 @@ export class AuditService {
    * Enforces write-only: UPDATE and DELETE are blocked
    * Per DOC-006 5.7 Immutable Storage - records can be inserted but UPDATE/DELETE blocked
    */
-  async update() {
+  async update(): Promise<never> {
     throw new Error('Audit logs are immutable: UPDATE operation is blocked per DOC-006 5.7');
   }
 
-  async delete() {
+  async delete(): Promise<never> {
     throw new Error('Audit logs are immutable: DELETE operation is blocked per DOC-006 5.7');
   }
 }

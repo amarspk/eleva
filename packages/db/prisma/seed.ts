@@ -3,7 +3,7 @@ import { PrismaClient } from '../src/generated-client';
 
 const prisma = new PrismaClient();
 
-async function main() {
+async function main(): Promise<void> {
   console.log('Seeding database...');
 
   // Clean all tables in dependency order

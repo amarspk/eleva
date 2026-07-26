@@ -6,7 +6,7 @@ import { ZayjarLogger, getGlobalLogger } from './logger.service';
   providers: [
     {
       provide: ZayjarLogger,
-      useFactory: () => getGlobalLogger(),
+      useFactory: (): ZayjarLogger => getGlobalLogger(),
     },
   ],
   exports: [ZayjarLogger],

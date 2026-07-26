@@ -18,7 +18,7 @@ export class TenantService {
    * Orchestrates the complete onboarding transaction for a new restaurant merchant.
    * Maps exactly to standard workflows defined in DOC-005.md.
    */
-  async onboard(dto: CreateTenantRequestDto) {
+  async onboard(dto: CreateTenantRequestDto): Promise<Record<string, unknown>> {
     this.logger.log(`Initiating workspace onboarding transaction for subdomain: [${dto.subdomain}]`);
 
     // 1. Verify subdomain and email availability
@@ -33,7 +33,7 @@ export class TenantService {
     const hashedPassword = await this.authService.hashPassword(dto.ownerPassword);
 
     // 3. Execute the complete onboarding scope inside a single relational database transaction
-    return prisma.$transaction(async (tx: any) => {
+    return prisma.$transaction(async (tx) => {
       // A. Create Tenant profile
       const tenant = await tx.tenant.create({
         data: {
@@ -152,7 +152,14 @@ export class TenantService {
    * Uses prismaRead for read-only queries (DOC-001 §1.5 read replica routing)
    * Public read allowed, but if authenticated user is not PLATFORM_OWNER, enforce tenant isolation
    */
-  async getTenantById(id: string, requester?: { tenantId?: string | null; roles?: string[] }) {
+  async getTenantById(id: string, requester?: { tenantId?: string | null; roles?: string[] }): Promise<{
+    id: string;
+    name: string;
+    subdomain: string;
+    customDomain: string | null;
+    status: string;
+    branding: Record<string, unknown>;
+  }> {
     const tenant = await prismaRead.tenant.findUnique({
       where: { id },
     });
@@ -169,7 +176,7 @@ export class TenantService {
     }
 
     // Merge static branding fields with JSONB dynamic branding (DOC-001 §1.5)
-    const dynamicBranding = (tenant.branding as Record<string, any>) || {};
+    const dynamicBranding = (tenant.branding as Record<string, unknown>) || {};
 
     return {
       id: tenant.id,
@@ -192,7 +199,15 @@ export class TenantService {
    * Requires RESTAURANT_OWNER, tenant isolation enforced
    * Supports both static branding fields and JSONB dynamic branding (DOC-001 §1.5)
    */
-  async updateTenant(id: string, dto: UpdateTenantRequestDto, requester?: { tenantId?: string | null; roles?: string[] }) {
+  async updateTenant(id: string, dto: UpdateTenantRequestDto, requester?: { tenantId?: string | null; roles?: string[] }): Promise<{
+    id: string;
+    name: string;
+    subdomain: string;
+    customDomain: string | null;
+    status: string;
+    branding: Record<string, unknown>;
+    updatedAt: Date;
+  }> {
     const existing = await prisma.tenant.findUnique({
       where: { id },
     });
@@ -218,7 +233,7 @@ export class TenantService {
       }
     }
 
-    const data: any = {};
+    const data: Record<string, unknown> = {};
     if (dto.name) {data.name = dto.name;}
     if (dto.customDomain !== undefined) {data.customDomain = dto.customDomain;}
     if (dto.branding) {
@@ -230,7 +245,7 @@ export class TenantService {
 
     // Merge dynamic branding keys into JSONB column (DOC-001 §1.5)
     if (dto.branding?.dynamic) {
-      const existingBranding = (existing.branding as Record<string, any>) || {};
+      const existingBranding = (existing.branding as Record<string, unknown>) || {};
       data.branding = { ...existingBranding, ...dto.branding.dynamic };
     }
 
@@ -239,7 +254,7 @@ export class TenantService {
       data,
     });
 
-    const dynamicBranding = (updated.branding as Record<string, any>) || {};
+    const dynamicBranding = (updated.branding as Record<string, unknown>) || {};
 
     return {
       id: updated.id,

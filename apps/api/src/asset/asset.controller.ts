@@ -3,6 +3,7 @@ import { AssetService } from './asset.service';
 import { AssetOptimizationService } from './asset-optimization.service';
 import { CreatePresignedUrlRequestDto } from './dto/create-presigned-url-request.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { AuthenticatedRequest } from '../common/types/request.types';
 
 @Controller('api/v1/assets')
 @UseGuards(JwtAuthGuard)
@@ -19,7 +20,13 @@ export class AssetController {
    */
   @Post('presigned-url')
   @HttpCode(HttpStatus.OK)
-  async createPresignedUrl(@Body() dto: CreatePresignedUrlRequestDto, @Req() req: any) {
+  async createPresignedUrl(@Body() dto: CreatePresignedUrlRequestDto, @Req() req: AuthenticatedRequest): Promise<{
+    presignedUrl: string;
+    publicUrl: string;
+    key: string;
+    expiresIn: number;
+    contentType: string;
+  }> {
     const user = req.user;
     if (!user) {
       throw new ForbiddenException('Authentication required');
@@ -42,7 +49,7 @@ export class AssetController {
    */
   @Post('optimize')
   @HttpCode(HttpStatus.OK)
-  async optimizeImage(@Body() body: { bucket?: string; key: string; folder?: string }, @Req() req: any) {
+  async optimizeImage(@Body() body: { bucket?: string; key: string; folder?: string }, @Req() req: AuthenticatedRequest): Promise<import('./asset-optimization.service').OptimizedResult> {
     const user = req.user;
     if (!user?.tenantId) {
       throw new ForbiddenException('Tenant context missing');

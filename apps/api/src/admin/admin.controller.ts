@@ -1,6 +1,7 @@
 import { Controller, Get, UseGuards, HttpCode, HttpStatus, Req, ForbiddenException } from '@nestjs/common';
 import { AdminService } from './admin.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { AuthenticatedRequest } from '../common/types/request.types';
 
 @Controller('api/v1/admin/tenants')
 @UseGuards(JwtAuthGuard)
@@ -14,7 +15,14 @@ export class AdminController {
    */
   @Get('metrics')
   @HttpCode(HttpStatus.OK)
-  async getMetrics(@Req() req: any) {
+  async getMetrics(@Req() req: AuthenticatedRequest): Promise<{
+    totalTenants: number;
+    activeSubscriptions: number;
+    mrrUSD: number;
+    arrUSD: number;
+    systemLoadAverage: number;
+    databaseConnectionsCount: number;
+  }> {
     const user = req.user;
     if (!user) {
       throw new ForbiddenException('Authentication required');

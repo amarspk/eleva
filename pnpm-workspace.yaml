@@ -2,4 +2,7 @@ packages:
   - 'apps/*'
   - 'packages/*'
 allowBuilds:
+  '@datadog/native-appsec': true
+  '@datadog/native-iast-taint-tracking': true
+  '@datadog/native-metrics': true
   msgpackr-extract: true

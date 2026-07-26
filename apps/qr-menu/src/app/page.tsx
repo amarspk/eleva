@@ -109,7 +109,7 @@ export default function Page(): React.ReactNode {
     }
 
     // Attempt to fetch real menu data if API available
-    const fetchMenu = async () => {
+    const fetchMenu = async (): Promise<void> => {
       try {
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
         // Try to get tenant branding based on subdomain

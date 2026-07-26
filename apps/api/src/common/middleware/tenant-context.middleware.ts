@@ -3,6 +3,7 @@ import { Request, Response, NextFunction } from 'express';
 import { CacheService } from '../cache/cache.service';
 import { prisma, dbTenantContext } from '@zayjar/db';
 import * as jwt from 'jsonwebtoken';
+import { RequestWithTenant } from '../types/request.types';
 
 @Injectable()
 export class TenantContextMiddleware implements NestMiddleware {
@@ -10,7 +11,7 @@ export class TenantContextMiddleware implements NestMiddleware {
 
   constructor(private readonly cacheService: CacheService) {}
 
-  async use(req: Request, _res: Response, next: NextFunction) {
+  async use(req: Request, _res: Response, next: NextFunction): Promise<void> {
     const host = req.headers.host || '';
     const correlationId = req.headers['x-correlation-id'] || `req-${Math.random().toString(36).substr(2, 9)}`;
     req.headers['x-correlation-id'] = correlationId;
@@ -23,7 +24,7 @@ export class TenantContextMiddleware implements NestMiddleware {
     if (authHeader && authHeader.startsWith('Bearer ')) {
       const token = authHeader.split(' ')[1];
       try {
-        const decoded = jwt.decode(token) as any;
+        const decoded = jwt.decode(token) as { roles?: string[] } | null;
         if (decoded && decoded.roles && decoded.roles.includes('PLATFORM_OWNER')) {
           isPlatformOwner = true;
         }
@@ -80,7 +81,7 @@ export class TenantContextMiddleware implements NestMiddleware {
 
       // 3. Inject context properties into dbTenantContext storage
       dbTenantContext.run({ tenantId: tenantId || undefined, isPlatformOwner }, () => {
-        (req as any).tenantId = tenantId;
+        (req as RequestWithTenant).tenantId = tenantId;
         next();
       });
 

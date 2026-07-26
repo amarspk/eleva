@@ -7,6 +7,11 @@ import {
   TenantProductSizeRepository,
   TenantProductAddonRepository,
   TenantAddonItemRepository,
+  Category,
+  Product,
+  ProductSize,
+  ProductAddon,
+  AddonItem,
 } from '@zayjar/db';
 
 @Injectable()
@@ -22,7 +27,7 @@ export class MenuService {
   /**
    * Creates a menu category to organize products.
    */
-  async createCategory(dto: CreateCategoryRequestDto) {
+  async createCategory(dto: CreateCategoryRequestDto): Promise<Category> {
     this.logger.log(`Creating menu category: [${dto.name}]`);
     return this.categoryRepository.create({
       restaurantId: dto.restaurantId,
@@ -35,14 +40,14 @@ export class MenuService {
   /**
    * Retrieves all categories scoped to the tenant.
    */
-  async getCategories() {
+  async getCategories(): Promise<Category[]> {
     return this.categoryRepository.findMany();
   }
 
   /**
    * Adds a product to a menu category.
    */
-  async createProduct(dto: CreateProductRequestDto) {
+  async createProduct(dto: CreateProductRequestDto): Promise<Product> {
     this.logger.log(`Adding product [${dto.name}] under category ID: [${dto.categoryId}]`);
     return this.productRepository.create({
       categoryId: dto.categoryId,
@@ -59,14 +64,14 @@ export class MenuService {
   /**
    * Retrieves all products scoped to the category.
    */
-  async getProducts(categoryId: string) {
+  async getProducts(categoryId: string): Promise<Product[]> {
     return this.productRepository.findMany({ categoryId });
   }
 
   /**
    * Defines a sizing adjustment option for a product.
    */
-  async createProductSize(productId: string, name: string, priceAdjustment: number) {
+  async createProductSize(productId: string, name: string, priceAdjustment: number): Promise<ProductSize> {
     this.logger.log(`Configuring size [${name}] for product ID: [${productId}]`);
     return this.sizeRepository.create({
       productId,
@@ -78,7 +83,7 @@ export class MenuService {
   /**
    * Creates an addon group configuration for product customization.
    */
-  async createProductAddon(productId: string, name: string, minSelections = 0, maxSelections = 1) {
+  async createProductAddon(productId: string, name: string, minSelections = 0, maxSelections = 1): Promise<ProductAddon> {
     this.logger.log(`Adding addon group [${name}] for product ID: [${productId}]`);
     return this.addonRepository.create({
       productId,
@@ -91,7 +96,7 @@ export class MenuService {
   /**
    * Defines a choice option inside an addon customization group.
    */
-  async createAddonItem(addonGroupId: string, name: string, price: number) {
+  async createAddonItem(addonGroupId: string, name: string, price: number): Promise<AddonItem> {
     this.logger.log(`Configuring addon choice [${name}] under group ID: [${addonGroupId}]`);
     return this.addonItemRepository.create({
       addonGroupId,

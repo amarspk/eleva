@@ -7,7 +7,7 @@ export class CacheService implements OnModuleInit, OnModuleDestroy {
   private redisClient: RedisClientType | null = null;
   private isConnected = false;
 
-  async onModuleInit() {
+  async onModuleInit(): Promise<void> {
     const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
     this.logger.log(`Initializing Redis client mapping to target: ${redisUrl}`);
 
@@ -37,7 +37,7 @@ export class CacheService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  async onModuleDestroy() {
+  async onModuleDestroy(): Promise<void> {
     if (this.redisClient && this.isConnected) {
       this.logger.log('Disconnecting active Redis client sessions.');
       await this.redisClient.disconnect();
@@ -82,7 +82,7 @@ export class CacheService implements OnModuleInit, OnModuleDestroy {
   /**
    * Serializes and writes a key-value pair to Redis with a dynamic TTL.
    */
-  async set(key: string, value: any, ttlSeconds = 7200): Promise<void> {
+  async set(key: string, value: unknown, ttlSeconds = 7200): Promise<void> {
     if (!this.redisClient || !this.isConnected) {
       return;
     }

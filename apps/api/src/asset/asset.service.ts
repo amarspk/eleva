@@ -19,7 +19,13 @@ export class AssetService {
    * Generates S3 pre-signed URL for direct upload per DOC-007 6.1
    * Tenant isolation: key includes tenantId, never trust client tenantId
    */
-  async createPresignedUrl(dto: CreatePresignedUrlRequestDto, tenantId: string, userId: string) {
+  async createPresignedUrl(dto: CreatePresignedUrlRequestDto, tenantId: string, userId: string): Promise<{
+    presignedUrl: string;
+    publicUrl: string;
+    key: string;
+    expiresIn: number;
+    contentType: string;
+  }> {
     this.logger.log(`Generating presigned URL for tenant [${tenantId}] user [${userId}] file [${dto.fileName}]`);
 
     // Validate MIME type

@@ -17,6 +17,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { MediaService } from './media.service';
 import { UploadMediaDto } from './dto/upload-media.dto';
 import { MediaResponseDto } from './dto/media-response.dto';
+import { AuthenticatedRequest } from '../common/types/request.types';
 
 @Controller('api/v1/media')
 export class MediaController {
@@ -27,7 +28,7 @@ export class MediaController {
   async upload(
     @UploadedFile() file: Express.Multer.File,
     @Body() dto: UploadMediaDto,
-    @Req() req: any,
+    @Req() req: AuthenticatedRequest,
   ): Promise<MediaResponseDto> {
     if (!file) {
       throw new BadRequestException('File is required');
@@ -43,7 +44,7 @@ export class MediaController {
 
   @Get()
   async findAll(
-    @Req() req: any,
+    @Req() req: AuthenticatedRequest,
     @Query('entityType') entityType?: string,
     @Query('entityId') entityId?: string,
   ): Promise<MediaResponseDto[]> {
@@ -54,7 +55,7 @@ export class MediaController {
   @Get(':id')
   async findOne(
     @Param('id') id: string,
-    @Req() req: any,
+    @Req() req: AuthenticatedRequest,
   ): Promise<MediaResponseDto> {
     const tenantId = req.user?.tenantId;
     return this.mediaService.findOne(id, tenantId);
@@ -64,7 +65,7 @@ export class MediaController {
   @HttpCode(HttpStatus.OK)
   async remove(
     @Param('id') id: string,
-    @Req() req: any,
+    @Req() req: AuthenticatedRequest,
   ): Promise<{ message: string }> {
     const tenantId = req.user?.tenantId;
     await this.mediaService.remove(id, tenantId);

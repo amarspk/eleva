@@ -6,6 +6,7 @@ export class S3StorageProvider implements StorageProvider {
   private readonly logger = new Logger(S3StorageProvider.name);
   private readonly bucket: string;
   private readonly region: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Dynamic SDK import, type unavailable at build time
   private s3Client: any;
 
   constructor() {
@@ -69,8 +70,8 @@ export class S3StorageProvider implements StorageProvider {
         new DeleteObjectCommand({ Bucket: this.bucket, Key: key }),
       );
       this.logger.debug(`Deleted s3://${this.bucket}/${key}`);
-    } catch (err: any) {
-      this.logger.warn(`Failed to delete s3://${this.bucket}/${key}: ${err.message}`);
+    } catch (err: unknown) {
+      this.logger.warn(`Failed to delete s3://${this.bucket}/${key}: ${(err as Error).message}`);
     }
   }
 
@@ -107,8 +108,8 @@ export class S3StorageProvider implements StorageProvider {
       this.logger.debug(
         `S3 batch delete: ${deleted.length} deleted, ${failed.length} failed from s3://${this.bucket}`,
       );
-    } catch (err: any) {
-      this.logger.warn(`S3 batch delete request failed: ${err.message}. Falling back to individual deletes.`);
+    } catch (err: unknown) {
+      this.logger.warn(`S3 batch delete request failed: ${(err as Error).message}. Falling back to individual deletes.`);
 
       for (const key of keys) {
         try {
@@ -118,9 +119,9 @@ export class S3StorageProvider implements StorageProvider {
           );
           deleted.push(key);
           this.logger.debug(`Deleted s3://${this.bucket}/${key}`);
-        } catch (individualErr: any) {
-          failed.push({ key, reason: individualErr.message });
-          this.logger.warn(`Failed to delete s3://${this.bucket}/${key}: ${individualErr.message}`);
+        } catch (individualErr: unknown) {
+          failed.push({ key, reason: (individualErr as Error).message });
+          this.logger.warn(`Failed to delete s3://${this.bucket}/${key}: ${(individualErr as Error).message}`);
         }
       }
     }

@@ -23,7 +23,7 @@ export class WalletService {
    * Supports Apple Pay, Google Pay via Stripe, and KNET, Benefit, Mada via Tap Payments/PayTabs
    * Tenant isolation enforced via dbTenantContext and order ownership
    */
-  async createWalletPayment(dto: CreateWalletPaymentRequestDto, tenantId: string, userId: string) {
+  async createWalletPayment(dto: CreateWalletPaymentRequestDto, tenantId: string, userId: string): Promise<Record<string, unknown>> {
     this.logger.log(`Creating wallet payment for tenant [${tenantId}] order [${dto.orderId}] method [${dto.paymentMethod}] wallet [${dto.walletType}]`);
 
     // Validate order exists and belongs to tenant
@@ -36,7 +36,7 @@ export class WalletService {
     }
 
     // Validate payment method
-    if (![PaymentMethodType.APPLE_PAY, PaymentMethodType.LOCAL_WALLET, PaymentMethodType.CREDIT_CARD, PaymentMethodType.CASH].includes(dto.paymentMethod as any)) {
+    if (![PaymentMethodType.APPLE_PAY, PaymentMethodType.LOCAL_WALLET, PaymentMethodType.CREDIT_CARD, PaymentMethodType.CASH].includes(dto.paymentMethod as PaymentMethodType)) {
       // Allow APPLE_PAY and LOCAL_WALLET as per spec, plus existing types
       if (!Object.values(PaymentMethodType).includes(dto.paymentMethod)) {
         throw new BadRequestException(`Invalid payment method [${dto.paymentMethod}]`);
@@ -79,8 +79,8 @@ export class WalletService {
     provider: string,
     tenantId: string,
     userId: string,
-    _order: any,
-  ) {
+    _order: Record<string, unknown>,
+  ): Promise<Record<string, unknown>> {
     const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
 
     if (!stripeSecretKey) {
@@ -146,8 +146,8 @@ export class WalletService {
     provider: string,
     _tenantId: string,
     _userId: string,
-    _order: any,
-  ) {
+    _order: Record<string, unknown>,
+  ): Promise<Record<string, unknown>> {
     const tapSecretKey = process.env.TAP_PAYMENTS_SECRET_KEY;
 
     if (!tapSecretKey) {
@@ -191,7 +191,7 @@ export class WalletService {
     }
   }
 
-  private async createMockPayment(dto: CreateWalletPaymentRequestDto, walletType: string, provider: string, _tenantId: string) {
+  private async createMockPayment(dto: CreateWalletPaymentRequestDto, walletType: string, provider: string, _tenantId: string): Promise<Record<string, unknown>> {
     const mockId = `mock_${walletType}_${Math.random().toString(36).substring(2, 10)}`;
     return {
       paymentId: mockId,
@@ -208,7 +208,12 @@ export class WalletService {
   /**
    * Verifies wallet payment status
    */
-  async verifyPayment(paymentId: string, tenantId: string) {
+  async verifyPayment(paymentId: string, tenantId: string): Promise<{
+    paymentId: string;
+    status: string;
+    verified: boolean;
+    tenantId: string;
+  }> {
     // In real implementation, would query Stripe or Tap API to verify status
     // For mock, return succeeded
     this.logger.log(`Verifying wallet payment [${paymentId}] for tenant [${tenantId}]`);

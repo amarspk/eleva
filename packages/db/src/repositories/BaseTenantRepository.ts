@@ -1,16 +1,16 @@
 import { dbTenantContext } from '../index';
 
-export interface PrismaModelDelegate {
-  findFirst: (args: any) => Promise<any>;
-  findMany: (args: any) => Promise<any[]>;
-  create: (args: any) => Promise<any>;
-  update: (args: any) => Promise<any>;
-  delete: (args: any) => Promise<any>;
-  count: (args: any) => Promise<number>;
+export interface PrismaModelDelegate<T extends { id: string } = { id: string }> {
+  findFirst: (args: Record<string, unknown>) => Promise<T | null>;
+  findMany: (args: Record<string, unknown>) => Promise<T[]>;
+  create: (args: Record<string, unknown>) => Promise<T>;
+  update: (args: Record<string, unknown>) => Promise<T>;
+  delete: (args: Record<string, unknown>) => Promise<T>;
+  count: (args: Record<string, unknown>) => Promise<number>;
 }
 
 export abstract class BaseTenantRepository<TModel extends { id: string }> {
-  constructor(protected readonly delegate: PrismaModelDelegate) {}
+  constructor(protected readonly delegate: PrismaModelDelegate<TModel>) {}
 
   /**
    * Resolves the active tenantId from the thread-local AsyncLocalStorage context.
@@ -40,7 +40,7 @@ export abstract class BaseTenantRepository<TModel extends { id: string }> {
   /**
    * Safe lookup of arrays, automatically merging filters with tenantId constraints.
    */
-  async findMany(where: Record<string, any> = {}): Promise<TModel[]> {
+  async findMany(where: Record<string, unknown> = {}): Promise<TModel[]> {
     const tenantId = this.getTenantId();
     return this.delegate.findMany({
       where: { ...where, tenantId },
@@ -50,7 +50,7 @@ export abstract class BaseTenantRepository<TModel extends { id: string }> {
   /**
    * Safe creation, verifying and injecting tenantId directly into data payloads.
    */
-  async create(data: Record<string, any>): Promise<TModel> {
+  async create(data: Record<string, unknown>): Promise<TModel> {
     const tenantId = this.getTenantId();
     
     if (data.tenantId && data.tenantId !== tenantId) {
@@ -66,7 +66,7 @@ export abstract class BaseTenantRepository<TModel extends { id: string }> {
    * Safe updates using Prisma-supported patterns.
    * First validates the record ownership via findFirst inside the tenant scope.
    */
-  async update(id: string, data: Record<string, any>): Promise<TModel> {
+  async update(id: string, data: Record<string, unknown>): Promise<TModel> {
     const tenantId = this.getTenantId();
     
     // Validate record existence and tenant ownership
@@ -110,7 +110,7 @@ export abstract class BaseTenantRepository<TModel extends { id: string }> {
   /**
    * Safe calculations counting, automatically appending tenantId to constraints.
    */
-  async count(where: Record<string, any> = {}): Promise<number> {
+  async count(where: Record<string, unknown> = {}): Promise<number> {
     const tenantId = this.getTenantId();
     return this.delegate.count({
       where: { ...where, tenantId },

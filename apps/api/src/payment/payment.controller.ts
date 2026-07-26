@@ -2,6 +2,7 @@ import { Controller, Post, Get, Body, Param, Req, UseGuards, HttpCode, HttpStatu
 import { WalletService } from './wallet.service';
 import { CreateWalletPaymentRequestDto } from './dto/create-wallet-payment-request.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { AuthenticatedRequest } from '../common/types/request.types';
 
 @Controller('api/v1/payments')
 @UseGuards(JwtAuthGuard)
@@ -16,7 +17,19 @@ export class PaymentController {
    */
   @Post('wallet')
   @HttpCode(HttpStatus.CREATED)
-  async createWalletPayment(@Body() dto: CreateWalletPaymentRequestDto, @Req() req: any) {
+  async createWalletPayment(@Body() dto: CreateWalletPaymentRequestDto, @Req() req: AuthenticatedRequest): Promise<{
+    paymentId: string;
+    provider: string;
+    walletType: string;
+    amount: number;
+    currency: string;
+    status: string;
+    nextAction?: { type: string; stripeSdk?: { walletType: string; clientSecret: string } };
+    redirectUrl?: string;
+    clientSecret?: string;
+    successUrl?: string;
+    cancelUrl?: string;
+  }> {
     const user = req.user;
     if (!user?.tenantId) {
       throw new ForbiddenException('Tenant context missing');
@@ -31,7 +44,12 @@ export class PaymentController {
    */
   @Get('wallet/:paymentId/verify')
   @HttpCode(HttpStatus.OK)
-  async verifyPayment(@Param('paymentId') paymentId: string, @Req() req: any) {
+  async verifyPayment(@Param('paymentId') paymentId: string, @Req() req: AuthenticatedRequest): Promise<{
+    paymentId: string;
+    status: string;
+    verified: boolean;
+    tenantId: string;
+  }> {
     const user = req.user;
     if (!user?.tenantId) {
       throw new ForbiddenException('Tenant context missing');

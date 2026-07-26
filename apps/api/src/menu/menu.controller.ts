@@ -15,28 +15,28 @@ export class MenuController {
 
   @Post('categories')
   @RequirePermission('create', 'Product')
-  async createCategory(@Body() dto: CreateCategoryRequestDto) {
+  async createCategory(@Body() dto: CreateCategoryRequestDto): Promise<unknown> {
     return this.menuService.createCategory(dto);
   }
 
   @Get('categories')
   @RequirePermission('read', 'Product')
   @RateLimit('public')
-  async getCategories() {
+  async getCategories(): Promise<unknown> {
     return this.menuService.getCategories();
   }
 
   @Post('products')
   @RequirePermission('create', 'Product')
   @RequireSubscriptionCheck('product')
-  async createProduct(@Body() dto: CreateProductRequestDto) {
+  async createProduct(@Body() dto: CreateProductRequestDto): Promise<unknown> {
     return this.menuService.createProduct(dto);
   }
 
   @Get('products')
   @RequirePermission('read', 'Product')
   @RateLimit('public')
-  async getProducts(@Query('categoryId') categoryId: string) {
+  async getProducts(@Query('categoryId') categoryId: string): Promise<unknown> {
     return this.menuService.getProducts(categoryId);
   }
 
@@ -46,7 +46,7 @@ export class MenuController {
     @Body('productId') productId: string,
     @Body('name') name: string,
     @Body('priceAdjustment') priceAdjustment: number,
-  ) {
+  ): Promise<unknown> {
     return this.menuService.createProductSize(productId, name, priceAdjustment);
   }
 
@@ -57,7 +57,7 @@ export class MenuController {
     @Body('name') name: string,
     @Body('minSelections') minSelections?: number,
     @Body('maxSelections') maxSelections?: number,
-  ) {
+  ): Promise<unknown> {
     return this.menuService.createProductAddon(productId, name, minSelections, maxSelections);
   }
 
@@ -67,7 +67,7 @@ export class MenuController {
     @Body('addonGroupId') addonGroupId: string,
     @Body('name') name: string,
     @Body('price') price: number,
-  ) {
+  ): Promise<unknown> {
     return this.menuService.createAddonItem(addonGroupId, name, price);
   }
 }

@@ -14,7 +14,7 @@ import { RateLimitModule } from '../common/rate-limit/rate-limit.module';
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.register({
       secret: JWT_CONFIG.accessTokenSecret,
-      signOptions: { expiresIn: JWT_CONFIG.accessTokenExpiry as any },
+      signOptions: { expiresIn: JWT_CONFIG.accessTokenExpiry },
     }),
     RateLimitModule,
   ],

@@ -20,7 +20,7 @@ class BrandingDto {
 
   @IsObject()
   @IsOptional()
-  dynamic?: Record<string, any>;
+  dynamic?: Record<string, unknown>;
 }
 
 export class UpdateTenantRequestDto {

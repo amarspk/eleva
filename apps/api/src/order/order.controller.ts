@@ -6,6 +6,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RbacPermissionGuard } from '../auth/guards/rbac-permission.guard';
 import { RequirePermission } from '../auth/decorators/require-permission.decorator';
 import { RateLimitGuard, RateLimit } from '../common/rate-limit/rate-limit.guard';
+import { AuthenticatedRequest } from '../common/types/request.types';
 
 @Controller('api/v1/orders')
 @UseGuards(JwtAuthGuard, RbacPermissionGuard, RateLimitGuard)
@@ -16,7 +17,7 @@ export class OrderController {
   @HttpCode(HttpStatus.CREATED)
   @RequirePermission('create', 'Order')
   @RateLimit('checkout')
-  async createOrder(@Body() dto: CreateOrderRequestDto, @Req() req: any) {
+  async createOrder(@Body() dto: CreateOrderRequestDto, @Req() req: AuthenticatedRequest): Promise<unknown> {
     const userTenantId = req.user.tenantId;
     return this.orderService.createOrder(dto, userTenantId);
   }
@@ -24,28 +25,28 @@ export class OrderController {
   @Get(':id')
   @HttpCode(HttpStatus.OK)
   @RequirePermission('read', 'Order')
-  async getOrder(@Param('id') id: string) {
+  async getOrder(@Param('id') id: string): Promise<unknown> {
     return this.orderService.getOrder(id);
   }
 
   @Get()
   @HttpCode(HttpStatus.OK)
   @RequirePermission('read', 'Order')
-  async getOrders(@Query('branchId') branchId?: string) {
+  async getOrders(@Query('branchId') branchId?: string): Promise<unknown> {
     return this.orderService.getOrders(branchId);
   }
 
   @Put(':id/status')
   @HttpCode(HttpStatus.OK)
   @RequirePermission('update', 'Order')
-  async updateOrderStatus(@Param('id') id: string, @Body() dto: UpdateOrderStatusRequestDto) {
+  async updateOrderStatus(@Param('id') id: string, @Body() dto: UpdateOrderStatusRequestDto): Promise<unknown> {
     return this.orderService.updateOrderStatus(id, dto);
   }
 
   @Post(':id/cancel')
   @HttpCode(HttpStatus.OK)
   @RequirePermission('update', 'Order')
-  async cancelOrder(@Param('id') id: string) {
+  async cancelOrder(@Param('id') id: string): Promise<unknown> {
     return this.orderService.cancelOrder(id);
   }
 }

@@ -7,6 +7,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RbacPermissionGuard } from '../auth/guards/rbac-permission.guard';
 import { RequirePermission } from '../auth/decorators/require-permission.decorator';
 import { SubscriptionGuard, RequireSubscriptionCheck } from '../subscription/guards/subscription.guard';
+import { AuthenticatedRequest } from '../common/types/request.types';
 
 @Controller('api/v1/tenants')
 export class TenantController {
@@ -15,14 +16,25 @@ export class TenantController {
   @Public()
   @Post()
   @HttpCode(HttpStatus.CREATED)
-  async onboard(@Body() dto: CreateTenantRequestDto) {
+  async onboard(@Body() dto: CreateTenantRequestDto): Promise<{
+    tenant: { id: string; name: string; subdomain: string; status: string };
+    owner: { id: string; email: string };
+    branch: { id: string; name: string };
+  }> {
     return this.tenantService.onboard(dto);
   }
 
   @Get(':id')
   @HttpCode(HttpStatus.OK)
   @UseGuards(JwtAuthGuard)
-  async getTenant(@Param('id') id: string, @Req() req: any) {
+  async getTenant(@Param('id') id: string, @Req() req: AuthenticatedRequest): Promise<{
+    id: string;
+    name: string;
+    subdomain: string;
+    customDomain: string | null;
+    status: string;
+    branding: Record<string, unknown>;
+  }> {
     const requester = req.user ? { tenantId: req.user.tenantId, roles: req.user.roles } : undefined;
     return this.tenantService.getTenantById(id, requester);
   }
@@ -32,7 +44,15 @@ export class TenantController {
   @UseGuards(JwtAuthGuard, RbacPermissionGuard, SubscriptionGuard)
   @RequirePermission('update', 'Tenant')
   @RequireSubscriptionCheck('customDomain')
-  async updateTenant(@Param('id') id: string, @Body() dto: UpdateTenantRequestDto, @Req() req: any) {
+  async updateTenant(@Param('id') id: string, @Body() dto: UpdateTenantRequestDto, @Req() req: AuthenticatedRequest): Promise<{
+    id: string;
+    name: string;
+    subdomain: string;
+    customDomain: string | null;
+    status: string;
+    branding: Record<string, unknown>;
+    updatedAt: unknown;
+  }> {
     const requester = req.user ? { tenantId: req.user.tenantId, roles: req.user.roles } : undefined;
     return this.tenantService.updateTenant(id, dto, requester);
   }

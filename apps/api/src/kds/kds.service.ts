@@ -30,7 +30,23 @@ export class KdsService {
    * Source of truth: kitchen_queues table joined with orders and order items.
    * Computes priority server-side and pushes ticket.priority_changed when escalation occurs.
    */
-  async getTickets(branchId: string, tenantId: string) {
+  async getTickets(branchId: string, tenantId: string): Promise<Array<{
+    ticketId: string;
+    orderId: string;
+    ticketNumber: string;
+    priority: string;
+    elapsedMinutes: number;
+    createdAt: Date;
+    orderStatus: string;
+    items: Array<{
+      orderItemId: string;
+      name: string;
+      quantity: number;
+      size: string | null;
+      addons: Array<string | null>;
+      cookingStatus: string;
+    }>;
+  }>> {
     this.logger.log(`Fetching KDS tickets for tenant [${tenantId}] branch [${branchId}]`);
 
     // Validate branch ownership within tenant context
@@ -80,7 +96,7 @@ export class KdsService {
 
     // Transform to ticket format with server-side priority computation
     const tickets = await Promise.all(
-      kitchenQueues.map(async (kq: any) => {
+      kitchenQueues.map(async (kq) => {
         const order = kq.order;
         const createdAt = new Date(order.createdAt);
         const elapsedMs = now.getTime() - createdAt.getTime();
@@ -88,7 +104,7 @@ export class KdsService {
 
         // Server-side priority escalation: if elapsed > maxPrepTime of items
         const maxPrepTime = Math.max(
-          ...order.orderItems.map((oi: any) => oi.product?.preparationTime || 15),
+          ...order.orderItems.map((oi) => oi.product?.preparationTime || 15),
           15,
         );
         const computedPriority = elapsedMinutes > maxPrepTime ? 'RUSH' : 'NORMAL';
@@ -122,9 +138,9 @@ export class KdsService {
           elapsedMinutes,
           createdAt: order.createdAt,
           orderStatus: order.status,
-          items: order.orderItems.map((item: any) => {
+          items: order.orderItems.map((item) => {
             const addons = item.orderItemAddons
-              ? item.orderItemAddons.map((a: any) => a.addonItem?.name).filter(Boolean)
+              ? item.orderItemAddons.map((a) => a.addonItem?.name).filter(Boolean)
               : [];
 
             return {
@@ -147,7 +163,11 @@ export class KdsService {
    * Updates cooking status of a specific order item.
    * Validates state transitions, updates kitchen_queues timestamps, and emits real-time events.
    */
-  async updateCookingStatus(orderItemId: string, status: CookingStatus, tenantId: string) {
+  async updateCookingStatus(orderItemId: string, status: CookingStatus, tenantId: string): Promise<{
+    orderItemId: string;
+    cookingStatus: string;
+    updatedAt: string;
+  }> {
     this.logger.log(`Updating cooking status for orderItem [${orderItemId}] to [${status}] under tenant [${tenantId}]`);
 
     // Validate cooking status enum
@@ -177,7 +197,7 @@ export class KdsService {
     // Fetch parent order to resolve branchId for broadcast (tenant-isolated)
     const parentOrder = await dbTenantContext.run({ tenantId }, async () => {
       return prisma.order.findFirst({
-        where: { id: (orderItem as any).orderId, tenantId },
+        where: { id: orderItem.orderId, tenantId },
         select: { id: true, branchId: true, tenantId: true },
       });
     });
@@ -250,7 +270,7 @@ export class KdsService {
         return;
       }
 
-      const updateData: Record<string, any> = {};
+      const updateData: Record<string, unknown> = {};
 
       if (status === CookingStatus.PREPARING && !kitchenQueue.startedCookingAt) {
         updateData.startedCookingAt = new Date();
@@ -270,7 +290,7 @@ export class KdsService {
     }
   }
 
-  private validateCookingTransition(current: CookingStatus, next: CookingStatus) {
+  private validateCookingTransition(current: CookingStatus, next: CookingStatus): void {
     const allowed: Record<CookingStatus, CookingStatus[]> = {
       [CookingStatus.PENDING]: [CookingStatus.PREPARING, CookingStatus.COOKED, CookingStatus.SERVED],
       [CookingStatus.PREPARING]: [CookingStatus.COOKED, CookingStatus.SERVED],

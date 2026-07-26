@@ -11,5 +11,5 @@ export interface RequiredPermission {
  * Decorator to require granular CASL actions and resource permissions on endpoints.
  * E.g., @RequirePermission('update', 'Product')
  */
-export const RequirePermission = (action: string, resource: string) =>
+export const RequirePermission = (action: string, resource: string): ReturnType<typeof SetMetadata<RequiredPermission>> =>
   SetMetadata(REQUIRE_PERMISSION_KEY, { action, resource });

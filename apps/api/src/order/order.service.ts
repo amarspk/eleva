@@ -58,7 +58,7 @@ export class OrderService {
    * Centralized broadcast helper - preserves tenant isolation
    * Uses tenantId and branchId from database order record (server-resolved), never from client
    */
-  private emitKdsEvent(tenantId: string, branchId: string, eventName: string, order: any) {
+  private emitKdsEvent(tenantId: string, branchId: string, eventName: string, order: Record<string, unknown>): void {
     try {
       if (!this.kdsGateway) {
         this.logger.debug(`KdsGateway not injected, skipping broadcast for ${eventName}`);
@@ -87,7 +87,7 @@ export class OrderService {
    * Orchestrates a secure checkout transaction.
    * Maps exactly to the transactional architecture requirements in TSK-2.0.
    */
-  async createOrder(dto: CreateOrderRequestDto, userTenantId: string) {
+  async createOrder(dto: CreateOrderRequestDto, userTenantId: string): Promise<Record<string, unknown>> {
     this.logger.log(`Initiating checkout transaction for tenant: [${userTenantId}]`);
 
     // 1. Validate branch ownership and resolve parameters
@@ -103,7 +103,7 @@ export class OrderService {
     }
 
     let subtotal = 0;
-    const orderItemsToCreate: any[] = [];
+    const orderItemsToCreate: Array<Record<string, unknown>> = [];
 
     // 2. Validate products and calculate totals strictly using database values
     for (const item of dto.items) {
@@ -124,7 +124,7 @@ export class OrderService {
       }
 
       let lineAddonsTotal = 0;
-      const addonsToCreate: any[] = [];
+      const addonsToCreate: Array<Record<string, unknown>> = [];
 
       // B. Evaluate addons and choice selections
       if (item.addons && item.addons.length > 0) {
@@ -169,7 +169,7 @@ export class OrderService {
     const orderNumber = `ORD-${new Date().getFullYear()}-${Math.floor(10000 + Math.random() * 90000)}`;
 
     // 4. Execute atomic database transaction
-    const order = await prisma.$transaction(async (tx: any) => {
+    const order = await prisma.$transaction(async (tx) => {
       const createdOrder = await tx.order.create({
         data: {
           tenantId: userTenantId,
@@ -220,13 +220,13 @@ export class OrderService {
         ticketId: order.id,
         ticketNumber: orderNumber.slice(-3),
         priority: 'NORMAL',
-        items: order.orderItems.map((item: any) => ({
+        items: order.orderItems.map((item) => ({
           orderItemId: item.id,
           name: item.product?.name || 'Unknown Product',
           quantity: item.quantity,
           size: item.size?.name || null,
           addons: item.orderItemAddons
-            ? item.orderItemAddons.map((a: any) => a.addonItem?.name).filter(Boolean)
+            ? item.orderItemAddons.map((a) => a.addonItem?.name).filter(Boolean)
             : [],
           cookingStatus: item.cookingStatus,
         })),
@@ -243,7 +243,7 @@ export class OrderService {
   /**
    * Safe lookup by id.
    */
-  async getOrder(id: string) {
+  async getOrder(id: string): Promise<Record<string, unknown>> {
     const order = await this.orderRepository.findById(id);
     if (!order) {
       throw new NotFoundException(`Order with ID [${id}] was not found.`);
@@ -254,8 +254,8 @@ export class OrderService {
   /**
    * Safe listing scoped to tenant.
    */
-  async getOrders(branchId?: string) {
-    const where: Record<string, any> = {};
+  async getOrders(branchId?: string): Promise<Array<Record<string, unknown>>> {
+    const where: Record<string, unknown> = {};
     if (branchId) {
       where.branchId = branchId;
     }
@@ -267,7 +267,7 @@ export class OrderService {
    * Automatically generates billing invoices upon successful completion.
    * Broadcasts KDS events automatically whenever status changes.
    */
-  async updateOrderStatus(id: string, dto: UpdateOrderStatusRequestDto) {
+  async updateOrderStatus(id: string, dto: UpdateOrderStatusRequestDto): Promise<Record<string, unknown>> {
     const order = await this.orderRepository.findById(id);
     if (!order) {
       throw new NotFoundException(`Order with ID [${id}] was not found.`);
@@ -299,7 +299,7 @@ export class OrderService {
     if (dto.status === OrderStatus.READY && this.smsService) {
       // In real system, would fetch customer phone from order.customerId
       // For now, use mock phone number if available in order
-      const customerPhone = (updatedOrder as any).customerPhone || '+12025550144';
+      const customerPhone = (updatedOrder as Record<string, unknown>).customerPhone as string || '+12025550144';
       this.smsService
         .sendOrderStatusSms(customerPhone, updatedOrder.orderNumber, dto.status, updatedOrder.tenantId)
         .catch((err) => {
@@ -313,7 +313,7 @@ export class OrderService {
   /**
    * Safe cancellation.
    */
-  async cancelOrder(id: string) {
+  async cancelOrder(id: string): Promise<Record<string, unknown>> {
     const order = await this.orderRepository.findById(id);
     if (!order) {
       throw new NotFoundException(`Order with ID [${id}] was not found.`);
@@ -336,7 +336,7 @@ export class OrderService {
   /**
    * Strict State Machine Transition Evaluator.
    */
-  private validateStateTransition(current: OrderStatus, next: OrderStatus) {
+  private validateStateTransition(current: OrderStatus, next: OrderStatus): void {
     const allowedTransitions: Record<OrderStatus, OrderStatus[]> = {
       DRAFT: [OrderStatus.PENDING, OrderStatus.CANCELLED],
       PENDING: [OrderStatus.ACCEPTED, OrderStatus.CANCELLED],
@@ -356,7 +356,7 @@ export class OrderService {
   /**
    * Safely generates an accounting invoice and dispatches email receipt per DOC-008 7.2
    */
-  private async generateInvoice(order: any) {
+  private async generateInvoice(order: Record<string, unknown>): Promise<Record<string, unknown>> {
     this.logger.log(`Order status marked as completed. Generating billing invoice record...`);
 
     const invoiceNumber = `INV-${new Date().getFullYear()}-${Math.floor(100000 + Math.random() * 900000)}`;

@@ -1,11 +1,11 @@
 import { NestFactory } from '@nestjs/core';
-import { Logger, ValidationPipe } from '@nestjs/common';
+import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module';
 import { SecretsManagerService } from './common/secrets/secrets-manager.service';
 import { ZayjarLogger, getGlobalLogger } from './common/logging/logger.service';
 import { initDatadogTracer } from './common/logging/datadog-apm';
 
-async function bootstrap() {
+async function bootstrap(): Promise<void> {
   initDatadogTracer();
 
   const logger = getGlobalLogger().child('Bootstrap');
@@ -20,9 +20,9 @@ async function bootstrap() {
 
   app.use(require('express').json({
     limit: '10mb',
-    verify: (req: any, _res: any, buf: Buffer) => {
+    verify: (req: Record<string, unknown>, _res: unknown, buf: Buffer) => {
       if (req.method === 'POST' && req.path === '/api/v1/billing/webhooks') {
-        req.rawBody = Buffer.from(buf);
+        (req as Record<string, unknown>).rawBody = Buffer.from(buf);
       }
     },
   }));

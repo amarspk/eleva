@@ -1,6 +1,7 @@
 import { Injectable, NestMiddleware } from '@nestjs/common';
 import { Request, Response, NextFunction } from 'express';
 import * as crypto from 'crypto';
+import { RequestWithTenant } from '../types/request.types';
 
 export const CORRELATION_ID_HEADER = 'X-Request-ID';
 
@@ -14,7 +15,7 @@ export class CorrelationIdMiddleware implements NestMiddleware {
     req.headers[CORRELATION_ID_HEADER.toLowerCase()] = correlationId;
     res.setHeader(CORRELATION_ID_HEADER, correlationId);
 
-    (req as any).correlationId = correlationId;
+    (req as RequestWithTenant).correlationId = correlationId;
 
     next();
   }

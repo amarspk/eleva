@@ -10,6 +10,14 @@ describe('HttpLoggingMiddleware', () => {
   let next: jest.Mock;
 
   beforeEach(() => {
+    const mockLogger = {
+      logRequest: jest.fn(),
+      error: jest.fn(),
+      warn: jest.fn(),
+      child: jest.fn().mockReturnThis(),
+    };
+    (getGlobalLogger as jest.Mock).mockReturnValue(mockLogger);
+
     middleware = new HttpLoggingMiddleware();
     req = {
       method: 'GET',

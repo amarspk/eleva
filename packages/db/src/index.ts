@@ -15,11 +15,11 @@ export const dbTenantContext = new AsyncLocalStorage<TenantContext>();
  * - Tenant isolation filters on all read/write operations
  * - Cross-tenant insertion prevention
  */
-function buildTenantScopedExtension() {
+function buildTenantScopedExtension(): Record<string, unknown> {
   return {
     query: {
       $allModels: {
-        async $allOperations({ model, operation, args, query }: { model: string; operation: string; args: any; query: (args: any) => Promise<any> }) {
+        async $allOperations({ model, operation, args, query }: { model: string; operation: string; args: Record<string, unknown>; query: (args: Record<string, unknown>) => Promise<unknown> }): Promise<unknown> {
           const context = dbTenantContext.getStore();
           const tenantId = context?.tenantId;
           const isPlatformOwner = context?.isPlatformOwner || false;
@@ -49,9 +49,9 @@ function buildTenantScopedExtension() {
             // 3. Enforce tenant scoping filters on standard operations (no rerouting/recursion)
             // ==========================================
             if (operation === 'findFirst' || operation === 'findMany' || operation === 'count' || operation === 'update' || operation === 'delete') {
-              const rawArgs = args as any;
+              const rawArgs = args as Record<string, Record<string, unknown>>;
               rawArgs.where = {
-                ...rawArgs.where,
+                ...(rawArgs.where as Record<string, unknown>),
                 tenantId,
               };
             }
@@ -60,7 +60,7 @@ function buildTenantScopedExtension() {
             // 4. Secure create operations
             // ==========================================
             else if (operation === 'create') {
-              const rawArgs = args as any;
+              const rawArgs = args as Record<string, Record<string, unknown>>;
               if (rawArgs.data && rawArgs.data.tenantId && rawArgs.data.tenantId !== tenantId) {
                 throw new Error(`Fail-Safe Block: Cross-tenant data insertion attempt detected and blocked.`);
               }
@@ -83,7 +83,7 @@ function buildTenantScopedExtension() {
  * Primary PrismaClient — connected to the write primary (DATABASE_URL).
  * Used for all mutating operations (create, update, delete).
  */
-export const prisma = new PrismaClient().$extends(buildTenantScopedExtension()) as any;
+export const prisma = new PrismaClient().$extends(buildTenantScopedExtension());
 
 /**
  * Read-replica PrismaClient — connected to the read replica (DATABASE_READ_URL).
@@ -101,7 +101,7 @@ export const prismaRead = readReplicaUrl
           url: readReplicaUrl,
         },
       },
-    }).$extends(buildTenantScopedExtension()) as any
+    }).$extends(buildTenantScopedExtension())
   : prisma;
 
 export * from './generated-client';

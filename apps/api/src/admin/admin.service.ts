@@ -10,7 +10,14 @@ export class AdminService {
    * Returns analytical telemetry across tenant landscape per DOC-003 3.10.1
    * PLATFORM_OWNER only
    */
-  async getTenantsMetrics() {
+  async getTenantsMetrics(): Promise<{
+    totalTenants: number;
+    activeSubscriptions: number;
+    mrrUSD: number;
+    arrUSD: number;
+    systemLoadAverage: number;
+    databaseConnectionsCount: number;
+  }> {
     this.logger.log('Fetching platform tenant metrics for PLATFORM_OWNER');
 
     // Total tenants (excluding soft-deleted)
@@ -31,7 +38,7 @@ export class AdminService {
 
     let mrrUSD = 0;
     for (const sub of activeSubsWithPlans) {
-      const plan = (sub as any).plan;
+      const plan = sub.plan as { priceMonthly?: number | null } | undefined;
       if (plan && plan.priceMonthly) {
         mrrUSD += Number(plan.priceMonthly);
       }
@@ -51,7 +58,7 @@ export class AdminService {
     let databaseConnectionsCount = 0;
     try {
       // Attempt to query pg_stat_activity if DATABASE_URL allows, otherwise fallback
-      const result: any = await prisma.$queryRaw`SELECT count(*) as count FROM pg_stat_activity`;
+      const result = await prisma.$queryRaw`SELECT count(*) as count FROM pg_stat_activity` as Array<Record<string, unknown>>;
       if (result && result[0] && result[0].count) {
         databaseConnectionsCount = Number(result[0].count);
       } else {

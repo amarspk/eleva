@@ -15,25 +15,25 @@ export class BranchController {
   @Post('branches')
   @RequirePermission('create', 'Branch')
   @RequireSubscriptionCheck('branch')
-  async createBranch(@Body() dto: CreateBranchRequestDto) {
+  async createBranch(@Body() dto: CreateBranchRequestDto): Promise<unknown> {
     return this.branchService.createBranch(dto);
   }
 
   @Get('branches')
   @RequirePermission('read', 'Branch')
-  async getBranches() {
+  async getBranches(): Promise<unknown> {
     return this.branchService.getBranches();
   }
 
   @Post('tables')
   @RequirePermission('create', 'Table')
-  async createTable(@Body() dto: CreateTableRequestDto) {
+  async createTable(@Body() dto: CreateTableRequestDto): Promise<unknown> {
     return this.branchService.createTable(dto);
   }
 
   @Get('tables')
   @RequirePermission('read', 'Table')
-  async getTables(@Query('branchId') branchId: string) {
+  async getTables(@Query('branchId') branchId: string): Promise<unknown> {
     return this.branchService.getTables(branchId);
   }
 }

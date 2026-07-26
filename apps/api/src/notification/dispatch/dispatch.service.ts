@@ -20,7 +20,7 @@ export interface DispatchJob {
   tenantId: string;
   channel: NotificationChannel;
   event: string;
-  payload: any;
+  payload: Record<string, unknown>;
   priority: NotificationPriority;
   attempts: number;
   maxAttempts: number;
@@ -106,9 +106,9 @@ export class DispatchService implements OnModuleDestroy {
     tenantId: string,
     channel: NotificationChannel,
     event: string,
-    payload: any,
+    payload: Record<string, unknown>,
     priority: NotificationPriority = 'normal',
-  ) {
+  ): Promise<{ queued: boolean; jobId: string; channel: string; event: string; fallback?: string }> {
     const job: DispatchJob = {
       id: `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
       tenantId,
@@ -147,7 +147,13 @@ export class DispatchService implements OnModuleDestroy {
   /**
    * Broadcast to all channels for an event per DOC-008 §7.1 dispatch engine.
    */
-  async dispatchToAllChannels(tenantId: string, event: string, payload: any) {
+  async dispatchToAllChannels(tenantId: string, event: string, payload: Record<string, unknown>): Promise<Array<{
+    queued: boolean;
+    jobId: string;
+    channel: string;
+    event: string;
+    fallback?: string;
+  }>> {
     const channels: NotificationChannel[] = ['email', 'sms', 'push', 'webhook', 'websocket'];
     const results = [];
 
@@ -196,7 +202,7 @@ export class DispatchService implements OnModuleDestroy {
   private async processChannel(
     channel: NotificationChannel,
     event: string,
-    payload: any,
+    payload: Record<string, unknown>,
     tenantId: string,
   ): Promise<{ success: boolean; provider?: string }> {
     switch (channel) {
@@ -246,7 +252,7 @@ export class DispatchService implements OnModuleDestroy {
       case 'webhook': {
         try {
           const results = await this.webhookService.dispatchEvent(tenantId, event, payload);
-          const successCount = results.filter((r: any) => r.success).length;
+          const successCount = results.filter((r) => r.success).length;
           return { success: successCount > 0 || results.length > 0, provider: 'webhook' };
         } catch {
           return { success: false };

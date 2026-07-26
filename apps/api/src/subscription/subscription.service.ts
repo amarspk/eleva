@@ -11,7 +11,7 @@ export class SubscriptionService {
   /**
    * Retrieves active subscription and plan for tenant with tenant isolation
    */
-  async getActiveSubscription(tenantId: string) {
+  async getActiveSubscription(tenantId: string): Promise<Record<string, unknown>> {
     const subscription = await prisma.subscription.findFirst({
       where: { tenantId },
       include: { plan: true },
@@ -29,12 +29,12 @@ export class SubscriptionService {
    * Checks if tenant's subscription status allows operations
    * Per DOC-001 1.10 and DOC-005 4.7: TRIALING, ACTIVE allowed, PAST_DUE has grace period, UNPAID/CANCELED blocked
    */
-  async checkSubscriptionStatus(tenantId: string) {
+  async checkSubscriptionStatus(tenantId: string): Promise<Record<string, unknown>> {
     const subscription = await this.getActiveSubscription(tenantId);
 
-    const status = (subscription as any).status;
+    const status = subscription.status;
     const tenant = await prisma.tenant.findUnique({ where: { id: tenantId } });
-    const tenantStatus = (tenant as any)?.status;
+    const tenantStatus = tenant?.status;
 
     // Block if UNPAID or CANCELED
     if (status === 'UNPAID' || status === 'CANCELED' || tenantStatus === 'UNPAID' || tenantStatus === 'CANCELED') {
@@ -54,15 +54,15 @@ export class SubscriptionService {
   /**
    * Checks branch limit against plan's maxBranches
    */
-  async checkBranchLimit(tenantId: string) {
+  async checkBranchLimit(tenantId: string): Promise<{ currentCount: number; maxBranches: number }> {
     const subscription = await this.checkSubscriptionStatus(tenantId);
-    const plan = (subscription as any).plan;
+    const plan = subscription.plan as Record<string, unknown> | undefined;
 
     if (!plan) {
       throw new NotFoundException('Subscription plan not found');
     }
 
-    const maxBranches = plan.maxBranches;
+    const maxBranches = plan.maxBranches as number;
 
     // Count current branches within tenant context
     const currentCount = await dbTenantContext.run({ tenantId }, async () => {
@@ -81,14 +81,13 @@ export class SubscriptionService {
   /**
    * Checks product limit per branch against plan's maxProductsPerBranch
    */
-  async checkProductLimit(tenantId: string, branchId?: string) {
+  async checkProductLimit(tenantId: string, branchId?: string): Promise<{ currentCount: number; maxProducts: number }> {
     const subscription = await this.checkSubscriptionStatus(tenantId);
-    const plan = (subscription as any).plan;
+    const plan = subscription.plan as Record<string, unknown> | undefined;
 
-    const maxProducts = plan.maxProductsPerBranch;
+    const maxProducts = (plan?.maxProductsPerBranch as number) ?? 0;
 
-    // For simplicity, count all products under tenant, or per branch if branchId provided
-    const _where: any = {};
+    const _where: Record<string, unknown> = {};
     if (branchId) {
       // Need to count products that belong to restaurant that belongs to branch? Simplified: count via category->restaurant->branch?
       // For now, count all products under tenant as proxy
@@ -110,9 +109,9 @@ export class SubscriptionService {
   /**
    * Checks if custom domains allowed per plan
    */
-  async checkCustomDomainAllowed(tenantId: string) {
+  async checkCustomDomainAllowed(tenantId: string): Promise<boolean> {
     const subscription = await this.checkSubscriptionStatus(tenantId);
-    const plan = (subscription as any).plan;
+    const plan = subscription.plan as Record<string, unknown> | undefined;
 
     if (!plan.allowCustomDomains) {
       throw new ForbiddenException(
@@ -126,9 +125,9 @@ export class SubscriptionService {
   /**
    * Checks if online payments allowed per plan
    */
-  async checkOnlinePaymentsAllowed(tenantId: string) {
+  async checkOnlinePaymentsAllowed(tenantId: string): Promise<boolean> {
     const subscription = await this.checkSubscriptionStatus(tenantId);
-    const plan = (subscription as any).plan;
+    const plan = subscription.plan as Record<string, unknown> | undefined;
 
     if (!plan.allowOnlinePayments) {
       throw new ForbiddenException(
@@ -142,9 +141,9 @@ export class SubscriptionService {
   /**
    * Checks if analytics allowed per plan
    */
-  async checkAnalyticsAllowed(tenantId: string) {
+  async checkAnalyticsAllowed(tenantId: string): Promise<boolean> {
     const subscription = await this.checkSubscriptionStatus(tenantId);
-    const plan = (subscription as any).plan;
+    const plan = subscription.plan as Record<string, unknown> | undefined;
 
     if (!plan.allowAnalytics) {
       throw new ForbiddenException(

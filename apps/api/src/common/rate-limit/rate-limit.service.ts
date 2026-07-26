@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { CacheService } from '../cache/cache.service';
+import type { RedisClientType } from 'redis';
 
 export interface RateLimitConfig {
   limit: number;
@@ -30,10 +31,10 @@ export class RateLimitService {
         // Use CacheService get/set with custom logic for atomic increment
         // For simplicity, we use direct Redis client if available via cacheService
         // Fallback to memory if Redis operation fails
-        const cacheServiceAny = this.cacheService as any;
-        const redisClient = cacheServiceAny.redisClient;
+        const cacheServiceAccess = this.cacheService as unknown as { redisClient: RedisClientType | null; isConnected: boolean };
+        const redisClient = cacheServiceAccess.redisClient;
 
-        if (redisClient && cacheServiceAny.isConnected) {
+        if (redisClient && cacheServiceAccess.isConnected) {
           // Atomic INCR + EXPIRE using Redis
           const count = await redisClient.incr(fullKey);
           if (count === 1) {
@@ -93,7 +94,7 @@ export class RateLimitService {
   /**
    * Cleanup memory store periodically (optional)
    */
-  cleanup() {
+  cleanup(): void {
     const now = Date.now();
     for (const [key, entry] of this.memoryStore.entries()) {
       if (now > entry.resetTime) {

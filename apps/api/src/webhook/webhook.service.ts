@@ -12,7 +12,13 @@ export class WebhookService {
    * Creates a webhook subscription per DOC-008 7.5
    * Tenant isolation via dbTenantContext, secretKey never returned in list
    */
-  async createWebhook(dto: CreateWebhookRequestDto, tenantId: string) {
+  async createWebhook(dto: CreateWebhookRequestDto, tenantId: string): Promise<{
+    id: string;
+    targetUrl: string;
+    events: string[];
+    isActive: boolean;
+    createdAt: Date;
+  }> {
     this.logger.log(`Creating webhook for tenant [${tenantId}] target [${dto.targetUrl}] events [${dto.events.join(',')}]`);
 
     const webhook = await dbTenantContext.run({ tenantId }, async () => {
@@ -30,17 +36,23 @@ export class WebhookService {
       targetUrl: webhook.targetUrl,
       events: webhook.events,
       isActive: webhook.isActive,
-      createdAt: (webhook as any).createdAt,
+      createdAt: webhook.createdAt,
     };
   }
 
-  async listWebhooks(tenantId: string) {
+  async listWebhooks(tenantId: string): Promise<Array<{
+    id: string;
+    targetUrl: string;
+    events: string[];
+    isActive: boolean;
+    createdAt: Date;
+  }>> {
     const webhooks = await dbTenantContext.run({ tenantId }, async () => {
-      return this.webhookRepository.findMany({ isActive: true } as any);
+      return this.webhookRepository.findMany({ isActive: true });
     });
 
     // Mask secretKey
-    return webhooks.map((wh: any) => ({
+    return webhooks.map((wh) => ({
       id: wh.id,
       targetUrl: wh.targetUrl,
       events: wh.events,
@@ -49,7 +61,7 @@ export class WebhookService {
     }));
   }
 
-  async deleteWebhook(id: string, tenantId: string) {
+  async deleteWebhook(id: string, tenantId: string): Promise<{ success: boolean; id: string }> {
     const existing = await dbTenantContext.run({ tenantId }, async () => {
       return this.webhookRepository.findById(id);
     });
@@ -69,14 +81,19 @@ export class WebhookService {
    * Dispatches webhook event to all active subscriptions for tenant that listen to eventName
    * Implements HMAC-SHA256 signature per DOC-008 7.5 and retry with exponential backoff
    */
-  async dispatchEvent(tenantId: string, eventName: string, payload: any) {
+  async dispatchEvent(tenantId: string, eventName: string, payload: Record<string, unknown>): Promise<Array<{
+    webhookId: string;
+    targetUrl: string;
+    success: boolean;
+    attempts: number;
+  }>> {
     this.logger.log(`Dispatching webhook event [${eventName}] for tenant [${tenantId}]`);
 
     const webhooks = await dbTenantContext.run({ tenantId }, async () => {
       return this.webhookRepository.findMany();
     });
 
-    const relevant = webhooks.filter((wh: any) => wh.isActive && wh.events.includes(eventName));
+    const relevant = webhooks.filter((wh) => wh.isActive && wh.events.includes(eventName));
 
     if (relevant.length === 0) {
       this.logger.debug(`No active webhooks for event [${eventName}] tenant [${tenantId}]`);
@@ -85,7 +102,7 @@ export class WebhookService {
 
     const results = [];
 
-    for (const wh of relevant as any[]) {
+    for (const wh of relevant) {
       const signature = this.generateSignature(payload, wh.secretKey);
       const result = await this.sendWithRetry(wh.targetUrl, eventName, payload, signature, wh.secretKey);
       results.push({ webhookId: wh.id, targetUrl: wh.targetUrl, success: result.success, attempts: result.attempts });
@@ -97,7 +114,7 @@ export class WebhookService {
   /**
    * Generates HMAC-SHA256 signature per DOC-008 7.5, sent as X-Zayjar-Signature
    */
-  public generateSignature(payload: any, secret: string): string {
+  public generateSignature(payload: Record<string, unknown>, secret: string): string {
     const payloadString = JSON.stringify(payload);
     return crypto.createHmac('sha256', secret).update(payloadString).digest('hex');
   }
@@ -105,13 +122,13 @@ export class WebhookService {
   private async sendWithRetry(
     targetUrl: string,
     eventName: string,
-    payload: any,
+    payload: Record<string, unknown>,
     signature: string,
     secret: string,
     maxAttempts = 5,
   ): Promise<{ success: boolean; attempts: number }> {
     let attempts = 0;
-    let lastError: any = null;
+    let lastError: Error | null = null;
 
     while (attempts < maxAttempts) {
       attempts++;
@@ -128,7 +145,7 @@ export class WebhookService {
             'X-Zayjar-Event': eventName,
           },
           body: JSON.stringify(payload),
-          signal: controller.signal as any,
+          signal: controller.signal,
         });
 
         clearTimeout(timeout);

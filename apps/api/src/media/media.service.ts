@@ -1,5 +1,5 @@
 import { Injectable, Logger, NotFoundException, BadRequestException, Inject } from '@nestjs/common';
-import { prisma } from '@zayjar/db';
+import { prisma, MediaType, Media } from '@zayjar/db';
 import { MEDIA_TYPE_CONFIG } from '@zayjar/types';
 import { StorageProvider } from './storage/storage-provider.interface';
 import { ImageProcessorService } from './image-processor.service';
@@ -61,7 +61,7 @@ export class MediaService {
     });
 
     const existingMedia = await prisma.media.findFirst({
-      where: { tenantId, entityType, entityId, mediaType: mediaType as any, status: 'ready' },
+      where: { tenantId, entityType, entityId, mediaType: mediaType as MediaType, status: 'ready' },
     });
 
     // SERIALIZABLE isolation prevents two concurrent uploads for the same
@@ -154,7 +154,7 @@ export class MediaService {
           }
         }
 
-        const result = await prisma.$transaction(async (tx: any) => {
+        const result = await prisma.$transaction(async (tx) => {
           const currentExisting = existingMedia
             ? await tx.media.findFirst({
                 where: { id: existingMedia.id, status: 'ready' },
@@ -219,11 +219,12 @@ export class MediaService {
         });
 
         return result;
-      } catch (err: any) {
+      } catch (err: unknown) {
+        const error = err as Record<string, unknown>;
         const isRetryableError =
-          err?.code === PG_SERIALIZATION_ERROR ||
-          err?.code === PG_DEADLOCK_ERROR ||
-          err?.message?.includes('serialization failure');
+          error?.code === PG_SERIALIZATION_ERROR ||
+          error?.code === PG_DEADLOCK_ERROR ||
+          (err as Error).message?.includes('serialization failure');
 
         if (isRetryableError && attemptStorageKeys.length > 0) {
           this.logger.warn(
@@ -261,7 +262,7 @@ export class MediaService {
     entityType?: string,
     entityId?: string,
   ): Promise<MediaResponseDto[]> {
-    const where: any = { tenantId, status: 'ready' };
+    const where: Record<string, unknown> = { tenantId, status: 'ready' };
     if (entityType) {
       where.entityType = entityType;
     }
@@ -299,7 +300,7 @@ export class MediaService {
     }
 
     const shouldDeleteFiles = await this.serializableRetry(async () => {
-      return prisma.$transaction(async (tx: any) => {
+      return prisma.$transaction(async (tx) => {
         // Re-read inside SERIALIZABLE tx to get latest state
         const currentMedia = await tx.media.findFirst({ where: { id, tenantId } });
         if (!currentMedia) {
@@ -361,11 +362,12 @@ export class MediaService {
     for (let attempt = 1; attempt <= MAX_SERIALIZATION_RETRIES; attempt++) {
       try {
         return await fn();
-      } catch (err: any) {
+      } catch (err: unknown) {
+        const error = err as Record<string, unknown>;
         const isRetryableError =
-          err?.code === PG_SERIALIZATION_ERROR ||
-          err?.code === PG_DEADLOCK_ERROR ||
-          err?.message?.includes('serialization failure');
+          error?.code === PG_SERIALIZATION_ERROR ||
+          error?.code === PG_DEADLOCK_ERROR ||
+          (err as Error).message?.includes('serialization failure');
 
         if (!isRetryableError || attempt === MAX_SERIALIZATION_RETRIES) {
           if (isRetryableError) {
@@ -409,7 +411,7 @@ export class MediaService {
     this.cleanupQueue.enqueue({ type, storageKeys: keys });
   }
 
-  private toResponseDto(media: any): MediaResponseDto {
+  private toResponseDto(media: Media): MediaResponseDto {
     return {
       id: media.id,
       tenantId: media.tenantId,

@@ -31,6 +31,19 @@ interface AuthenticatedUser {
   permissions: string[];
 }
 
+interface AuthenticatedSocket extends Socket {
+  data: {
+    user?: AuthenticatedUser;
+    tenantId?: string;
+  };
+}
+
+interface BroadcastPayload {
+  id?: string;
+  orderNumber?: string;
+  [key: string]: unknown;
+}
+
 interface JwtPayload {
   sub: string;
   email: string;
@@ -75,13 +88,15 @@ export class KdsGateway implements OnGatewayConnection, OnGatewayDisconnect {
    */
   private extractToken(client: Socket): string | null {
     // 1. socket.io auth payload: client.handshake.auth.token
-    const authToken = (client.handshake as any)?.auth?.token;
+    const auth = client.handshake.auth as Record<string, unknown>;
+    const authToken = auth?.token;
     if (authToken && typeof authToken === 'string') {
       return authToken;
     }
 
     // 2. Query param: ?token=...
-    const queryToken = (client.handshake as any)?.query?.token;
+    const query = client.handshake.query as Record<string, unknown>;
+    const queryToken = query?.token;
     if (queryToken && typeof queryToken === 'string') {
       return queryToken;
     }
@@ -93,7 +108,7 @@ export class KdsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
 
     // 4. Also check handshake.headers['authorization'] as array edge case
-    const authHeader = (client.handshake as any)?.headers?.authorization;
+    const authHeader = client.handshake.headers?.authorization;
     if (Array.isArray(authHeader) && authHeader[0]?.startsWith('Bearer ')) {
       return authHeader[0].split(' ')[1];
     }
@@ -105,7 +120,7 @@ export class KdsGateway implements OnGatewayConnection, OnGatewayDisconnect {
    * Handle new client connection with JWT authentication.
    * Never trust tenantId from client - resolve from authenticated request (JWT payload).
    */
-  async handleConnection(client: Socket): Promise<void> {
+  async handleConnection(client: AuthenticatedSocket): Promise<void> {
     try {
       this.logger.log(`KDS client connecting: ${client.id}`);
 
@@ -157,8 +172,8 @@ export class KdsGateway implements OnGatewayConnection, OnGatewayDisconnect {
         permissions: payload.permissions || [],
       };
 
-      (client.data as any).user = user;
-      (client.data as any).tenantId = user.tenantId; // resolved from authenticated request only
+      client.data.user = user;
+      client.data.tenantId = user.tenantId; // resolved from authenticated request only
 
       this.logger.log(`KDS client authenticated: ${client.id} | tenant: ${user.tenantId} | user: ${user.id}`);
       client.emit('connected', {
@@ -173,8 +188,8 @@ export class KdsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
   }
 
-  async handleDisconnect(client: Socket): Promise<void> {
-    const user = (client.data as any)?.user as AuthenticatedUser | undefined;
+  async handleDisconnect(client: AuthenticatedSocket): Promise<void> {
+    const user = client.data?.user;
     this.logger.log(`KDS client disconnected: ${client.id} | tenant: ${user?.tenantId || 'unknown'}`);
   }
 
@@ -185,10 +200,10 @@ export class KdsGateway implements OnGatewayConnection, OnGatewayDisconnect {
    */
   @SubscribeMessage('joinBranch')
   async handleJoinBranch(
-    @ConnectedSocket() client: Socket,
+    @ConnectedSocket() client: AuthenticatedSocket,
     @MessageBody() payload: { branchId?: string } | string,
   ): Promise<{ event: string; room?: string; message?: string } | void> {
-    const user = (client.data as any)?.user as AuthenticatedUser | undefined;
+    const user = client.data?.user;
 
     if (!user || !user.tenantId) {
       this.logger.warn(`joinBranch rejected: unauthenticated client ${client.id}`);
@@ -202,7 +217,7 @@ export class KdsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     if (typeof payload === 'string') {
       branchId = payload;
     } else if (payload && typeof payload === 'object') {
-      branchId = (payload as any).branchId;
+      branchId = payload.branchId;
     }
 
     if (!branchId) {
@@ -248,10 +263,10 @@ export class KdsGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   @SubscribeMessage('leaveBranch')
   async handleLeaveBranch(
-    @ConnectedSocket() client: Socket,
+    @ConnectedSocket() client: AuthenticatedSocket,
     @MessageBody() payload: { branchId?: string } | string,
   ): Promise<{ event: string; room?: string } | void> {
-    const user = (client.data as any)?.user as AuthenticatedUser | undefined;
+    const user = client.data?.user;
     if (!user?.tenantId) {
       client.emit('error', { message: 'Not authenticated' });
       return;
@@ -261,7 +276,7 @@ export class KdsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     if (typeof payload === 'string') {
       branchId = payload;
     } else {
-      branchId = (payload as any)?.branchId;
+      branchId = payload.branchId;
     }
 
     if (!branchId) {
@@ -284,7 +299,7 @@ export class KdsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     tenantId: string,
     branchId: string,
     eventName: string,
-    payload: any,
+    payload: BroadcastPayload,
   ): void {
     if (!tenantId || !branchId) {
       this.logger.warn(`broadcastOrderEvent skipped: missing tenantId or branchId for event ${eventName}`);
@@ -301,7 +316,7 @@ export class KdsGateway implements OnGatewayConnection, OnGatewayDisconnect {
       data: payload,
     };
 
-    this.logger.log(`Broadcasting ${eventName} to room ${roomName} | order: ${payload?.id || payload?.orderNumber || 'unknown'}`);
+    this.logger.log(`Broadcasting ${eventName} to room ${roomName} | order: ${String(payload?.id ?? payload?.orderNumber ?? 'unknown')}`);
 
     if (this.server) {
       this.server.to(roomName).emit(eventName, enrichedPayload);
@@ -311,27 +326,27 @@ export class KdsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   // Convenience wrappers for explicit event types
-  public emitOrderCreated(tenantId: string, branchId: string, order: any): void {
+  public emitOrderCreated(tenantId: string, branchId: string, order: BroadcastPayload): void {
     this.broadcastOrderEvent(tenantId, branchId, 'order.created', order);
   }
 
-  public emitOrderAccepted(tenantId: string, branchId: string, order: any): void {
+  public emitOrderAccepted(tenantId: string, branchId: string, order: BroadcastPayload): void {
     this.broadcastOrderEvent(tenantId, branchId, 'order.accepted', order);
   }
 
-  public emitOrderPreparing(tenantId: string, branchId: string, order: any): void {
+  public emitOrderPreparing(tenantId: string, branchId: string, order: BroadcastPayload): void {
     this.broadcastOrderEvent(tenantId, branchId, 'order.preparing', order);
   }
 
-  public emitOrderReady(tenantId: string, branchId: string, order: any): void {
+  public emitOrderReady(tenantId: string, branchId: string, order: BroadcastPayload): void {
     this.broadcastOrderEvent(tenantId, branchId, 'order.ready', order);
   }
 
-  public emitOrderCompleted(tenantId: string, branchId: string, order: any): void {
+  public emitOrderCompleted(tenantId: string, branchId: string, order: BroadcastPayload): void {
     this.broadcastOrderEvent(tenantId, branchId, 'order.completed', order);
   }
 
-  public emitOrderCancelled(tenantId: string, branchId: string, order: any): void {
+  public emitOrderCancelled(tenantId: string, branchId: string, order: BroadcastPayload): void {
     this.broadcastOrderEvent(tenantId, branchId, 'order.cancelled', order);
   }
 
@@ -342,7 +357,7 @@ export class KdsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   public emitTicketCreated(
     tenantId: string,
     branchId: string,
-    ticket: { ticketId: string; ticketNumber: string; priority: string; items: any[] },
+    ticket: { ticketId: string; ticketNumber: string; priority: string; items: Record<string, unknown>[] },
   ): void {
     this.broadcastOrderEvent(tenantId, branchId, 'ticket.created', ticket);
   }

@@ -28,9 +28,10 @@ export class LocalStorageProvider implements StorageProvider {
     try {
       await fs.unlink(filePath);
       this.logger.debug(`Deleted ${filePath}`);
-    } catch (err: any) {
-      if (err.code !== 'ENOENT') {
-        this.logger.warn(`Failed to delete ${filePath}: ${err.message}`);
+    } catch (err: unknown) {
+      const error = err as NodeJS.ErrnoException;
+      if (error.code !== 'ENOENT') {
+        this.logger.warn(`Failed to delete ${filePath}: ${error.message}`);
       }
     }
   }
@@ -45,12 +46,13 @@ export class LocalStorageProvider implements StorageProvider {
         await fs.unlink(filePath);
         deleted.push(key);
         this.logger.debug(`Deleted ${filePath}`);
-      } catch (err: any) {
-        if (err.code === 'ENOENT') {
+      } catch (err: unknown) {
+        const error = err as NodeJS.ErrnoException;
+        if (error.code === 'ENOENT') {
           deleted.push(key);
         } else {
-          failed.push({ key, reason: err.message });
-          this.logger.warn(`Failed to delete ${filePath}: ${err.message}`);
+          failed.push({ key, reason: error.message });
+          this.logger.warn(`Failed to delete ${filePath}: ${error.message}`);
         }
       }
     }

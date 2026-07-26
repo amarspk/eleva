@@ -11,31 +11,37 @@ export class DeviceTokenService {
    * Registers FCM device token per DOC-008 7.4
    * Tenant isolation via dbTenantContext, token unique per tenant
    */
-  async registerToken(dto: CreateDeviceTokenRequestDto, tenantId: string, requesterUserId: string) {
+  async registerToken(dto: CreateDeviceTokenRequestDto, tenantId: string, requesterUserId: string): Promise<{
+    id: string;
+    token: string;
+    deviceType: string;
+    userId: string;
+    createdAt?: Date;
+  }> {
     const userId = dto.userId || requesterUserId;
     this.logger.log(`Registering device token for tenant [${tenantId}] user [${userId}] type [${dto.deviceType}]`);
 
     // Check for existing token within tenant (unique constraint)
     const existing = await dbTenantContext.run({ tenantId }, async () => {
-      const found = await this.deviceTokenRepository.findMany({ token: dto.token } as any);
+      const found = await this.deviceTokenRepository.findMany({ token: dto.token });
       return found[0] || null;
     });
 
     if (existing) {
       // If same token exists for same user, update deviceType and return
-      if ((existing as any).userId === userId) {
+      if (existing.userId === userId) {
         this.logger.log(`Device token already registered for user [${userId}], updating`);
         const updated = await dbTenantContext.run({ tenantId }, async () => {
           return this.deviceTokenRepository.update(existing.id, {
             deviceType: dto.deviceType,
             userId,
-          } as any);
+          });
         });
         return {
           id: updated.id,
-          token: (updated as any).token,
-          deviceType: (updated as any).deviceType,
-          userId: (updated as any).userId,
+          token: updated.token,
+          deviceType: updated.deviceType,
+          userId: updated.userId,
         };
       }
       throw new ConflictException('Device token already registered for another user under this tenant');
@@ -47,27 +53,33 @@ export class DeviceTokenService {
         token: dto.token,
         deviceType: dto.deviceType,
         userId,
-      } as any);
+      });
     });
 
     return {
       id: created.id,
-      token: (created as any).token,
-      deviceType: (created as any).deviceType,
-      userId: (created as any).userId,
-      createdAt: (created as any).createdAt,
+      token: created.token,
+      deviceType: created.deviceType,
+      userId: created.userId,
+      createdAt: created.createdAt,
     };
   }
 
-  async listTokens(tenantId: string, userId?: string) {
-    const where: any = {};
+  async listTokens(tenantId: string, userId?: string): Promise<Array<{
+    id: string;
+    token: string;
+    deviceType: string;
+    userId: string;
+    createdAt: Date;
+  }>> {
+    const where: Record<string, unknown> = {};
     if (userId) {where.userId = userId;}
 
     const tokens = await dbTenantContext.run({ tenantId }, async () => {
       return this.deviceTokenRepository.findMany(where);
     });
 
-    return tokens.map((t: any) => ({
+    return tokens.map((t) => ({
       id: t.id,
       token: t.token,
       deviceType: t.deviceType,
@@ -76,7 +88,7 @@ export class DeviceTokenService {
     }));
   }
 
-  async deleteToken(id: string, tenantId: string, _requesterUserId: string) {
+  async deleteToken(id: string, tenantId: string, _requesterUserId: string): Promise<{ success: boolean; id: string }> {
     const existing = await dbTenantContext.run({ tenantId }, async () => {
       return this.deviceTokenRepository.findById(id);
     });
@@ -99,7 +111,10 @@ export class DeviceTokenService {
    * Sends FCM push notification payload structure per DOC-008 7.4
    * Mock implementation for dev/test, logs payload
    */
-  async sendPushNotification(tenantId: string, userId: string, title: string, body: string, data?: any) {
+  async sendPushNotification(tenantId: string, userId: string, title: string, body: string, data?: Record<string, unknown>): Promise<{
+    sent: number;
+    payloads?: Array<{ message: Record<string, unknown> }>;
+  }> {
     const tokens = await this.listTokens(tenantId, userId);
 
     if (tokens.length === 0) {

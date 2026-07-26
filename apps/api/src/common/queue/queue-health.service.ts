@@ -72,7 +72,7 @@ export class QueueHealthService implements OnModuleDestroy {
 
   createWorker(
     name: string,
-    processor: (job: Job) => Promise<any>,
+    processor: (job: Job) => Promise<unknown>,
   ): Worker | null {
     if (!this.connection) {
       this.logger.warn(`Cannot create worker for ${name}: no Redis connection`);

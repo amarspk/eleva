@@ -28,5 +28,5 @@ export class CreateBranchRequestDto {
 
   @IsObject()
   @IsNotEmpty()
-  operatingHours!: Record<string, any>;
+  operatingHours!: Record<string, unknown>;
 }
