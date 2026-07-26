@@ -500,11 +500,10 @@
 - **Commits:** `3088aac`
 
 ### 9.2 Advanced Database Optimization (Query Plans, Vacuuming, Index Maintenance)
-- **Status:** ❌ Not Implemented
-- **Description:** No EXPLAIN ANALYZE tooling, no autovacuum configuration, no index maintenance automation.
-- **Files:** None
-- **Commits:** None
-- **Missing:** EXPLAIN ANALYZE query profiling scripts, PostgreSQL autovacuum tuning parameters, index bloat monitoring, PgBouncer pool size optimization
+- **Status:** ✅ Implemented
+- **Description:** EXPLAIN ANALYZE profiling scripts for 15 hot-path queries, PostgreSQL autovacuum tuning (global + per-table overrides for high-write tables), database health monitoring views (dead tuples, bloat, index usage, locks), PgBouncer connection pooling config, maintenance shell script orchestrator.
+- **Files:** `packages/db/scripts/query-profiling.sql`, `packages/db/scripts/db-health-checks.sql`, `packages/db/scripts/optimize-tables.sql`, `packages/db/scripts/maintenance.sh`, `packages/db/config/postgresql-autovacuum.conf`, `packages/db/config/pgbouncer.ini`, `packages/db/package.json`
+- **Commits:** (this commit)
 
 ### 9.3 Client-Side Performance & Bundle Optimizations
 - **Status:** ⚠️ Partially Implemented
@@ -587,9 +586,9 @@
 | Metric | Count |
 |--------|-------|
 | **Total Requirements Indexed** | **76** |
-| **Implemented** | **59** |
+| **Implemented** | **60** |
 | **Partially Implemented** | **11** |
-| **Not Implemented** | **6** |
+| **Not Implemented** | **5** |
 
 ### Breakdown by DOC
 
@@ -603,7 +602,7 @@
 | DOC-007 (Image Pipeline) | 5 | 4 | 0 | 1 |
 | DOC-008 (Notifications) | 6 | 6 | 0 | 0 |
 | DOC-009 (Integrations) | 5 | 1 | 2 | 2 |
-| DOC-010 (Perf/Testing/Ops) | 13 | 5 | 6 | 2 |
+| DOC-010 (Perf/Testing/Ops) | 13 | 6 | 6 | 1 |
 
 ---
 
@@ -612,29 +611,28 @@
 Listed in dependency order (prerequisites first, downstream features after):
 
 ### Priority 1 — Infrastructure (foundational)
-1. **DOC-010 §9.2** — Database optimization tooling (EXPLAIN ANALYZE scripts, autovacuum tuning)
-2. **DOC-010 §9.4** — BullMQ worker architecture (queue definitions, retry policies, DLQ)
-3. **DOC-010 §9.5** — Kubernetes manifests + HPA configuration
-4. **DOC-009 §8.5** — Automated backups & disaster recovery (RDS Multi-AZ, WAL archiving, PITR)
+1. **DOC-010 §9.4** — BullMQ worker architecture (queue definitions, retry policies, DLQ)
+2. **DOC-010 §9.5** — Kubernetes manifests + HPA configuration
+3. **DOC-009 §8.5** — Automated backups & disaster recovery (RDS Multi-AZ, WAL archiving, PITR)
 
 ### Priority 2 — Observability (depends on Priority 1)
-5. **DOC-009 §8.4** — Winston structured logging + ELK Stack + Datadog APM
-6. **DOC-010 §10.5** — CD pipeline (`.github/workflows/cd.yml`) + branch protection
+4. **DOC-009 §8.4** — Winston structured logging + ELK Stack + Datadog APM
+5. **DOC-010 §10.5** — CD pipeline (`.github/workflows/cd.yml`) + branch protection
 
 ### Priority 3 — CDN & Performance (depends on Priority 1)
-7. **DOC-007 §6.4** — CloudFront CDN edge caching + cache invalidation strategy
-8. **DOC-002 §2.4** — GIN full-text search index on `products.tsv_menu_search`
-9. **DOC-010 §9.3** — Next.js Image component + dynamic imports audit
+6. **DOC-007 §6.4** — CloudFront CDN edge caching + cache invalidation strategy
+7. **DOC-002 §2.4** — GIN full-text search index on `products.tsv_menu_search`
+8. **DOC-010 §9.3** — Next.js Image component + dynamic imports audit
 
 ### Priority 4 — Payment Completeness (independent)
-10. **DOC-009 §8.2** — Complete Stripe subscription lifecycle webhook handler
-11. **DOC-009 §8.3** — Real Tap/PayTabs SDK integration (KNET, Benefit, Mada)
+9. **DOC-009 §8.2** — Complete Stripe subscription lifecycle webhook handler
+10. **DOC-009 §8.3** — Real Tap/PayTabs SDK integration (KNET, Benefit, Mada)
 
 ### Priority 5 — Code Quality (independent)
-12. **DOC-010 §10.2** — ESLint zero-error CI enforcement + `no-explicit-any` audit
-13. **DOC-010 §10.3** — Zero-downtime migration documentation + CI validation
-14. **DOC-010 §10.6** — Complete environment variable set + staging/production configs
-15. **DOC-002 §2.7** — Database-level triggers for `updated_at`, audit logs, and notifications
+11. **DOC-010 §10.2** — ESLint zero-error CI enforcement + `no-explicit-any` audit
+12. **DOC-010 §10.3** — Zero-downtime migration documentation + CI validation
+13. **DOC-010 §10.6** — Complete environment variable set + staging/production configs
+14. **DOC-002 §2.7** — Database-level triggers for `updated_at`, audit logs, and notifications
 
 ---
 

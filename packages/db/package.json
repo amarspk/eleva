@@ -12,7 +12,11 @@
     "lint": "eslint \"src/**/*.ts\" \"prisma/**/*.ts\" --ignore-pattern \"src/generated-client/**\"",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate deploy",
-    "prisma:seed": "prisma db seed"
+    "prisma:seed": "prisma db seed",
+    "db:health": "psql \"$DATABASE_URL\" -f scripts/db-health-checks.sql",
+    "db:profile": "psql \"$DATABASE_URL\" -f scripts/query-profiling.sql",
+    "db:optimize": "psql \"$DATABASE_URL\" -f scripts/optimize-tables.sql",
+    "db:maintenance": "bash scripts/maintenance.sh --all"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0"
