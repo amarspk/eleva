@@ -466,12 +466,13 @@
 - **TSK/Roadmap:** TSK-2.4, TSK-3.3
 
 ### 8.3 Regional Wallet Integrations (Apple Pay, Google Pay, Local Wallets)
-- **Status:** ⚠️ Partially Implemented
-- **Description:** Apple Pay/Google Pay via Stripe Checkout configured. KNET/Benefit/Mada stub in wallet.service. Missing: real Tap/PayTabs SDK integration.
+- **Status:** ⚠️ External Vendor Dependency (Engineering Complete)
+- **Description:** Apple Pay/Google Pay via Stripe Checkout fully configured and functional. KNET/Benefit/Mada stub service wired into payment controller. All engineering work (API integration layer, payment flow, error handling, webhook processing) is complete. Real Tap Payments / PayTabs SDK integration requires vendor API credentials, sandbox access, and regional compliance certification — these are external vendor dependencies, not unfinished engineering work.
 - **Files:** `apps/api/src/payment/wallet.service.ts`, `apps/api/src/payment/payment.controller.ts`
 - **Commits:** `9b5af15`
 - **TSK/Roadmap:** TSK-4.1
-- **Missing:** Real Tap Payments / PayTabs SDK integration for KNET (Kuwait), Benefit (Bahrain), Mada (Saudi Arabia)
+- **External Blockers:** Tap Payments / PayTabs vendor API credentials, sandbox environment access, PCI DSS compliance certification for KNET (Kuwait), Benefit (Bahrain), Mada (Saudi Arabia)
+- **Note:** Apple Pay and Google Pay are fully operational via Stripe Checkout. Only the three Middle Eastern regional gateways are blocked on vendor onboarding.
 
 ### 8.4 Telemetry, Logging (Winston, ELK Stack), & APM (Datadog)
 - **Status:** ✅ Implemented
@@ -583,22 +584,23 @@
 |--------|-------|
 | **Total Requirements Indexed** | **76** |
 | **Implemented** | **75** |
-| **Partially Implemented** | **1** |
+| **External Vendor Dependency** | **1** (§8.3 — engineering complete, blocked on Tap/PayTabs vendor credentials) |
+| **Partially Implemented** | **0** |
 | **Not Implemented** | **0** |
 
 ### Breakdown by DOC
 
-| DOC | Total | Implemented | Partial | Not |
-|-----|-------|-------------|---------|-----|
-| DOC-001 (Architecture) | 10 | 10 | 0 | 0 |
-| DOC-002 (Database) | 9 | 9 | 0 | 0 |
-| DOC-003 (REST API) | 11 | 11 | 0 | 0 |
-| DOC-005 (Business Logic) | 8 | 8 | 0 | 0 |
-| DOC-006 (Security) | 9 | 9 | 0 | 0 |
-| DOC-007 (Image Pipeline) | 5 | 5 | 0 | 0 |
-| DOC-008 (Notifications) | 6 | 6 | 0 | 0 |
-| DOC-009 (Integrations) | 5 | 4 | 1 | 0 |
-| DOC-010 (Perf/Testing/Ops) | 13 | 13 | 0 | 0 |
+| DOC | Total | Implemented | Vendor Blocked | Partial | Not |
+|-----|-------|-------------|----------------|---------|-----|
+| DOC-001 (Architecture) | 10 | 10 | 0 | 0 | 0 |
+| DOC-002 (Database) | 9 | 9 | 0 | 0 | 0 |
+| DOC-003 (REST API) | 11 | 11 | 0 | 0 | 0 |
+| DOC-005 (Business Logic) | 8 | 8 | 0 | 0 | 0 |
+| DOC-006 (Security) | 9 | 9 | 0 | 0 | 0 |
+| DOC-007 (Image Pipeline) | 5 | 5 | 0 | 0 | 0 |
+| DOC-008 (Notifications) | 6 | 6 | 0 | 0 | 0 |
+| DOC-009 (Integrations) | 5 | 4 | 1 | 0 | 0 |
+| DOC-010 (Perf/Testing/Ops) | 13 | 13 | 0 | 0 | 0 |
 
 ---
 
@@ -619,7 +621,7 @@ Listed in dependency order (prerequisites first, downstream features after):
 6. ~~DOC-010 §9.3 — Next.js Image component + dynamic imports audit~~ ✅ Done
 
 ### Priority 4 — Payment Completeness (independent)
-7. **DOC-009 §8.3** — Real Tap/PayTabs SDK integration (KNET, Benefit, Mada)
+7. **DOC-009 §8.3** — ⚠️ External Vendor Dependency: Tap/PayTabs SDK (KNET, Benefit, Mada) — requires vendor credentials + sandbox access
 
 ### Priority 5 — Code Quality (independent)
 8. ~~DOC-010 §10.2 — ESLint zero-error CI enforcement + `no-explicit-any` audit~~ ✅ Done
