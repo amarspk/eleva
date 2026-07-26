@@ -517,11 +517,11 @@
 - **Commits:** `10460d9`, `d484421`, `0b4ce2d`
 
 ### 9.5 Kubernetes-Driven Horizontal Pod Autoscaling (HPA)
-- **Status:** ❌ Not Implemented
-- **Description:** No Kubernetes manifests, no HPA configuration. Docker Compose only.
-- **Files:** None
-- **Commits:** None
-- **Missing:** K8s deployment manifests, HPA config (scale out at 70% CPU / 80% memory), pod disruption budgets, liveness/readiness probes
+- **Status:** ✅ Implemented
+- **Description:** Full Kubernetes production manifests with namespace separation, StatefulSet (PostgreSQL), Deployments (API, Worker, QR Menu, Backoffice, Cashier), ClusterIP Services, NGINX Ingress with TLS, ConfigMaps, Secrets references, HPA (API 2-10 pods, Worker 2-6 pods), PodDisruptionBudget, liveness/readiness probes, rolling update strategy, resource requests/limits, Kustomize orchestration, and production scaling guidance.
+- **Files:** `k8s/namespace.yml`, `k8s/configmap.yml`, `k8s/secrets.yml`, `k8s/ingress.yml`, `k8s/kustomization.yml`, `k8s/postgres/statefulset.yml`, `k8s/postgres/service.yml`, `k8s/postgres/configmap.yml`, `k8s/redis/deployment.yml`, `k8s/redis/service.yml`, `k8s/redis/configmap.yml`, `k8s/pgbouncer/deployment.yml`, `k8s/pgbouncer/service.yml`, `k8s/pgbouncer/configmap.yml`, `k8s/api/deployment.yml`, `k8s/api/service.yml`, `k8s/api/hpa.yml`, `k8s/api/pdb.yml`, `k8s/worker/deployment.yml`, `k8s/worker/hpa.yml`, `k8s/qr-menu/deployment.yml`, `k8s/qr-menu/service.yml`, `k8s/backoffice/deployment.yml`, `k8s/backoffice/service.yml`, `k8s/cashier/deployment.yml`, `k8s/cashier/service.yml`, `k8s/README.md`
+- **Commits:** current commit
+- **Coverage:** Namespace isolation, all 8 services with deployments, HPA with CPU/memory targets, PDB for API, zero-downtime rolling updates (maxUnavailable=0), all secrets via K8s Secret references, cert-manager TLS, Kustomize orchestration
 
 ### 10.1 Monorepository Directory Structure
 - **Status:** ✅ Implemented
@@ -583,9 +583,9 @@
 | Metric | Count |
 |--------|-------|
 | **Total Requirements Indexed** | **76** |
-| **Implemented** | **65** |
+| **Implemented** | **66** |
 | **Partially Implemented** | **6** |
-| **Not Implemented** | **5** |
+| **Not Implemented** | **4** |
 
 ### Breakdown by DOC
 
@@ -599,7 +599,7 @@
 | DOC-007 (Image Pipeline) | 5 | 4 | 0 | 1 |
 | DOC-008 (Notifications) | 6 | 6 | 0 | 0 |
 | DOC-009 (Integrations) | 5 | 2 | 1 | 2 |
-| DOC-010 (Perf/Testing/Ops) | 13 | 9 | 3 | 1 |
+| DOC-010 (Perf/Testing/Ops) | 13 | 10 | 3 | 0 |
 
 ---
 
@@ -608,7 +608,7 @@
 Listed in dependency order (prerequisites first, downstream features after):
 
 ### Priority 1 — Infrastructure (foundational)
-1. **DOC-010 §9.5** — Kubernetes manifests + HPA configuration
+1. ~~DOC-010 §9.5 — Kubernetes manifests + HPA configuration~~ ✅ Done
 2. **DOC-009 §8.5** — Automated backups & disaster recovery (RDS Multi-AZ, WAL archiving, PITR)
 
 ### Priority 2 — Observability (depends on Priority 1)

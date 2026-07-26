@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: backoffice
+  namespace: zayjar
+  labels:
+    app.kubernetes.io/name: backoffice
+    app.kubernetes.io/part-of: zayjar
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: backoffice
+  ports:
+    - port: 3001
+      targetPort: http
+      protocol: TCP
+      name: http

@@ -1,0 +1,26 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - namespace.yml
+  - configmap.yml
+  - secrets.yml
+  - postgres/statefulset.yml
+  - postgres/service.yml
+  - redis/deployment.yml
+  - redis/service.yml
+  - pgbouncer/deployment.yml
+  - pgbouncer/service.yml
+  - api/deployment.yml
+  - api/service.yml
+  - api/hpa.yml
+  - api/pdb.yml
+  - worker/deployment.yml
+  - worker/hpa.yml
+  - qr-menu/deployment.yml
+  - qr-menu/service.yml
+  - backoffice/deployment.yml
+  - backoffice/service.yml
+  - cashier/deployment.yml
+  - cashier/service.yml
+  - ingress.yml

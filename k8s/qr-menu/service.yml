@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: qr-menu
+  namespace: zayjar
+  labels:
+    app.kubernetes.io/name: qr-menu
+    app.kubernetes.io/part-of: zayjar
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: qr-menu
+  ports:
+    - port: 3000
+      targetPort: http
+      protocol: TCP
+      name: http

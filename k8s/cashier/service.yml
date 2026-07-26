@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: cashier
+  namespace: zayjar
+  labels:
+    app.kubernetes.io/name: cashier
+    app.kubernetes.io/part-of: zayjar
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: cashier
+  ports:
+    - port: 3002
+      targetPort: http
+      protocol: TCP
+      name: http
