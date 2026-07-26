@@ -1,0 +1,75 @@
+version: '3.8'
+
+# ==============================================================================
+# DOC-010 §10.5 — Production Environment Overrides
+# ==============================================================================
+# Usage: docker compose -f docker-compose.yml -f docker-compose.production.yml up -d
+#
+# Production hardened configuration:
+# - Restrictive resource limits
+# - Health checks with start_period grace
+# - No debug logging
+# - Restart policies with backoff
+# ==============================================================================
+
+services:
+  api-core:
+    environment:
+      - NODE_ENV=production
+      - LOG_LEVEL=info
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 1G
+        reservations:
+          cpus: '1.0'
+          memory: 512M
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8000/api/v1/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 45s
+
+  queue-worker:
+    environment:
+      - NODE_ENV=production
+      - LOG_LEVEL=info
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+
+  postgres-db:
+    environment:
+      POSTGRES_DB: zayjar_production
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
+
+  redis-cache:
+    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru --requirepass ${REDIS_PASSWORD}
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+
+  qr-menu-app:
+    environment:
+      - NODE_ENV=production
+
+  backoffice-app:
+    environment:
+      - NODE_ENV=production
+
+  cashier-app:
+    environment:
+      - NODE_ENV=production

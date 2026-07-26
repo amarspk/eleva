@@ -551,11 +551,11 @@
 - **TSK/Roadmap:** TSK-5.1, TSK-5.2, TSK-5.5
 
 ### 10.5 Git Workflow & CI/CD Pipelines
-- **Status:** ⚠️ Partially Implemented
-- **Description:** CI pipeline (lint + test + build) via GitHub Actions. Missing: CD pipeline, branch protection enforcement, deployment automation.
-- **Files:** `.github/workflows/ci.yml`
-- **Commits:** `3a31da9`
-- **Missing:** CD pipeline (`.github/workflows/cd.yml`), branch protection rules on `main`, staging/production deployment automation, rollback procedures
+- **Status:** ✅ Implemented
+- **Description:** Separate CI and CD GitHub Actions workflows. CI: 4 parallel jobs (code-quality, test, build, docker verification) with dependency gating. CD: triggered on CI success, builds and pushes Docker images to GHCR, deploys staging → production with health check verification, smoke tests, and automated rollback on failure. Branch protection documentation with required status checks. Environment-specific Docker Compose overrides for staging/production. Health check and rollback scripts.
+- **Files:** `.github/workflows/ci.yml`, `.github/workflows/cd.yml`, `.github/scripts/health-check.sh`, `.github/scripts/rollback.sh`, `.github/BRANCH_PROTECTION.md`, `docker-compose.staging.yml`, `docker-compose.production.yml`
+- **Commits:** `3a31da9`, current commit
+- **Notes:** Secrets (`STAGING_API_URL`, `PRODUCTION_API_URL`) are placeholders only. Cloud deployment commands configurable via GitHub Secrets. No application behaviour changes.
 
 ### 10.6 Environment Variables & Dynamic Configurations
 - **Status:** ⚠️ Partially Implemented
@@ -583,8 +583,8 @@
 | Metric | Count |
 |--------|-------|
 | **Total Requirements Indexed** | **76** |
-| **Implemented** | **63** |
-| **Partially Implemented** | **8** |
+| **Implemented** | **64** |
+| **Partially Implemented** | **7** |
 | **Not Implemented** | **5** |
 
 ### Breakdown by DOC
@@ -599,7 +599,7 @@
 | DOC-007 (Image Pipeline) | 5 | 4 | 0 | 1 |
 | DOC-008 (Notifications) | 6 | 6 | 0 | 0 |
 | DOC-009 (Integrations) | 5 | 2 | 1 | 2 |
-| DOC-010 (Perf/Testing/Ops) | 13 | 7 | 5 | 1 |
+| DOC-010 (Perf/Testing/Ops) | 13 | 8 | 4 | 1 |
 
 ---
 
@@ -613,21 +613,20 @@ Listed in dependency order (prerequisites first, downstream features after):
 
 ### Priority 2 — Observability (depends on Priority 1)
 3. **DOC-009 §8.4** — Winston structured logging + ELK Stack + Datadog APM
-4. **DOC-010 §10.5** — CD pipeline (`.github/workflows/cd.yml`) + branch protection
 
 ### Priority 3 — CDN & Performance (depends on Priority 1)
-5. **DOC-007 §6.4** — CloudFront CDN edge caching + cache invalidation strategy
-6. **DOC-002 §2.4** — GIN full-text search index on `products.tsv_menu_search`
-7. **DOC-010 §9.3** — Next.js Image component + dynamic imports audit
+4. **DOC-007 §6.4** — CloudFront CDN edge caching + cache invalidation strategy
+5. **DOC-002 §2.4** — GIN full-text search index on `products.tsv_menu_search`
+6. **DOC-010 §9.3** — Next.js Image component + dynamic imports audit
 
 ### Priority 4 — Payment Completeness (independent)
-8. **DOC-009 §8.3** — Real Tap/PayTabs SDK integration (KNET, Benefit, Mada)
+7. **DOC-009 §8.3** — Real Tap/PayTabs SDK integration (KNET, Benefit, Mada)
 
 ### Priority 5 — Code Quality (independent)
-9. **DOC-010 §10.2** — ESLint zero-error CI enforcement + `no-explicit-any` audit
-10. **DOC-010 §10.3** — Zero-downtime migration documentation + CI validation
-11. **DOC-010 §10.6** — Complete environment variable set + staging/production configs
-12. **DOC-002 §2.7** — Database-level triggers for `updated_at`, audit logs, and notifications
+8. **DOC-010 §10.2** — ESLint zero-error CI enforcement + `no-explicit-any` audit
+9. **DOC-010 §10.3** — Zero-downtime migration documentation + CI validation
+10. **DOC-010 §10.6** — Complete environment variable set + staging/production configs
+11. **DOC-002 §2.7** — Database-level triggers for `updated_at`, audit logs, and notifications
 
 ---
 

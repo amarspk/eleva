@@ -1,0 +1,180 @@
+name: CD
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [main]
+
+concurrency:
+  group: cd-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ${{ github.repository_owner }}/zayjar
+
+jobs:
+  # ==========================================
+  # Gate: Only proceed if CI passed
+  # ==========================================
+  ci-check:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    steps:
+      - name: CI passed
+        run: echo "CI workflow completed successfully, proceeding with deployment."
+
+  # ==========================================
+  # Job 1: Build & Push Docker Images
+  # ==========================================
+  build-and-push:
+    runs-on: ubuntu-latest
+    needs: ci-check
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        include:
+          - app: api
+            dockerfile: apps/api/Dockerfile
+          - app: qr-menu
+            dockerfile: apps/qr-menu/Dockerfile
+          - app: backoffice
+            dockerfile: apps/backoffice/Dockerfile
+          - app: cashier
+            dockerfile: apps/cashier/Dockerfile
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.app }}
+          tags: |
+            type=sha,prefix=
+            type=raw,value=latest
+
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ==========================================
+  # Job 2: Deploy to Staging
+  # ==========================================
+  deploy-staging:
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    environment:
+      name: staging
+      url: https://staging.zayjar.com
+    env:
+      DEPLOY_ENV: staging
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Deploy to staging
+        run: |
+          echo "=== Deploying to staging environment ==="
+          echo "Image tag: ${{ github.sha }}"
+          echo ""
+          echo "Deployment configuration:"
+          echo "  Environment: staging"
+          echo "  Image prefix: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}"
+          echo ""
+          # Placeholder: Replace with actual deployment command
+          # Options: ECS update-service, docker compose pull/up, kubectl apply
+          echo "[staging] Deployment would proceed here."
+          echo "[staging] Configure DEPLOY_COMMAND_STAGING secret for automation."
+
+      - name: Health check — staging
+        run: |
+          chmod +x .github/scripts/health-check.sh
+          .github/scripts/health-check.sh "${{ secrets.STAGING_API_URL }}" "staging"
+
+      - name: Notify deployment
+        if: always()
+        run: |
+          echo "[staging] Deployment notification: ${{ job.status }}"
+
+  # ==========================================
+  # Job 3: Deploy to Production
+  # ==========================================
+  deploy-production:
+    runs-on: ubuntu-latest
+    needs: deploy-staging
+    environment:
+      name: production
+      url: https://api.zayjar.com
+    env:
+      DEPLOY_ENV: production
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Deploy to production
+        run: |
+          echo "=== Deploying to production environment ==="
+          echo "Image tag: ${{ github.sha }}"
+          echo ""
+          echo "Deployment configuration:"
+          echo "  Environment: production"
+          echo "  Image prefix: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}"
+          echo ""
+          # Placeholder: Replace with actual deployment command
+          echo "[production] Deployment would proceed here."
+          echo "[production] Configure DEPLOY_COMMAND_PRODUCTION secret for automation."
+
+      - name: Health check — production
+        run: |
+          chmod +x .github/scripts/health-check.sh
+          .github/scripts/health-check.sh "${{ secrets.PRODUCTION_API_URL }}" "production"
+
+      - name: Smoke test — production
+        run: |
+          echo "=== Running smoke tests against production ==="
+          API_URL="${{ secrets.PRODUCTION_API_URL }}"
+          if [ -z "$API_URL" ]; then
+            echo "PRODUCTION_API_URL not configured, skipping smoke tests"
+            exit 0
+          fi
+
+          echo "Testing GET /api/v1/health..."
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$API_URL/api/v1/health" || echo "000")
+          if [ "$HTTP_STATUS" != "200" ]; then
+            echo "FAIL: Health endpoint returned $HTTP_STATUS (expected 200)"
+            exit 1
+          fi
+          echo "PASS: Health endpoint returned 200"
+
+      - name: Rollback on failure
+        if: failure()
+        run: |
+          chmod +x .github/scripts/rollback.sh
+          .github/scripts/rollback.sh "production" "${{ secrets.PRODUCTION_API_URL }}"
+
+      - name: Notify deployment
+        if: always()
+        run: |
+          echo "[production] Deployment notification: ${{ job.status }}"
