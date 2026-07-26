@@ -20,7 +20,11 @@
     "db:migrate-status": "bash scripts/migrate-status.sh",
     "db:validate-migration": "bash scripts/migrate-validate.sh",
     "db:verify-backup": "bash scripts/migrate-backup-verify.sh",
-    "db:post-migrate-check": "bash scripts/migrate-post-verify.sh"
+    "db:post-migrate-check": "bash scripts/migrate-post-verify.sh",
+    "db:backup": "bash scripts/backup-postgres.sh",
+    "db:wal-archive": "bash scripts/wal-archive.sh",
+    "db:verify-backups": "bash scripts/verify-backup-full.sh",
+    "db:restore": "bash scripts/restore-postgres.sh"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0"

@@ -1,0 +1,18 @@
+# ==============================================================================
+# DOC-009 8.5 - Backup Cron Schedule
+# ==============================================================================
+# Install: crontab -e  (then paste these lines)
+# Or: sudo cp pg-backup-cron /etc/cron.d/zayjar-backup
+# ==============================================================================
+
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+# Daily full backup at 02:00 UTC
+0 2 * * * root /opt/zayjar/packages/db/scripts/backup-postgres.sh --s3 >> /var/log/zayjar/backup.log 2>&1
+
+# WAL cleanup daily at 04:00 UTC (remove WAL segments older than retention)
+0 4 * * * root /opt/zayjar/packages/db/scripts/wal-archive.sh --cleanup >> /var/log/zayjar/wal-cleanup.log 2>&1
+
+# Weekly comprehensive verification on Sunday at 03:00 UTC
+0 3 * * 0 root /opt/zayjar/packages/db/scripts/verify-backup-full.sh >> /var/log/zayjar/backup-verify.log 2>&1
