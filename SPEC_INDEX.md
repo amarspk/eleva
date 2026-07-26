@@ -537,11 +537,11 @@
 - **Missing:** CI-enforced ESLint with zero-error threshold, `@typescript-eslint/no-explicit-any` rule verification
 
 ### 10.3 Database Migration Workflows & Zero-Downtime Blue-Green Schema Changes
-- **Status:** ⚠️ Partially Implemented
-- **Description:** Prisma migrations initialized with baseline. Missing: documented zero-downtime migration strategy.
-- **Files:** `packages/db/prisma/migrations/20250101000000_init/migration.sql`
-- **Commits:** `36ef6b1`
-- **Missing:** Documented 4-stage migration process (add nullable → deploy code → backfill → drop old), migration validation in CI
+- **Status:** ✅ Implemented
+- **Description:** Zero-downtime migration strategy documented with expand→migrate→contract lifecycle. Pre-deployment validation, backup verification, post-deployment verification, and rollback procedure scripts. CI validation of Prisma schema on every PR. Large-table and partitioned-table migration guidance.
+- **Files:** `packages/db/MIGRATION.md`, `packages/db/scripts/migrate-status.sh`, `packages/db/scripts/migrate-validate.sh`, `packages/db/scripts/migrate-backup-verify.sh`, `packages/db/scripts/migrate-post-verify.sh`, `packages/db/package.json`, `.github/workflows/ci.yml`
+- **Commits:** `36ef6b1`, current commit
+- **Coverage:** Expand→Migrate→Contract documented, pre-deployment checklist, backup verification, large-table batched backfill guidance, partitioned table migration rules, CI schema validation step
 
 ### 10.4 Test Suite Execution Standards (Unit, Integration, E2E)
 - **Status:** ✅ Implemented
@@ -583,8 +583,8 @@
 | Metric | Count |
 |--------|-------|
 | **Total Requirements Indexed** | **76** |
-| **Implemented** | **64** |
-| **Partially Implemented** | **7** |
+| **Implemented** | **65** |
+| **Partially Implemented** | **6** |
 | **Not Implemented** | **5** |
 
 ### Breakdown by DOC
@@ -599,7 +599,7 @@
 | DOC-007 (Image Pipeline) | 5 | 4 | 0 | 1 |
 | DOC-008 (Notifications) | 6 | 6 | 0 | 0 |
 | DOC-009 (Integrations) | 5 | 2 | 1 | 2 |
-| DOC-010 (Perf/Testing/Ops) | 13 | 8 | 4 | 1 |
+| DOC-010 (Perf/Testing/Ops) | 13 | 9 | 3 | 1 |
 
 ---
 
@@ -624,7 +624,7 @@ Listed in dependency order (prerequisites first, downstream features after):
 
 ### Priority 5 — Code Quality (independent)
 8. **DOC-010 §10.2** — ESLint zero-error CI enforcement + `no-explicit-any` audit
-9. **DOC-010 §10.3** — Zero-downtime migration documentation + CI validation
+9. ~~DOC-010 §10.3 — Zero-downtime migration documentation + CI validation~~ ✅ Done
 10. **DOC-010 §10.6** — Complete environment variable set + staging/production configs
 11. **DOC-002 §2.7** — Database-level triggers for `updated_at`, audit logs, and notifications
 

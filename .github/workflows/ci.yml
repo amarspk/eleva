@@ -94,6 +94,9 @@ jobs:
       - name: Generate Prisma client
         run: pnpm --filter @zayjar/db run prisma:generate
 
+      - name: Validate Prisma schema
+        run: pnpm --filter @zayjar/db exec prisma validate
+
       - name: Build all packages
         run: pnpm build
 
