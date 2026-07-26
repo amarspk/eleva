@@ -516,7 +516,7 @@
 - **Status:** ✅ Implemented
 - **Description:** BullMQ queue infrastructure with `bullmq` + `ioredis` dependencies, centralized queue constants, QueueHealthService with Redis-backed DLQ, refactored DispatchService with proper BullMQ imports, standalone worker entry point (`worker.ts`) with NestJS application context, notification + webhook workers with per-queue concurrency and rate limiting, graceful shutdown on SIGTERM/SIGINT, in-memory fallback for development.
 - **Files:** `apps/api/src/common/queue/queue.constants.ts`, `apps/api/src/common/queue/queue.module.ts`, `apps/api/src/common/queue/queue-health.service.ts`, `apps/api/src/common/queue/queue.constants.spec.ts`, `apps/api/src/common/queue/queue-health.service.spec.ts`, `apps/api/src/common/queue/queue.module.spec.ts`, `apps/api/src/worker.ts`, `apps/api/src/notification/dispatch/dispatch.service.ts`, `apps/api/src/notification/dispatch/dispatch.service.spec.ts`, `apps/api/src/notification/notification.module.ts`, `apps/api/package.json`, `docker-compose.yml`
-- **Commits:** `10460d9`, `d484421`, (this commit)
+- **Commits:** `10460d9`, `d484421`, `0b4ce2d`
 
 ### 9.5 Kubernetes-Driven Horizontal Pod Autoscaling (HPA)
 - **Status:** ❌ Not Implemented
