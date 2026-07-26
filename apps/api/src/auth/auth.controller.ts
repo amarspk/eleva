@@ -8,12 +8,16 @@ import { CurrentUser } from './decorators/current-user.decorator';
 import { LoginDto } from '@zayjar/types';
 import { MfaVerifyRequestDto } from './dto/mfa-verify-request.dto';
 import { RateLimitGuard, RateLimit } from '../common/rate-limit/rate-limit.guard';
+import { CsrfService } from '../common/csrf/csrf.service';
 
 @Controller('api/v1/auth')
 export class AuthController {
   private readonly logger = new Logger('AuthController');
 
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly csrfService: CsrfService,
+  ) {}
 
   @Public()
   @Post('login')
@@ -45,11 +49,21 @@ export class AuthController {
 
     const { accessToken, refreshToken } = await this.authService.generateTokens(payload);
 
+    // Generate CSRF token for double-submit pattern (DOC-006 §5.3)
+    const csrfToken = await this.csrfService.generateToken(payload.sub);
+
     // Set secure HTTP-Only sliding cookie
     res.cookie('__Host-Refresh-Token', refreshToken, JWT_CONFIG.cookieOptions);
 
+    // Set CSRF token as a non-HttpOnly cookie so JavaScript can read it
+    res.cookie('__Host-CSRF-Token', csrfToken, {
+      ...JWT_CONFIG.cookieOptions,
+      httpOnly: false, // Must be readable by JavaScript for double-submit pattern
+    });
+
     return {
       accessToken,
+      csrfToken,
       expiresIn: 900,
       user: {
         id: payload.sub,
@@ -80,11 +94,23 @@ export class AuthController {
 
     const { accessToken, refreshToken } = await this.authService.rotateRefreshToken(oldRefreshToken);
 
+    // Generate new CSRF token on refresh (DOC-006 §5.3)
+    // We need the userId from the old refresh token to generate the new CSRF token
+    const decoded = await this.authService.decodeToken(oldRefreshToken);
+    const csrfToken = decoded?.sub ? await this.csrfService.generateToken(decoded.sub) : '';
+
     // Rotate and set fresh sliding cookie
     res.cookie('__Host-Refresh-Token', refreshToken, JWT_CONFIG.cookieOptions);
 
+    // Set new CSRF token cookie
+    res.cookie('__Host-CSRF-Token', csrfToken, {
+      ...JWT_CONFIG.cookieOptions,
+      httpOnly: false,
+    });
+
     return {
       accessToken,
+      csrfToken,
       expiresIn: 900,
     };
   }
@@ -105,8 +131,19 @@ export class AuthController {
       await this.authService.blacklistToken(token, 900);
     }
 
+    // Delete CSRF token from Redis (DOC-006 §5.3)
+    if (user?.id) {
+      await this.csrfService.deleteToken(user.id);
+    }
+
     // Clear refresh cookie
     res.clearCookie('__Host-Refresh-Token', JWT_CONFIG.cookieOptions);
+
+    // Clear CSRF token cookie
+    res.clearCookie('__Host-CSRF-Token', {
+      ...JWT_CONFIG.cookieOptions,
+      httpOnly: false,
+    });
 
     return {
       success: true,

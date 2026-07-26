@@ -319,11 +319,10 @@
 - **TSK/Roadmap:** TSK-3.2
 
 ### 5.3 Cross-Site Request Forgery (CSRF) Mitigation
-- **Status:** ⚠️ Partially Implemented
-- **Description:** HttpOnly + SameSite=Strict cookies implemented via NGINX. Missing: X-CSRF-Token double-submit header validation.
-- **Files:** `nginx.conf`
-- **Commits:** `10460d9`
-- **Missing:** Application-level `X-CSRF-Token` header validation on mutating requests (POST/PUT/DELETE)
+- **Status:** ✅ Implemented
+- **Description:** HttpOnly + SameSite=Strict cookies for refresh tokens. X-CSRF-Token double-submit pattern with Redis-backed token storage, constant-time validation, and global guard on mutating requests (POST/PUT/DELETE/PATCH).
+- **Files:** `apps/api/src/common/csrf/csrf.service.ts`, `apps/api/src/common/csrf/csrf.guard.ts`, `apps/api/src/common/csrf/csrf.module.ts`, `apps/api/src/auth/auth.controller.ts`, `apps/api/src/auth/auth.service.ts`, `apps/api/src/app.module.ts`
+- **Commits:** `10460d9`, `d4ea6db`
 
 ### 5.4 Cross-Site Scripting (XSS) Sanitization Pipelines
 - **Status:** ⚠️ Partially Implemented
@@ -589,8 +588,8 @@
 | Metric | Count |
 |--------|-------|
 | **Total Requirements Indexed** | **76** |
-| **Implemented** | **57** |
-| **Partially Implemented** | **13** |
+| **Implemented** | **58** |
+| **Partially Implemented** | **12** |
 | **Not Implemented** | **6** |
 
 ### Breakdown by DOC
@@ -601,7 +600,7 @@
 | DOC-002 (Database) | 9 | 7 | 2 | 0 |
 | DOC-003 (REST API) | 11 | 11 | 0 | 0 |
 | DOC-005 (Business Logic) | 8 | 8 | 0 | 0 |
-| DOC-006 (Security) | 9 | 6 | 3 | 0 |
+| DOC-006 (Security) | 9 | 7 | 2 | 0 |
 | DOC-007 (Image Pipeline) | 5 | 4 | 0 | 1 |
 | DOC-008 (Notifications) | 6 | 6 | 0 | 0 |
 | DOC-009 (Integrations) | 5 | 1 | 2 | 2 |
@@ -614,33 +613,32 @@
 Listed in dependency order (prerequisites first, downstream features after):
 
 ### Priority 1 — Security Foundation (no dependencies)
-1. **DOC-006 §5.3** — X-CSRF-Token double-submit header validation (application-level middleware)
-2. **DOC-006 §5.4** — Input sanitization middleware (dompurify/class-sanitizer for XSS prevention)
+1. **DOC-006 §5.4** — Input sanitization middleware (dompurify/class-sanitizer for XSS prevention)
 
 ### Priority 2 — Infrastructure (foundational for production)
-3. **DOC-010 §9.2** — Database optimization tooling (EXPLAIN ANALYZE scripts, autovacuum tuning)
-4. **DOC-010 §9.4** — BullMQ worker architecture (queue definitions, retry policies, DLQ)
-5. **DOC-010 §9.5** — Kubernetes manifests + HPA configuration
-6. **DOC-009 §8.5** — Automated backups & disaster recovery (RDS Multi-AZ, WAL archiving, PITR)
+2. **DOC-010 §9.2** — Database optimization tooling (EXPLAIN ANALYZE scripts, autovacuum tuning)
+3. **DOC-010 §9.4** — BullMQ worker architecture (queue definitions, retry policies, DLQ)
+4. **DOC-010 §9.5** — Kubernetes manifests + HPA configuration
+5. **DOC-009 §8.5** — Automated backups & disaster recovery (RDS Multi-AZ, WAL archiving, PITR)
 
 ### Priority 3 — Observability (depends on Priority 2)
-7. **DOC-009 §8.4** — Winston structured logging + ELK Stack + Datadog APM
-8. **DOC-010 §10.5** — CD pipeline (`.github/workflows/cd.yml`) + branch protection
+6. **DOC-009 §8.4** — Winston structured logging + ELK Stack + Datadog APM
+7. **DOC-010 §10.5** — CD pipeline (`.github/workflows/cd.yml`) + branch protection
 
 ### Priority 4 — CDN & Performance (depends on Priority 2)
-9. **DOC-007 §6.4** — CloudFront CDN edge caching + cache invalidation strategy
-10. **DOC-002 §2.4** — GIN full-text search index on `products.tsv_menu_search`
-11. **DOC-010 §9.3** — Next.js Image component + dynamic imports audit
+8. **DOC-007 §6.4** — CloudFront CDN edge caching + cache invalidation strategy
+9. **DOC-002 §2.4** — GIN full-text search index on `products.tsv_menu_search`
+10. **DOC-010 §9.3** — Next.js Image component + dynamic imports audit
 
 ### Priority 5 — Payment Completeness (independent)
-12. **DOC-009 §8.2** — Complete Stripe subscription lifecycle webhook handler
-13. **DOC-009 §8.3** — Real Tap/PayTabs SDK integration (KNET, Benefit, Mada)
+11. **DOC-009 §8.2** — Complete Stripe subscription lifecycle webhook handler
+12. **DOC-009 §8.3** — Real Tap/PayTabs SDK integration (KNET, Benefit, Mada)
 
 ### Priority 6 — Code Quality (independent)
-14. **DOC-010 §10.2** — ESLint zero-error CI enforcement + `no-explicit-any` audit
-15. **DOC-010 §10.3** — Zero-downtime migration documentation + CI validation
-16. **DOC-010 §10.6** — Complete environment variable set + staging/production configs
-17. **DOC-002 §2.7** — Database-level triggers for `updated_at`, audit logs, and notifications
+13. **DOC-010 §10.2** — ESLint zero-error CI enforcement + `no-explicit-any` audit
+14. **DOC-010 §10.3** — Zero-downtime migration documentation + CI validation
+15. **DOC-010 §10.6** — Complete environment variable set + staging/production configs
+16. **DOC-002 §2.7** — Database-level triggers for `updated_at`, audit logs, and notifications
 
 ---
 

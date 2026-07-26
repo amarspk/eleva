@@ -70,6 +70,17 @@ export class AuthService {
   }
 
   /**
+   * Decodes a JWT token without verification (for extracting claims like userId).
+   */
+  async decodeToken(token: string): Promise<{ sub: string; email: string; tenantId?: string } | null> {
+    try {
+      return this.jwtService.decode(token) as { sub: string; email: string; tenantId?: string };
+    } catch {
+      return null;
+    }
+  }
+
+  /**
    * Core Refresh Token Rotation (RTR) Engine.
    * If token is reused or blacklisted, flags tree invalidation and rejects immediately.
    */
