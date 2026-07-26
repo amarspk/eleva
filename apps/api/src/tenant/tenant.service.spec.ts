@@ -3,7 +3,6 @@ import { TenantService } from './tenant.service';
 import { AuthService } from '../auth/auth.service';
 import { prisma, prismaRead } from '@zayjar/db';
 
-// Mocking argon2 C++ native modules to prevent Jest V8 multithreaded segmentation faults
 jest.mock('argon2', () => ({
   hash: jest.fn().mockResolvedValue('mock-argon2-hash'),
   verify: jest.fn().mockResolvedValue(true),
@@ -26,22 +25,23 @@ describe('TenantService Unit Tests', () => {
     }).compile();
 
     service = module.get<TenantService>(TenantService);
+    jest.clearAllMocks();
   });
 
   it('should successfully orchestrate tenant onboarding inside transaction', async () => {
-    // Mock the dynamic transaction mapper on prisma
     const txMock = {
       tenant: { create: jest.fn().mockResolvedValue({ id: 't1', name: 'Gourmet', subdomain: 'gourmet', status: 'TRIALING' }) },
       subscription: { create: jest.fn().mockResolvedValue({}) },
       user: { create: jest.fn().mockResolvedValue({ id: 'u1', email: 'owner@gourmet.com' }) },
       role: { create: jest.fn().mockResolvedValue({ id: 'r1' }) },
       userRole: { create: jest.fn().mockResolvedValue({}) },
-      restaurant: { create: jest.fn().mockResolvedValue({ id: 'rest1' }) },
+      restaurant: { create: jest.fn().mockResolvedValue({ id: 'rest1', name: 'Gourmet', currency: 'USD', timezone: 'UTC' }) },
       branch: { create: jest.fn().mockResolvedValue({ id: 'b1', name: 'Main Branch' }) },
     };
 
-    jest.spyOn(prisma, '$transaction').mockImplementation(async (cb: any) => cb(txMock));
+    jest.spyOn(prisma, '$transaction').mockImplementation(async (cb: (tx: typeof txMock) => Promise<unknown>) => cb(txMock));
     jest.spyOn(prisma.tenant, 'findUnique').mockResolvedValue(null);
+    jest.spyOn(prisma.user, 'findFirst').mockResolvedValue(null);
 
     const dto = {
       companyName: 'Gourmet',
@@ -53,12 +53,135 @@ describe('TenantService Unit Tests', () => {
       planId: 'plan1',
     };
 
-    const result = await service.onboard(dto);
+    const result = await service.onboard(dto) as Record<string, unknown>;
 
-    expect(result.tenant.id).toBe('t1');
-    expect(result.owner.id).toBe('u1');
-    expect(result.branch.id).toBe('b1');
+    expect((result.tenant as Record<string, string>).id).toBe('t1');
+    expect((result.owner as Record<string, string>).id).toBe('u1');
+    expect((result.branch as Record<string, string>).id).toBe('b1');
     expect(mockAuthService.hashPassword).toHaveBeenCalledWith('Password123!');
+    expect(txMock.restaurant.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        name: 'Gourmet',
+        currency: 'USD',
+        timezone: 'UTC',
+        taxPercentage: 0,
+      }),
+    });
+  });
+
+  it('should use restaurant and branch details from wizard DTO when provided', async () => {
+    const txMock = {
+      tenant: { create: jest.fn().mockResolvedValue({ id: 't2', name: 'Spice Route', subdomain: 'spice-route', status: 'TRIALING' }) },
+      subscription: { create: jest.fn().mockResolvedValue({}) },
+      user: { create: jest.fn().mockResolvedValue({ id: 'u2', email: 'chef@spice.com' }) },
+      role: { create: jest.fn().mockResolvedValue({ id: 'r2' }) },
+      userRole: { create: jest.fn().mockResolvedValue({}) },
+      restaurant: { create: jest.fn().mockResolvedValue({ id: 'rest2', name: 'Spice Kitchen', currency: 'KWD', timezone: 'Asia/Kuwait' }) },
+      branch: { create: jest.fn().mockResolvedValue({ id: 'b2', name: 'Kuwait City Branch' }) },
+    };
+
+    jest.spyOn(prisma, '$transaction').mockImplementation(async (cb: (tx: typeof txMock) => Promise<unknown>) => cb(txMock));
+    jest.spyOn(prisma.tenant, 'findUnique').mockResolvedValue(null);
+    jest.spyOn(prisma.user, 'findFirst').mockResolvedValue(null);
+
+    const dto = {
+      companyName: 'Spice Route',
+      subdomain: 'spice-route',
+      ownerFirstName: 'Ahmed',
+      ownerLastName: 'Ali',
+      ownerEmail: 'chef@spice.com',
+      ownerPassword: 'StrongPass1!',
+      planId: 'plan2',
+      restaurantName: 'Spice Kitchen',
+      currency: 'KWD',
+      timezone: 'Asia/Kuwait',
+      taxPercentage: 15,
+      branch: {
+        name: 'Kuwait City Branch',
+        address: 'Kuwait City, Block 5, Street 12',
+        phoneNumber: '+96522334455',
+        latitude: 29.3759,
+        longitude: 47.9774,
+        operatingHours: {
+          monday: { open: '10:00', close: '23:00', closed: false },
+          tuesday: { open: '10:00', close: '23:00', closed: false },
+          wednesday: { open: '10:00', close: '23:00', closed: false },
+          thursday: { open: '10:00', close: '23:00', closed: false },
+          friday: { open: '14:00', close: '23:00', closed: false },
+          saturday: { open: '10:00', close: '23:00', closed: false },
+          sunday: { open: '10:00', close: '22:00', closed: false },
+        },
+      },
+    };
+
+    const result = await service.onboard(dto) as Record<string, unknown>;
+
+    expect((result.restaurant as Record<string, string>).name).toBe('Spice Kitchen');
+    expect((result.restaurant as Record<string, string>).currency).toBe('KWD');
+    expect(txMock.restaurant.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        name: 'Spice Kitchen',
+        currency: 'KWD',
+        timezone: 'Asia/Kuwait',
+        taxPercentage: 15,
+      }),
+    });
+    expect(txMock.branch.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        name: 'Kuwait City Branch',
+        address: 'Kuwait City, Block 5, Street 12',
+        phoneNumber: '+96522334455',
+        latitude: 29.3759,
+        longitude: 47.9774,
+      }),
+    });
+  });
+
+  it('should reject duplicate subdomain during onboarding', async () => {
+    jest.spyOn(prisma.tenant, 'findUnique').mockResolvedValue({ id: 'existing' } as never);
+
+    await expect(
+      service.onboard({
+        companyName: 'Test',
+        subdomain: 'existing',
+        ownerFirstName: 'A',
+        ownerLastName: 'B',
+        ownerEmail: 'a@b.com',
+        ownerPassword: 'Password123!',
+        planId: 'plan1',
+      }),
+    ).rejects.toThrow('subdomain is already registered');
+  });
+
+  it('should reject duplicate email during onboarding', async () => {
+    jest.spyOn(prisma.tenant, 'findUnique').mockResolvedValue(null);
+    jest.spyOn(prisma.user, 'findFirst').mockResolvedValue({ id: 'existing-user' } as never);
+
+    await expect(
+      service.onboard({
+        companyName: 'Test',
+        subdomain: 'new-tenant',
+        ownerFirstName: 'A',
+        ownerLastName: 'B',
+        ownerEmail: 'existing@example.com',
+        ownerPassword: 'Password123!',
+        planId: 'plan1',
+      }),
+    ).rejects.toThrow('email address already exists');
+  });
+
+  it('should return available subscription plans', async () => {
+    const mockPlans = [
+      { id: 'plan1', name: 'Starter', priceMonthly: 29, priceYearly: 290, maxBranches: 2, maxRestaurants: 1, maxProductsPerBranch: 50, allowCustomDomains: false, allowOnlinePayments: false, allowAnalytics: false },
+      { id: 'plan2', name: 'Growth', priceMonthly: 79, priceYearly: 790, maxBranches: 5, maxRestaurants: 3, maxProductsPerBranch: 200, allowCustomDomains: true, allowOnlinePayments: true, allowAnalytics: true },
+    ];
+    jest.spyOn(prismaRead.subscriptionPlan, 'findMany').mockResolvedValue(mockPlans as never);
+
+    const plans = await service.getAvailablePlans();
+
+    expect(plans).toHaveLength(2);
+    expect(plans[0].name).toBe('Starter');
+    expect(prismaRead.subscriptionPlan.findMany).toHaveBeenCalledWith({ orderBy: { priceMonthly: 'asc' } });
   });
 
   it('should use prismaRead for read-only tenant queries (read replica routing)', async () => {
@@ -75,7 +198,7 @@ describe('TenantService Unit Tests', () => {
       branding: { translations: { ar: { name: 'جورميه' } } },
     };
 
-    jest.spyOn(prismaRead.tenant, 'findUnique').mockResolvedValue(mockTenant as any);
+    jest.spyOn(prismaRead.tenant, 'findUnique').mockResolvedValue(mockTenant as never);
 
     const result = await service.getTenantById('t1');
 
@@ -98,7 +221,7 @@ describe('TenantService Unit Tests', () => {
       branding: { layout: 'modern', menuStyle: 'cards', translations: { ar: { welcome: 'أهلا' } } },
     };
 
-    jest.spyOn(prismaRead.tenant, 'findUnique').mockResolvedValue(mockTenant as any);
+    jest.spyOn(prismaRead.tenant, 'findUnique').mockResolvedValue(mockTenant as never);
 
     const result = await service.getTenantById('t1');
 

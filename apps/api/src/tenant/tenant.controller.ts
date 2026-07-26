@@ -14,11 +14,30 @@ export class TenantController {
   constructor(private readonly tenantService: TenantService) {}
 
   @Public()
+  @Get('plans')
+  @HttpCode(HttpStatus.OK)
+  async getPlans(): Promise<Array<{
+    id: string;
+    name: string;
+    priceMonthly: number;
+    priceYearly: number;
+    maxBranches: number;
+    maxRestaurants: number;
+    maxProductsPerBranch: number;
+    allowCustomDomains: boolean;
+    allowOnlinePayments: boolean;
+    allowAnalytics: boolean;
+  }>> {
+    return this.tenantService.getAvailablePlans();
+  }
+
+  @Public()
   @Post()
   @HttpCode(HttpStatus.CREATED)
   async onboard(@Body() dto: CreateTenantRequestDto): Promise<{
     tenant: { id: string; name: string; subdomain: string; status: string };
     owner: { id: string; email: string };
+    restaurant: { id: string; name: string; currency: string; timezone: string };
     branch: { id: string; name: string };
   }> {
     return this.tenantService.onboard(dto);
