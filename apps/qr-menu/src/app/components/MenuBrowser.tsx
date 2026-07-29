@@ -1,79 +1,64 @@
 'use client';
-/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/explicit-function-return-type, curly, no-console */
+/* eslint-disable @typescript-eslint/explicit-function-return-type, curly */
 
-import React, { useState, useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import Image from 'next/image';
+import {
+  CartItem,
+  GuestOrderConfirmation,
+  PublicAddonOption,
+  PublicMenuResponse,
+  PublicProduct,
+  PublicAddonGroup,
+  PublicProductSize,
+  PublicProductVariant,
+} from '../lib/types';
+import { computeCartItemCount, computeCartSubtotal, computeUnitPrice, cartItemKey } from '../lib/pricing';
+import { buildCheckoutPayload, submitGuestOrder } from '../lib/guest-api';
+import { formatPrice } from '../lib/format';
 
-interface ProductSize {
-  id: string;
-  name: string;
-  priceAdjustment: number;
-}
-
-interface ProductVariant {
-  id: string;
-  name: string;
-  price: number;
-  stockQuantity: number;
-}
-
-interface AddonItem {
-  id: string;
-  name: string;
-  price: number;
-  isAvailable: boolean;
-}
-
-interface ProductAddonGroup {
-  id: string;
-  name: string;
-  minSelections: number;
-  maxSelections: number;
-  options: AddonItem[];
-}
-
-interface Product {
-  id: string;
-  name: string;
-  description: string;
-  imageUrl: string | null;
-  basePrice: number;
-  calories: number | null;
-  isAvailable: boolean;
-  sizes: ProductSize[];
-  variants: ProductVariant[];
-  addons: ProductAddonGroup[];
-}
-
-interface Category {
-  id: string;
-  name: string;
-  products: Product[];
-}
+type AddonGroup = PublicAddonGroup;
+type Size = PublicProductSize;
+type Variant = PublicProductVariant;
 
 interface MenuBrowserProps {
-  categories: Category[];
-  primaryColor: string;
+  /** Full guest payload from GET /api/v1/public/menu (SSR-provided). */
+  initialData: PublicMenuResponse;
+  /** Cryptographic QR table credential (?t=...), sent on checkout (DOC-005 4.6). */
+  token: string;
 }
 
-export const MenuBrowser: React.FC<MenuBrowserProps> = ({ categories, primaryColor }) => {
+export const MenuBrowser: React.FC<MenuBrowserProps> = ({ initialData, token }) => {
+  const categories = initialData.categories;
+  const primaryColor = initialData.tenant.primaryColor;
+  const currency = initialData.restaurant.currency;
+
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>('all');
-  const [activeCartProduct, setActiveCartProduct] = useState<Product | null>(null);
+  const [activeCartProduct, setActiveCartProduct] = useState<PublicProduct | null>(null);
 
-  // Cart Configuration States
-  const [selectedSize, setSelectedSize] = useState<ProductSize | null>(null);
-  const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(null);
-  const [selectedAddons, setSelectedAddons] = useState<AddonItem[]>([]);
+  // Item configuration states (modal)
+  const [selectedSize, setSelectedSize] = useState<Size | null>(null);
+  const [selectedVariant, setSelectedVariant] = useState<Variant | null>(null);
+  const [selectedAddons, setSelectedAddons] = useState<PublicAddonOption[]>([]);
   const [quantity, setQuantity] = useState(1);
+
+  // Cart & checkout states
+  const [cart, setCart] = useState<CartItem[]>([]);
+  const [cartOpen, setCartOpen] = useState(false);
+  const [specialNotes, setSpecialNotes] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [checkoutError, setCheckoutError] = useState<string | null>(null);
+  const [confirmation, setConfirmation] = useState<GuestOrderConfirmation | null>(null);
 
   // Filter Categories & Products dynamically
   const filteredCategories = useMemo(() => {
     return categories
       .map((category) => {
         const matchingProducts = category.products.filter((product) => {
+          const description = product.description ?? '';
           const matchesSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            product.description.toLowerCase().includes(searchQuery.toLowerCase());
+            description.toLowerCase().includes(searchQuery.toLowerCase());
           return product.isAvailable && matchesSearch;
         });
 
@@ -85,36 +70,23 @@ export const MenuBrowser: React.FC<MenuBrowserProps> = ({ categories, primaryCol
       });
   }, [categories, searchQuery, selectedCategoryId]);
 
-  // Dynamic Inheritance Pricing Logic per DOC-005 4.3
+  // Dynamic Inheritance Pricing Logic per DOC-005 4.3 (shared lib, verified)
   const calculatedUnitPrice = useMemo(() => {
     if (!activeCartProduct) return 0;
-    
-    let base = Number(activeCartProduct.basePrice);
-
-    // Apply Size Adjustment (Condition B)
-    if (selectedSize) {
-      base += Number(selectedSize.priceAdjustment);
-    }
-
-    // Apply Variant Absolute Override (Condition C)
-    if (selectedVariant) {
-      base = Number(selectedVariant.price);
-    }
-
-    // Add selected customizations (Condition D)
-    const addonsTotal = selectedAddons.reduce((sum, addon) => sum + Number(addon.price), 0);
-
-    return base + addonsTotal;
+    return computeUnitPrice(activeCartProduct, selectedSize, selectedVariant, selectedAddons);
   }, [activeCartProduct, selectedSize, selectedVariant, selectedAddons]);
 
-  const handleAddonClick = (addon: AddonItem, group: ProductAddonGroup) => {
+  const cartSubtotal = useMemo(() => computeCartSubtotal(cart), [cart]);
+  const cartItemCount = useMemo(() => computeCartItemCount(cart), [cart]);
+
+  const handleAddonClick = (addon: PublicAddonOption, group: AddonGroup) => {
     const isActive = selectedAddons.some((item) => item.id === addon.id);
     if (isActive) {
       setSelectedAddons(selectedAddons.filter((item) => item.id !== addon.id));
     } else {
       // Validate Selection Upper Bounds
-      const activeGroupSelections = selectedAddons.filter((item) => 
-        group.options.some((opt) => opt.id === item.id)
+      const activeGroupSelections = selectedAddons.filter((item) =>
+        group.options.some((opt) => opt.id === item.id),
       );
 
       if (activeGroupSelections.length < group.maxSelections) {
@@ -135,6 +107,118 @@ export const MenuBrowser: React.FC<MenuBrowserProps> = ({ categories, primaryCol
     setSelectedAddons([]);
     setQuantity(1);
   };
+
+  const addToCart = () => {
+    if (!activeCartProduct) return;
+
+    const addons = selectedAddons.map((addon) => ({ id: addon.id, name: addon.name, price: Number(addon.price) }));
+    const key = cartItemKey(activeCartProduct.id, selectedSize?.id ?? null, selectedVariant?.id ?? null, addons);
+
+    setCart((prev) => {
+      const existing = prev.find((item) => item.key === key);
+      if (existing) {
+        return prev.map((item) => (item.key === key ? { ...item, quantity: item.quantity + quantity } : item));
+      }
+      const line: CartItem = {
+        key,
+        productId: activeCartProduct.id,
+        name: activeCartProduct.name,
+        sizeId: selectedSize?.id ?? null,
+        sizeName: selectedSize?.name ?? null,
+        variantId: selectedVariant?.id ?? null,
+        variantName: selectedVariant?.name ?? null,
+        addons,
+        quantity,
+        unitPrice: calculatedUnitPrice,
+      };
+      return [...prev, line];
+    });
+
+    resetCartModal();
+  };
+
+  const changeLineQuantity = (key: string, delta: number) => {
+    setCart((prev) =>
+      prev
+        .map((item) => (item.key === key ? { ...item, quantity: Math.max(0, item.quantity + delta) } : item))
+        .filter((item) => item.quantity > 0),
+    );
+  };
+
+  const removeLine = (key: string) => {
+    setCart((prev) => prev.filter((item) => item.key !== key));
+  };
+
+  const placeOrder = async () => {
+    if (cart.length === 0 || submitting) return;
+    setSubmitting(true);
+    setCheckoutError(null);
+
+    try {
+      const payload = buildCheckoutPayload(cart, {
+        qrCodeToken: token,
+        branchId: initialData.branch.id,
+        paymentMethod: 'CASH',
+        specialNotes,
+      });
+      const result = await submitGuestOrder(payload);
+      setConfirmation(result);
+      setCart([]);
+      setCartOpen(false);
+      setSpecialNotes('');
+    } catch (err) {
+      setCheckoutError(err instanceof Error ? err.message : 'The order could not be placed.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const startNewOrder = () => {
+    setConfirmation(null);
+    setCheckoutError(null);
+  };
+
+  // ==========================================
+  // Order confirmation view (after HTTP 201)
+  // ==========================================
+  if (confirmation) {
+    return (
+      <div className="w-full max-w-md mx-auto bg-gray-50 min-h-screen pb-24 px-4 pt-16 text-center">
+        <div className="bg-white rounded-2xl shadow-sm p-6">
+          <div className="text-4xl mb-3" aria-hidden>✅</div>
+          <h2 className="text-lg font-bold text-gray-900 mb-1">Order received</h2>
+          <p className="text-sm text-gray-600 mb-4">
+            Your order was sent to the kitchen. Pay at the counter when you are ready.
+          </p>
+          <div className="bg-gray-50 rounded-xl p-4 mb-4 text-left">
+            <div className="flex justify-between text-sm py-1">
+              <span className="text-gray-500">Order number</span>
+              <span className="font-bold text-gray-900">{confirmation.orderNumber}</span>
+            </div>
+            <div className="flex justify-between text-sm py-1">
+              <span className="text-gray-500">Table</span>
+              <span className="font-semibold text-gray-900">{initialData.table.number}</span>
+            </div>
+            <div className="flex justify-between text-sm py-1">
+              <span className="text-gray-500">Status</span>
+              <span className="font-semibold text-gray-900">{confirmation.status}</span>
+            </div>
+            <div className="flex justify-between text-sm py-1 border-t mt-2 pt-2">
+              <span className="text-gray-500">Total</span>
+              <span className="font-bold text-gray-900">{formatPrice(Number(confirmation.total), currency)}</span>
+            </div>
+          </div>
+          <button
+            onClick={startNewOrder}
+            className="px-6 py-3 rounded-full text-white font-semibold text-sm shadow-md"
+            style={{ backgroundColor: primaryColor }}
+          >
+            Back to menu
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full max-w-md mx-auto bg-gray-50 min-h-screen pb-24">
@@ -194,9 +278,9 @@ export const MenuBrowser: React.FC<MenuBrowserProps> = ({ categories, primaryCol
                     >
                       <div className="flex-1 pr-3">
                         <h3 className="font-semibold text-gray-900 text-sm">{product.name}</h3>
-                        <p className="text-gray-500 text-xs mt-1 line-clamp-2">{product.description}</p>
+                        <p className="text-gray-500 text-xs mt-1 line-clamp-2">{product.description ?? ''}</p>
                         <span className="text-gray-900 font-bold text-sm block mt-2">
-                          ${Number(product.basePrice).toFixed(2)}
+                          {formatPrice(Number(product.basePrice), currency)}
                         </span>
                       </div>
                       {product.imageUrl && (
@@ -244,7 +328,7 @@ export const MenuBrowser: React.FC<MenuBrowserProps> = ({ categories, primaryCol
                       }`}
                       style={selectedSize?.id === size.id ? { borderColor: primaryColor } : {}}
                     >
-                      {size.name} (+${Number(size.priceAdjustment).toFixed(2)})
+                      {size.name} (+{formatPrice(Number(size.priceAdjustment), currency)})
                     </button>
                   ))}
                 </div>
@@ -267,7 +351,7 @@ export const MenuBrowser: React.FC<MenuBrowserProps> = ({ categories, primaryCol
                       style={selectedVariant?.id === variant.id ? { borderColor: primaryColor } : {}}
                     >
                       <span>{variant.name} {variant.stockQuantity <= 5 && `(Only ${variant.stockQuantity} left!)`}</span>
-                      <span className="font-bold">${Number(variant.price).toFixed(2)}</span>
+                      <span className="font-bold">{formatPrice(Number(variant.price), currency)}</span>
                     </button>
                   ))}
                 </div>
@@ -296,7 +380,7 @@ export const MenuBrowser: React.FC<MenuBrowserProps> = ({ categories, primaryCol
                         style={isSelected ? { borderColor: primaryColor } : {}}
                       >
                         <span>{addon.name}</span>
-                        <span className="font-bold">+${Number(addon.price).toFixed(2)}</span>
+                        <span className="font-bold">+{formatPrice(Number(addon.price), currency)}</span>
                       </button>
                     );
                   })}
@@ -317,12 +401,103 @@ export const MenuBrowser: React.FC<MenuBrowserProps> = ({ categories, primaryCol
                 <button onClick={() => setQuantity(quantity + 1)} className="px-3 py-1 font-bold text-gray-500">+</button>
               </div>
               <button
+                onClick={addToCart}
                 className="px-6 py-3 rounded-full text-white font-semibold text-sm shadow-md"
                 style={{ backgroundColor: primaryColor }}
               >
-                Add to Cart (${(calculatedUnitPrice * quantity).toFixed(2)})
+                Add to Cart ({formatPrice(calculatedUnitPrice * quantity, currency)})
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Persistent Cart Bar */}
+      {cart.length > 0 && !cartOpen && (
+        <div className="fixed bottom-0 inset-x-0 z-40 px-4 pb-4">
+          <button
+            onClick={() => setCartOpen(true)}
+            className="w-full max-w-md mx-auto flex justify-between items-center px-5 py-4 rounded-2xl text-white font-semibold text-sm shadow-lg"
+            style={{ backgroundColor: primaryColor }}
+          >
+            <span>View cart • {cartItemCount} item{cartItemCount !== 1 ? 's' : ''}</span>
+            <span>{formatPrice(cartSubtotal, currency)}</span>
+          </button>
+        </div>
+      )}
+
+      {/* Cart Drawer */}
+      {cartOpen && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-end justify-center">
+          <div className="bg-white w-full max-w-md rounded-t-2xl p-6 max-h-[90vh] overflow-y-auto shadow-2xl">
+            <div className="flex justify-between items-start mb-4">
+              <h3 className="text-lg font-bold text-gray-900">Your order</h3>
+              <button onClick={() => setCartOpen(false)} className="text-gray-400 hover:text-gray-600 text-xl font-bold">×</button>
+            </div>
+
+            {cart.length === 0 ? (
+              <p className="text-sm text-gray-500 py-6 text-center">Your cart is empty.</p>
+            ) : (
+              <>
+                <div className="space-y-4 mb-4">
+                  {cart.map((item) => (
+                    <div key={item.key} className="border rounded-xl p-3">
+                      <div className="flex justify-between items-start">
+                        <div className="flex-1 pr-2">
+                          <p className="font-semibold text-sm text-gray-900">{item.name}</p>
+                          <p className="text-xs text-gray-500 mt-1">
+                            {[item.variantName, item.sizeName].filter(Boolean).join(' • ')}
+                            {item.addons.length > 0 && `${item.variantName || item.sizeName ? ' • ' : ''}+ ${item.addons.map((a) => a.name).join(', ')}`}
+                          </p>
+                        </div>
+                        <span className="font-bold text-sm text-gray-900">
+                          {formatPrice(item.unitPrice * item.quantity, currency)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center mt-2">
+                        <div className="flex items-center border rounded-full">
+                          <button onClick={() => changeLineQuantity(item.key, -1)} className="px-3 py-1 font-bold text-gray-500">-</button>
+                          <span className="px-3 text-sm font-semibold">{item.quantity}</span>
+                          <button onClick={() => changeLineQuantity(item.key, 1)} className="px-3 py-1 font-bold text-gray-500">+</button>
+                        </div>
+                        <button onClick={() => removeLine(item.key)} className="text-xs text-red-500 font-semibold">
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <textarea
+                  value={specialNotes}
+                  onChange={(e) => setSpecialNotes(e.target.value)}
+                  placeholder="Special notes for the kitchen (optional)"
+                  className="w-full border rounded-xl p-3 text-sm mb-4"
+                  rows={2}
+                />
+
+                <div className="flex justify-between text-sm py-2 border-t">
+                  <span className="text-gray-500">Subtotal</span>
+                  <span className="font-bold text-gray-900">{formatPrice(cartSubtotal, currency)}</span>
+                </div>
+                <p className="text-[11px] text-gray-400 mb-4">Taxes are calculated at checkout. Payment: cash at the counter.</p>
+
+                {checkoutError && (
+                  <div className="bg-red-50 border border-red-200 text-red-700 text-xs rounded-xl p-3 mb-4">
+                    {checkoutError}
+                  </div>
+                )}
+
+                <button
+                  onClick={placeOrder}
+                  disabled={submitting}
+                  className="w-full py-4 rounded-full text-white font-semibold text-sm shadow-md disabled:opacity-60"
+                  style={{ backgroundColor: primaryColor }}
+                >
+                  {submitting ? 'Placing order…' : `Place order (${formatPrice(cartSubtotal, currency)})`}
+                </button>
+              </>
+            )}
           </div>
         </div>
       )}
