@@ -143,6 +143,20 @@ describe('KdsGateway Integration Tests - TSK-2.1', () => {
       }),
     );
 
+    // DEFECT-B (Sprint 1 Step 2): ticket display names are resolved through a
+    // dedicated post-transaction read now — mock it like the enriched rows
+    // Prisma returns (product.size/addon relations joined).
+    jest.spyOn(prisma.orderItem, 'findMany').mockResolvedValue([
+      {
+        id: 'item-integ-1',
+        quantity: 1,
+        cookingStatus: 'PENDING',
+        product: { name: 'Test Product' },
+        size: null,
+        orderItemAddons: [],
+      },
+    ] as any);
+
     const createDto = {
       branchId,
       type: OrderType.DINE_IN,
@@ -154,7 +168,7 @@ describe('KdsGateway Integration Tests - TSK-2.1', () => {
       const result = await orderService.createOrder(createDto, tenantId);
 
       expect(result.id).toBe(mockOrder.id);
-      // Verify ticket.created (canonical) was broadcast
+      // Verify ticket.created (canonical) was broadcast with resolved display names
       expect(mockServerTo).toHaveBeenCalledWith(`tenant:${tenantId}:branch:${branchId}`);
       expect(mockServerToEmit).toHaveBeenCalledWith(
         'ticket.created',
@@ -162,7 +176,17 @@ describe('KdsGateway Integration Tests - TSK-2.1', () => {
           event: 'ticket.created',
           tenantId,
           branchId,
-          data: expect.objectContaining({ ticketId: mockOrder.id }),
+          data: expect.objectContaining({
+            ticketId: mockOrder.id,
+            items: [
+              expect.objectContaining({
+                orderItemId: 'item-integ-1',
+                name: 'Test Product',
+                size: null,
+                addons: [],
+              }),
+            ],
+          }),
         }),
       );
       // Verify order.created (legacy alias) was also broadcast

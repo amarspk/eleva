@@ -41,6 +41,15 @@ export class CreateOrderRequestDto {
   @IsOptional()
   tableId?: string;
 
+  /**
+   * Cryptographic QR table credential (DOC-005 4.6). Mandatory on the public
+   * guest checkout surface (POST /api/v1/public/orders/checkout); unused on
+   * the authenticated staff checkout path.
+   */
+  @IsString()
+  @IsOptional()
+  qrCodeToken?: string;
+
   @IsEnum(OrderType)
   @IsNotEmpty()
   type!: OrderType;

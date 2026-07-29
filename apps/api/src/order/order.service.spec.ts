@@ -8,6 +8,7 @@ import {
   TenantOrderRepository,
   TenantInvoiceRepository,
   TenantRestaurantRepository,
+  TenantTableRepository,
   prisma,
 } from '@zayjar/db';
 import { OrderStatus, OrderType, PaymentMethodType } from '@zayjar/types';
@@ -446,6 +447,373 @@ describe('OrderService Unit Tests', () => {
 
     expect(kdsGateway.broadcastOrderEvent).toHaveBeenCalledWith(
       't1', 'b1', 'order.cancelled', expect.objectContaining({ id }),
+    );
+  });
+});
+
+// ======================================================================
+// Sprint 1, Step 2 — Guest QR Checkout (createGuestOrder),
+// Variant Absolute Pricing (DEFECT-A), KDS ticket.created names (DEFECT-B)
+// ======================================================================
+describe('OrderService — Sprint 1 Step 2 (Guest Checkout / DEFECT-A / DEFECT-B)', () => {
+  let service: OrderService;
+
+  const tenantId = 'tenant-uuid-1111';
+  const branchId = 'branch-uuid-1234';
+  const productId = 'prod-uuid-999';
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [OrderService],
+    }).compile();
+
+    service = module.get<OrderService>(OrderService);
+    jest.clearAllMocks();
+  });
+
+  function mockBasePricingFixtures(taxPercentage = 15) {
+    jest.spyOn(TenantBranchRepository.prototype, 'findById').mockResolvedValue({
+      id: branchId,
+      tenantId,
+      restaurantId: 'rest-uuid-999',
+    } as any);
+    jest.spyOn(TenantRestaurantRepository.prototype, 'findById').mockResolvedValue({
+      id: 'rest-uuid-999',
+      taxPercentage: taxPercentage as any,
+    } as any);
+    jest.spyOn(TenantProductRepository.prototype, 'findById').mockResolvedValue({
+      id: productId,
+      basePrice: 10.00 as any,
+      isAvailable: true,
+    } as any);
+  }
+
+  function mockCapturingTransaction(orderResult: Record<string, unknown>) {
+    const createMock = jest.fn().mockResolvedValue(orderResult);
+    const txMock = {
+      order: { create: createMock },
+      kitchenQueue: {
+        create: jest.fn().mockResolvedValue({ id: 'kq-1', ticketNumber: '001', priority: 'NORMAL' }),
+      },
+    };
+    jest.spyOn(prisma, '$transaction').mockImplementation(async (cb: any) => cb(txMock));
+    return createMock;
+  }
+
+  // ==========================================
+  // G1. Valid guest token: branch/table forced server-side (DOC-005 4.6)
+  // ==========================================
+  it('guest checkout with a valid qrCodeToken delegates to checkout with server-authoritative branch/table binding', async () => {
+    const table = { id: 'tbl-9', tenantId, branchId, number: 'T-9' };
+    jest.spyOn(TenantTableRepository.prototype, 'findByQrCodeToken').mockResolvedValue(table as any);
+
+    mockBasePricingFixtures(0);
+    const createMock = mockCapturingTransaction({
+      id: 'order-g1',
+      orderNumber: 'ORD-2026-12345',
+      subtotal: 10.00,
+      taxAmount: 0,
+      total: 10.00,
+    });
+
+    const createDto = {
+      branchId, // as resolved by the Step-1 table-context endpoint
+      type: OrderType.DINE_IN,
+      items: [{ productId, quantity: 1 }],
+      paymentMethod: PaymentMethodType.CASH,
+      qrCodeToken: 'qr-token-abc',
+      // no tableId supplied by the guest — must be forced from the token
+    };
+
+    const result = await service.createGuestOrder(createDto, tenantId);
+
+    expect(result.id).toBe('order-g1');
+    expect(createMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          tenantId,
+          branchId,
+          tableId: 'tbl-9',
+        }),
+      }),
+    );
+  });
+
+  // ==========================================
+  // G2. Unknown token → uniform 404 (no existence oracle)
+  // ==========================================
+  it('guest checkout with an unknown qrCodeToken throws NotFoundException uniformly', async () => {
+    jest.spyOn(TenantTableRepository.prototype, 'findByQrCodeToken').mockResolvedValue(null);
+
+    const createDto = {
+      branchId,
+      type: OrderType.DINE_IN,
+      items: [{ productId, quantity: 1 }],
+      paymentMethod: PaymentMethodType.CASH,
+      qrCodeToken: 'forged-token',
+    };
+
+    await expect(service.createGuestOrder(createDto, tenantId)).rejects.toThrow(NotFoundException);
+    await expect(service.createGuestOrder(createDto, tenantId)).rejects.toThrow('could not be resolved');
+  });
+
+  // ==========================================
+  // G3. Missing token → 400
+  // ==========================================
+  it('guest checkout without a qrCodeToken throws BadRequestException', async () => {
+    const createDto = {
+      branchId,
+      type: OrderType.DINE_IN,
+      items: [{ productId, quantity: 1 }],
+      paymentMethod: PaymentMethodType.CASH,
+    };
+
+    await expect(service.createGuestOrder(createDto as any, tenantId)).rejects.toThrow(BadRequestException);
+  });
+
+  // ==========================================
+  // G4. Explicit branchId conflicting with the token table → 400 (DOC-005 4.6 mismatch rejection)
+  // ==========================================
+  it('guest checkout with a branchId that mismatches the token table is rejected', async () => {
+    jest.spyOn(TenantTableRepository.prototype, 'findByQrCodeToken').mockResolvedValue({
+      id: 'tbl-9',
+      tenantId,
+      branchId: 'branch-A',
+      number: 'T-9',
+    } as any);
+
+    const createDto = {
+      branchId: 'branch-B',
+      type: OrderType.DINE_IN,
+      items: [{ productId, quantity: 1 }],
+      paymentMethod: PaymentMethodType.CASH,
+      qrCodeToken: 'qr-token-abc',
+    };
+
+    await expect(service.createGuestOrder(createDto, tenantId)).rejects.toThrow(BadRequestException);
+    await expect(service.createGuestOrder(createDto, tenantId)).rejects.toThrow('does not match the scanned table branch');
+  });
+
+  // ==========================================
+  // G5. Explicit tableId conflicting with the token table → 400
+  // ==========================================
+  it('guest checkout with a tableId that mismatches the token table is rejected', async () => {
+    jest.spyOn(TenantTableRepository.prototype, 'findByQrCodeToken').mockResolvedValue({
+      id: 'tbl-9',
+      tenantId,
+      branchId,
+      number: 'T-9',
+    } as any);
+
+    const createDto = {
+      branchId,
+      tableId: 'tbl-7',
+      type: OrderType.DINE_IN,
+      items: [{ productId, quantity: 1 }],
+      paymentMethod: PaymentMethodType.CASH,
+      qrCodeToken: 'qr-token-abc',
+    };
+
+    await expect(service.createGuestOrder(createDto, tenantId)).rejects.toThrow(BadRequestException);
+  });
+
+  // ==========================================
+  // A1. DEFECT-A: variant absolute price override (DOC-005 4.3 Condition C)
+  // ==========================================
+  it('checkout with a variant applies the variant absolute price, replacing base price and skipping size adjustments', async () => {
+    mockBasePricingFixtures(15);
+    jest.spyOn(prisma.productVariant, 'findFirst').mockResolvedValue({
+      id: 'var-1',
+      productId,
+      name: 'Double Cheese',
+      price: 22.50 as any,
+      stockQuantity: 7,
+    } as any);
+    const sizeSpy = jest.spyOn(TenantProductSizeRepository.prototype, 'findMany');
+
+    const createMock = mockCapturingTransaction({
+      id: 'order-a1',
+      orderNumber: 'ORD-2026-12345',
+      subtotal: 45.00,
+      taxAmount: 6.75,
+      total: 51.75,
+    });
+
+    const createDto = {
+      branchId,
+      type: OrderType.DINE_IN,
+      items: [{ productId, variantId: 'var-1', sizeId: 'size-ignored', quantity: 2 }],
+      paymentMethod: PaymentMethodType.CASH,
+    };
+
+    await service.createOrder(createDto, tenantId);
+
+    // Variant price is absolute: 22.50 * 2 = 45.00 subtotal, 15% tax = 6.75, total = 51.75
+    expect(createMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          subtotal: 45.00,
+          taxAmount: 6.75,
+          total: 51.75,
+        }),
+      }),
+    );
+    // Size path must be skipped entirely when a variant is selected
+    expect(sizeSpy).not.toHaveBeenCalledWith(expect.objectContaining({ id: 'size-ignored' }));
+  });
+
+  // ==========================================
+  // A2. DEFECT-A: out-of-stock variant → 400, no transaction started
+  // ==========================================
+  it('checkout with an out-of-stock variant throws BadRequestException before any transaction', async () => {
+    mockBasePricingFixtures(0);
+    jest.spyOn(prisma.productVariant, 'findFirst').mockResolvedValue({
+      id: 'var-1',
+      productId,
+      price: 22.50 as any,
+      stockQuantity: 0,
+    } as any);
+    const txSpy = jest.spyOn(prisma, '$transaction').mockImplementation(async () => {
+      throw new Error('transaction must not be reached');
+    });
+
+    const createDto = {
+      branchId,
+      type: OrderType.DINE_IN,
+      items: [{ productId, variantId: 'var-1', quantity: 1 }],
+      paymentMethod: PaymentMethodType.CASH,
+    };
+
+    await expect(service.createOrder(createDto, tenantId)).rejects.toThrow(BadRequestException);
+    await expect(service.createOrder(createDto, tenantId)).rejects.toThrow('out of stock');
+    expect(txSpy).not.toHaveBeenCalled();
+  });
+
+  // ==========================================
+  // A3. DEFECT-A: variant belonging to another product → 400
+  // ==========================================
+  it('checkout with a variant that does not belong to the product throws BadRequestException', async () => {
+    mockBasePricingFixtures(0);
+    // findFirst scoped by { id, productId } returns nothing for foreign variants
+    jest.spyOn(prisma.productVariant, 'findFirst').mockResolvedValue(null);
+
+    const createDto = {
+      branchId,
+      type: OrderType.DINE_IN,
+      items: [{ productId, variantId: 'var-foreign', quantity: 1 }],
+      paymentMethod: PaymentMethodType.CASH,
+    };
+
+    await expect(service.createOrder(createDto, tenantId)).rejects.toThrow(BadRequestException);
+    await expect(service.createOrder(createDto, tenantId)).rejects.toThrow('is invalid for product');
+  });
+
+  // ==========================================
+  // B1. DEFECT-B: ticket.created carries resolved product/size/addon names
+  // ==========================================
+  it('emits ticket.created with resolved product, size and addon names (never "Unknown Product")', async () => {
+    const kdsGateway = { broadcastOrderEvent: jest.fn(), emitTicketCreated: jest.fn() };
+
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        OrderService,
+        { provide: require('../kds/kds.gateway').KdsGateway, useValue: kdsGateway },
+      ],
+    }).compile();
+    const svc = module.get<OrderService>(OrderService);
+
+    mockBasePricingFixtures(0);
+    mockCapturingTransaction({
+      id: 'order-b1',
+      orderNumber: 'ORD-2026-12345',
+      subtotal: 10.00,
+      taxAmount: 0,
+      total: 10.00,
+    });
+    jest.spyOn(prisma.orderItem, 'findMany').mockResolvedValue([
+      {
+        id: 'item-1',
+        quantity: 2,
+        cookingStatus: 'PENDING',
+        product: { name: 'Zinger Burger' },
+        size: { name: 'Large' },
+        orderItemAddons: [
+          { addonItem: { name: 'Extra Cheese' } },
+          { addonItem: { name: 'Spicy Sauce' } },
+        ],
+      },
+    ] as any);
+
+    await svc.createOrder(
+      {
+        branchId,
+        type: OrderType.DINE_IN,
+        items: [{ productId, quantity: 2 }],
+        paymentMethod: PaymentMethodType.CASH,
+      },
+      tenantId,
+    );
+
+    expect(kdsGateway.emitTicketCreated).toHaveBeenCalledWith(
+      tenantId,
+      branchId,
+      expect.objectContaining({
+        ticketId: 'order-b1',
+        // server-generated ORD-YYYY-NNNNN; only the last 3 digits ride the ticket
+        ticketNumber: expect.stringMatching(/^\d{3}$/),
+        priority: 'NORMAL',
+        items: [
+          expect.objectContaining({
+            orderItemId: 'item-1',
+            name: 'Zinger Burger',
+            quantity: 2,
+            size: 'Large',
+            addons: ['Extra Cheese', 'Spicy Sauce'],
+          }),
+        ],
+      }),
+    );
+  });
+
+  // ==========================================
+  // B2. DEFECT-B: KDS name-resolution failure never fails the checkout
+  // ==========================================
+  it('still returns the created order if KDS name resolution fails (broadcast is best-effort)', async () => {
+    const kdsGateway = { broadcastOrderEvent: jest.fn(), emitTicketCreated: jest.fn() };
+
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        OrderService,
+        { provide: require('../kds/kds.gateway').KdsGateway, useValue: kdsGateway },
+      ],
+    }).compile();
+    const svc = module.get<OrderService>(OrderService);
+
+    mockBasePricingFixtures(0);
+    mockCapturingTransaction({
+      id: 'order-b2',
+      orderNumber: 'ORD-2026-12345',
+      subtotal: 10.00,
+      taxAmount: 0,
+      total: 10.00,
+    });
+    jest.spyOn(prisma.orderItem, 'findMany').mockRejectedValue(new Error('read replica lag'));
+
+    const result = await svc.createOrder(
+      {
+        branchId,
+        type: OrderType.DINE_IN,
+        items: [{ productId, quantity: 1 }],
+        paymentMethod: PaymentMethodType.CASH,
+      },
+      tenantId,
+    );
+
+    expect(result.id).toBe('order-b2');
+    expect(kdsGateway.emitTicketCreated).not.toHaveBeenCalled();
+    // Legacy order.created alias is dispatched independently and still fires
+    expect(kdsGateway.broadcastOrderEvent).toHaveBeenCalledWith(
+      tenantId, branchId, 'order.created', expect.objectContaining({ id: 'order-b2' }),
     );
   });
 });

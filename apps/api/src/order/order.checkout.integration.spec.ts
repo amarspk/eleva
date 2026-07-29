@@ -3,6 +3,7 @@ import { INestApplication, ValidationPipe, NestModule, MiddlewareConsumer } from
 import request from 'supertest';
 import { Module } from '@nestjs/common';
 import { OrderController } from './order.controller';
+import { PublicOrderController } from './public-order.controller';
 import { OrderService } from './order.service';
 import { TenantContextMiddleware } from '../common/middleware/tenant-context.middleware';
 import { MockJwtAuthGuard, MockRbacPermissionGuard, MockRateLimitGuard } from '../common/test-helpers';
@@ -16,6 +17,7 @@ import {
   TenantProductSizeRepository,
   TenantAddonItemRepository,
   TenantRestaurantRepository,
+  TenantTableRepository,
   prisma,
 } from '@zayjar/db';
 import { OrderType, PaymentMethodType } from '@zayjar/types';
@@ -122,7 +124,7 @@ const mockCacheService = {
 };
 
 @Module({
-  controllers: [OrderController],
+  controllers: [OrderController, PublicOrderController],
   providers: [
     OrderService,
     { provide: CacheService, useValue: mockCacheService },
@@ -130,7 +132,7 @@ const mockCacheService = {
 })
 class TestOrderModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
-    consumer.apply(TenantContextMiddleware).forRoutes('api/v1/orders');
+    consumer.apply(TenantContextMiddleware).forRoutes('api/v1/orders', 'api/v1/public');
   }
 }
 
@@ -724,5 +726,133 @@ describe('Order Checkout HTTP Integration Tests', () => {
       .send({});
 
     expect(res.status).toBe(400);
+  });
+
+  // ======================================================================
+  // Sprint 1, Step 2 — Public Guest QR Checkout
+  // POST /api/v1/public/orders/checkout (@Public, guest rate tier)
+  // ======================================================================
+  const GUEST_TABLE = { id: 'table-guest-001', tenantId: TENANT_ID, branchId: BRANCH_ID, number: 'T-7' };
+
+  it('P1. guest checkout with a valid qrCodeToken returns 201 and forces server-side branch/table binding', async () => {
+    jest.spyOn(TenantTableRepository.prototype, 'findByQrCodeToken').mockResolvedValue(GUEST_TABLE as any);
+    mockBranch();
+    mockRestaurant(0);
+    mockProduct(10);
+    mockSize(5);
+    mockAddon(3);
+
+    const createMock = jest.fn().mockResolvedValue({
+      ...baseOrderResult(),
+      tableId: GUEST_TABLE.id,
+      subtotal: 10.00,
+      taxAmount: 0,
+      total: 10.00,
+    });
+    jest.spyOn(prisma, '$transaction').mockImplementation(async (cb: any) =>
+      cb({
+        order: { create: createMock },
+        kitchenQueue: { create: jest.fn().mockResolvedValue({ id: 'kq-1' }) },
+      }),
+    );
+
+    const res = await request(app.getHttpServer())
+      .post('/api/v1/public/orders/checkout')
+      .set('X-Tenant-ID', TENANT_ID)
+      .send(checkoutPayload({ qrCodeToken: 'qr-valid-token' }));
+
+    expect(res.status).toBe(201);
+    expect(res.body.id).toBe('order-integ-001');
+    // Branch/table are derived from the verified token, not from the guest body
+    expect(createMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          tenantId: TENANT_ID,
+          branchId: BRANCH_ID,
+          tableId: GUEST_TABLE.id,
+        }),
+      }),
+    );
+  });
+
+  it('P2. guest checkout with an unknown qrCodeToken returns a uniform 404 (no existence oracle)', async () => {
+    jest.spyOn(TenantTableRepository.prototype, 'findByQrCodeToken').mockResolvedValue(null);
+
+    const res = await request(app.getHttpServer())
+      .post('/api/v1/public/orders/checkout')
+      .set('X-Tenant-ID', TENANT_ID)
+      .send(checkoutPayload({ qrCodeToken: 'qr-forged-token' }));
+
+    expect(res.status).toBe(404);
+    expect(res.body.message).toEqual(expect.stringContaining('could not be resolved'));
+  });
+
+  it('P3. guest checkout with a branchId mismatching the token table returns 400 (DOC-005 4.6)', async () => {
+    jest.spyOn(TenantTableRepository.prototype, 'findByQrCodeToken').mockResolvedValue(GUEST_TABLE as any);
+
+    const res = await request(app.getHttpServer())
+      .post('/api/v1/public/orders/checkout')
+      .set('X-Tenant-ID', TENANT_ID)
+      .send(checkoutPayload({ qrCodeToken: 'qr-valid-token', branchId: 'branch-foreign' }));
+
+    expect(res.status).toBe(400);
+    expect(res.body.message).toEqual(expect.stringContaining('does not match the scanned table branch'));
+  });
+
+  it('P4. guest checkout without a qrCodeToken returns 400', async () => {
+    const res = await request(app.getHttpServer())
+      .post('/api/v1/public/orders/checkout')
+      .set('X-Tenant-ID', TENANT_ID)
+      .send(checkoutPayload());
+
+    expect(res.status).toBe(400);
+    expect(res.body.message).toEqual(expect.stringContaining('qrCodeToken'));
+  });
+
+  it('P5. guest checkout with a variant applies the absolute variant price override (DEFECT-A)', async () => {
+    jest.spyOn(TenantTableRepository.prototype, 'findByQrCodeToken').mockResolvedValue(GUEST_TABLE as any);
+    mockBranch();
+    mockRestaurant(10);
+    mockProduct(20);
+    jest.spyOn(prisma.productVariant, 'findFirst').mockResolvedValue({
+      id: 'var-1',
+      productId: PRODUCT_ID,
+      price: 30 as any,
+      stockQuantity: 5,
+    } as any);
+
+    const createMock = jest.fn().mockResolvedValue({
+      ...baseOrderResult(),
+      tableId: GUEST_TABLE.id,
+      subtotal: 60.00,
+      taxAmount: 6.00,
+      total: 66.00,
+    });
+    jest.spyOn(prisma, '$transaction').mockImplementation(async (cb: any) =>
+      cb({
+        order: { create: createMock },
+        kitchenQueue: { create: jest.fn().mockResolvedValue({ id: 'kq-1' }) },
+      }),
+    );
+
+    const res = await request(app.getHttpServer())
+      .post('/api/v1/public/orders/checkout')
+      .set('X-Tenant-ID', TENANT_ID)
+      .send(checkoutPayload({
+        qrCodeToken: 'qr-valid-token',
+        items: [{ productId: PRODUCT_ID, variantId: 'var-1', quantity: 2 }],
+      }));
+
+    expect(res.status).toBe(201);
+    // Absolute variant pricing (DOC-005 4.3 Condition C): 30.00 * 2 = 60.00, 10% tax = 6.00
+    expect(createMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          subtotal: 60.00,
+          taxAmount: 6.00,
+          total: 66.00,
+        }),
+      }),
+    );
   });
 });

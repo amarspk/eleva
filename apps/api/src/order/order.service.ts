@@ -11,7 +11,9 @@ import {
   TenantInvoiceRepository,
   TenantRestaurantRepository,
   TenantKitchenQueueRepository,
+  TenantTableRepository,
   prisma,
+  dbTenantContext,
 } from '@zayjar/db';
 import { KdsGateway } from '../kds/kds.gateway';
 import { WebhookService } from '../webhook/webhook.service';
@@ -30,6 +32,7 @@ export class OrderService {
   private readonly invoiceRepository = new TenantInvoiceRepository();
   private readonly restaurantRepository = new TenantRestaurantRepository();
   private readonly kitchenQueueRepository = new TenantKitchenQueueRepository();
+  private readonly tableRepository = new TenantTableRepository();
 
   constructor(
     @Optional() @Inject(KdsGateway) private readonly kdsGateway?: KdsGateway,
@@ -84,6 +87,54 @@ export class OrderService {
   }
 
   /**
+   * Unauthenticated guest checkout for the QR Ordering Channel
+   * (DOC-001 1.2, DOC-003 3.6.1, DOC-005 4.6).
+   *
+   * The qrCodeToken is the sole guest credential: it is verified against the
+   * tables of the tenant resolved by TenantContextMiddleware, and the branch
+   * and table bindings are then derived server-authoritatively from the
+   * resolved table row — never from client-supplied fields. An explicit
+   * client-side branch/table that conflicts with the token is rejected.
+   * Unknown or mismatched tokens receive a uniform 404 (no existence oracle).
+   *
+   * After verification the call delegates to the exact same createOrder()
+   * pipeline the authenticated staff checkout uses, so pricing, tax,
+   * transaction atomicity and KDS broadcasting are identical across channels.
+   */
+  async createGuestOrder(dto: CreateOrderRequestDto, guestTenantId: string): Promise<Record<string, unknown>> {
+    this.logger.log(`Initiating guest QR checkout for tenant: [${guestTenantId}]`);
+
+    if (!guestTenantId) {
+      throw new BadRequestException('Tenant context is required for guest checkout.');
+    }
+
+    return dbTenantContext.run({ tenantId: guestTenantId }, async () => {
+      if (!dto.qrCodeToken || dto.qrCodeToken.trim().length === 0) {
+        throw new BadRequestException('A valid qrCodeToken is required for guest checkout.');
+      }
+
+      const table = await this.tableRepository.findByQrCodeToken(dto.qrCodeToken);
+      if (!table) {
+        this.logger.warn('Guest checkout rejected: qrCodeToken did not resolve to a table under this tenant.');
+        throw new NotFoundException('The scanned QR code could not be resolved.');
+      }
+
+      if (dto.branchId !== table.branchId) {
+        throw new BadRequestException('The order target branch does not match the scanned table branch.');
+      }
+      if (dto.tableId && dto.tableId !== table.id) {
+        throw new BadRequestException('The order target table does not match the scanned QR table.');
+      }
+
+      // Server-authoritative binding (DOC-005 4.6)
+      dto.branchId = table.branchId;
+      dto.tableId = table.id;
+
+      return this.createOrder(dto, guestTenantId);
+    });
+  }
+
+  /**
    * Orchestrates a secure checkout transaction.
    * Maps exactly to the transactional architecture requirements in TSK-2.0.
    */
@@ -114,8 +165,23 @@ export class OrderService {
 
       let unitPrice = Number(product.basePrice);
 
-      // A. Evaluate sizing adjustments
-      if (item.sizeId) {
+      // DEFECT-A fix (DOC-005 4.3, Condition C): a selected variant carries an
+      // absolute price that replaces the base price entirely and takes
+      // precedence over sizing adjustments. Variant ownership and stock are
+      // validated strictly against database values.
+      if (item.variantId) {
+        const variant = await prisma.productVariant.findFirst({
+          where: { id: item.variantId, productId: product.id },
+        });
+        if (!variant) {
+          throw new BadRequestException(`Variant [${item.variantId}] is invalid for product [${item.productId}].`);
+        }
+        if (variant.stockQuantity <= 0) {
+          throw new BadRequestException(`Variant [${item.variantId}] for product [${item.productId}] is out of stock.`);
+        }
+        unitPrice = Number(variant.price);
+      } else if (item.sizeId) {
+        // A. Evaluate sizing adjustments (only when no variant is selected)
         const size = await this.sizeRepository.findMany({ id: item.sizeId, productId: product.id });
         if (size.length === 0) {
           throw new BadRequestException(`Sizing modifier [${item.sizeId}] is invalid for this product.`);
@@ -215,23 +281,45 @@ export class OrderService {
     // ==========================================
     // REAL-TIME KDS BROADCAST: ticket.created (canonical)
     // ==========================================
-    if (this.kdsGateway && order.orderItems) {
-      const ticketPayload = {
-        ticketId: order.id,
-        ticketNumber: orderNumber.slice(-3),
-        priority: 'NORMAL',
-        items: order.orderItems.map((item) => ({
-          orderItemId: item.id,
-          name: item.product?.name || 'Unknown Product',
-          quantity: item.quantity,
-          size: item.size?.name || null,
-          addons: item.orderItemAddons
-            ? item.orderItemAddons.map((a) => a.addonItem?.name).filter(Boolean)
-            : [],
-          cookingStatus: item.cookingStatus,
-        })),
-      };
-      this.kdsGateway.emitTicketCreated(userTenantId, dto.branchId, ticketPayload);
+    // DEFECT-B fix (DOC-005): the atomic create above returns only
+    // orderItems.orderItemAddons, whose raw rows carry no product/size/addon
+    // names — broadcasting them produced "Unknown Product" lines on live KDS
+    // tickets. Display names are resolved through a dedicated post-transaction
+    // read so the checkout HTTP response payload remains byte-identical.
+    if (this.kdsGateway) {
+      try {
+        const itemsWithNames = await prisma.orderItem.findMany({
+          where: { orderId: order.id },
+          select: {
+            id: true,
+            quantity: true,
+            cookingStatus: true,
+            product: { select: { name: true } },
+            size: { select: { name: true } },
+            orderItemAddons: { select: { addonItem: { select: { name: true } } } },
+          },
+        });
+
+        const ticketPayload = {
+          ticketId: order.id,
+          ticketNumber: orderNumber.slice(-3),
+          priority: 'NORMAL',
+          items: itemsWithNames.map((item) => ({
+            orderItemId: item.id,
+            name: item.product?.name || 'Unknown Product',
+            quantity: item.quantity,
+            size: item.size?.name || null,
+            addons: item.orderItemAddons
+              .map((addon) => addon.addonItem?.name)
+              .filter(Boolean),
+            cookingStatus: item.cookingStatus,
+          })),
+        };
+        this.kdsGateway.emitTicketCreated(userTenantId, dto.branchId, ticketPayload);
+      } catch (err) {
+        this.logger.error(`Failed to emit ticket.created for order [${orderNumber}]: ${(err as Error).message}`);
+        // Broadcasting is best-effort and must never fail a completed checkout.
+      }
     }
 
     // Legacy alias: order.created for backward compatibility
