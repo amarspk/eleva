@@ -3,6 +3,10 @@ import { PrismaClient } from '../src/generated-client';
 
 const prisma = new PrismaClient();
 
+// NOTE (Runtime Defect R5 fix, 2026-07-30): every primary key below is a deterministic,
+// schema-valid UUID. Raw slugs like 'plan-starter-001' were previously used as IDs, but all
+// schema PKs are String @db.Uuid, so Prisma rejected them with P2023 at seed.ts:45.
+
 async function main(): Promise<void> {
   console.log('Seeding database...');
 
@@ -44,7 +48,7 @@ async function main(): Promise<void> {
   // ==========================================
   const starterPlan = await prisma.subscriptionPlan.create({
     data: {
-      id: 'plan-starter-001',
+      id: 'b6491cba-adde-47db-8f96-98303e118f54',
       name: 'Starter',
       stripePriceId: 'price_starter_monthly',
       maxBranches: 1,
@@ -60,7 +64,7 @@ async function main(): Promise<void> {
 
   const growthPlan = await prisma.subscriptionPlan.create({
     data: {
-      id: 'plan-growth-002',
+      id: 'd98334d4-fc0c-4344-88f6-449fed277a20',
       name: 'Growth',
       stripePriceId: 'price_growth_monthly',
       maxBranches: 5,
@@ -76,7 +80,7 @@ async function main(): Promise<void> {
 
   const enterprisePlan = await prisma.subscriptionPlan.create({
     data: {
-      id: 'plan-enterprise-003',
+      id: 'a33196e9-92cf-4a7b-8efe-d8ec222f821a',
       name: 'Enterprise',
       stripePriceId: 'price_enterprise_monthly',
       maxBranches: 50,
@@ -97,7 +101,7 @@ async function main(): Promise<void> {
   // ==========================================
   const tenant1 = await prisma.tenant.create({
     data: {
-      id: 'tenant-demo-001',
+      id: '80a00898-782c-4a6e-8bad-880e8f4f7977',
       name: 'Al-Baik Restaurant Group',
       subdomain: 'albaik',
       status: 'ACTIVE',
@@ -109,7 +113,7 @@ async function main(): Promise<void> {
 
   const tenant2 = await prisma.tenant.create({
     data: {
-      id: 'tenant-demo-002',
+      id: '930c9c66-06df-4029-8ee8-ac4d0046c6af',
       name: 'Tokyo Ramen House',
       subdomain: 'tokyoramen',
       status: 'TRIALING',
@@ -157,27 +161,27 @@ async function main(): Promise<void> {
   // 4. PERMISSIONS
   // ==========================================
   const permissionData = [
-    { action: 'read', resource: 'branch', description: 'View branches' },
-    { action: 'write', resource: 'branch', description: 'Manage branches' },
-    { action: 'read', resource: 'menu', description: 'View menu items' },
-    { action: 'write', resource: 'menu', description: 'Manage menu items' },
-    { action: 'read', resource: 'order', description: 'View orders' },
-    { action: 'write', resource: 'order', description: 'Manage orders' },
-    { action: 'read', resource: 'kds', description: 'View KDS' },
-    { action: 'write', resource: 'kds', description: 'Update KDS status' },
-    { action: 'read', resource: 'customer', description: 'View customers' },
-    { action: 'write', resource: 'customer', description: 'Manage customers' },
-    { action: 'read', resource: 'billing', description: 'View billing' },
-    { action: 'write', resource: 'billing', description: 'Manage billing' },
-    { action: 'read', resource: 'analytics', description: 'View analytics' },
-    { action: 'write', resource: 'tenant', description: 'Manage tenant settings' },
+    { id: '89b57f62-d43f-4e53-8ca4-a3f6af507190', action: 'read', resource: 'branch', description: 'View branches' },
+    { id: 'dcd3e417-4b21-4137-87ad-30f2f308d0a2', action: 'write', resource: 'branch', description: 'Manage branches' },
+    { id: '185459a3-11d3-4188-8574-88210fb70bfe', action: 'read', resource: 'menu', description: 'View menu items' },
+    { id: 'dbeb4f1c-ada6-4d84-8532-be641a9ee3aa', action: 'write', resource: 'menu', description: 'Manage menu items' },
+    { id: '89f81fbd-16ca-453c-83ea-85f714c5cc1f', action: 'read', resource: 'order', description: 'View orders' },
+    { id: 'a668e9c1-7232-4e3c-8ace-d80b341f4e3b', action: 'write', resource: 'order', description: 'Manage orders' },
+    { id: 'c0843268-f32f-45ad-8449-c4b0ff392dfa', action: 'read', resource: 'kds', description: 'View KDS' },
+    { id: 'e5cf5f6c-2221-45a6-8374-77c9fdec5ff8', action: 'write', resource: 'kds', description: 'Update KDS status' },
+    { id: '7584c7b6-389b-4f1a-823c-832c3835275c', action: 'read', resource: 'customer', description: 'View customers' },
+    { id: '3dfcf3c9-0788-4f54-8ff9-d7f5f6dee021', action: 'write', resource: 'customer', description: 'Manage customers' },
+    { id: '8291897b-508f-4a22-8783-2d3305066e40', action: 'read', resource: 'billing', description: 'View billing' },
+    { id: '2706f2f7-2490-40de-8dcc-efc14bdfbd45', action: 'write', resource: 'billing', description: 'Manage billing' },
+    { id: '1031ff3d-6db6-425d-83a9-5609d545e07b', action: 'read', resource: 'analytics', description: 'View analytics' },
+    { id: '817580df-8bb2-4095-8a2a-5faab2fc1032', action: 'write', resource: 'tenant', description: 'Manage tenant settings' },
   ];
 
   const permissions = await Promise.all(
     permissionData.map((p) =>
       prisma.permission.create({
         data: {
-          id: `perm-${p.action}-${p.resource}`,
+          id: p.id,
           action: p.action,
           resource: p.resource,
           description: p.description,
@@ -193,7 +197,7 @@ async function main(): Promise<void> {
   // ==========================================
   const ownerRole = await prisma.role.create({
     data: {
-      id: 'role-owner-001',
+      id: 'e75d6138-dccf-4f0e-8cb0-256f75ada46c',
       tenantId: tenant1.id,
       name: 'RESTAURANT_OWNER',
       displayName: 'Restaurant Owner',
@@ -203,7 +207,7 @@ async function main(): Promise<void> {
 
   const managerRole = await prisma.role.create({
     data: {
-      id: 'role-manager-001',
+      id: '6c65c0c0-48d1-42d2-81d5-e6c38e2b2f18',
       tenantId: tenant1.id,
       name: 'MANAGER',
       displayName: 'Manager',
@@ -213,7 +217,7 @@ async function main(): Promise<void> {
 
   const cashierRole = await prisma.role.create({
     data: {
-      id: 'role-cashier-001',
+      id: '9c087a90-7923-402c-87a4-64842ac71614',
       tenantId: tenant1.id,
       name: 'CASHIER',
       displayName: 'Cashier',
@@ -223,7 +227,7 @@ async function main(): Promise<void> {
 
   const kitchenRole = await prisma.role.create({
     data: {
-      id: 'role-kitchen-001',
+      id: 'd11c8c4d-3d2c-414f-8f76-69946a03c106',
       tenantId: tenant1.id,
       name: 'KITCHEN_STAFF',
       displayName: 'Kitchen Staff',
@@ -295,7 +299,7 @@ async function main(): Promise<void> {
 
   const adminUser = await prisma.user.create({
     data: {
-      id: 'user-admin-001',
+      id: '2f4cde95-8eea-4d7e-8400-77134aca39e5',
       tenantId: tenant1.id,
       firstName: 'Ahmed',
       lastName: 'Al-Rashid',
@@ -308,7 +312,7 @@ async function main(): Promise<void> {
 
   const managerUser = await prisma.user.create({
     data: {
-      id: 'user-manager-001',
+      id: 'a5141f0b-4213-405f-8cfa-e32dc0e0ef90',
       tenantId: tenant1.id,
       firstName: 'Fatima',
       lastName: 'Hassan',
@@ -321,7 +325,7 @@ async function main(): Promise<void> {
 
   const cashierUser = await prisma.user.create({
     data: {
-      id: 'user-cashier-001',
+      id: '62c8645b-82f2-45f1-8289-81fbaf3147ec',
       tenantId: tenant1.id,
       firstName: 'Omar',
       lastName: 'Khalil',
@@ -333,7 +337,7 @@ async function main(): Promise<void> {
 
   const kitchenUser = await prisma.user.create({
     data: {
-      id: 'user-kitchen-001',
+      id: '45687ac4-9514-42a9-82a2-a74db3cddfc6',
       tenantId: tenant1.id,
       firstName: 'Yusuf',
       lastName: 'Ibrahim',
@@ -346,7 +350,7 @@ async function main(): Promise<void> {
   // Tenant 2 users
   const tenant2Admin = await prisma.user.create({
     data: {
-      id: 'user-t2-admin-001',
+      id: '98978ba1-a3ac-4b40-8094-cad545f34e61',
       tenantId: tenant2.id,
       firstName: 'Kenji',
       lastName: 'Tanaka',
@@ -375,7 +379,7 @@ async function main(): Promise<void> {
   // ==========================================
   const restaurant1 = await prisma.restaurant.create({
     data: {
-      id: 'rest-albaik-001',
+      id: 'e0478415-d8c4-4868-8083-20bf58cc02f5',
       tenantId: tenant1.id,
       name: 'Al-Baik Chicken',
       currency: 'SAR',
@@ -386,7 +390,7 @@ async function main(): Promise<void> {
 
   const restaurant2 = await prisma.restaurant.create({
     data: {
-      id: 'rest-t2-ramen-001',
+      id: 'a0dca7e4-b104-49f9-80ad-9eaa5f4fc6e5',
       tenantId: tenant2.id,
       name: 'Tokyo Ramen House',
       currency: 'JPY',
@@ -402,7 +406,7 @@ async function main(): Promise<void> {
   // ==========================================
   const branch1 = await prisma.branch.create({
     data: {
-      id: 'branch-albaik-riyadh-001',
+      id: 'b09e5d1c-7f77-42ad-8ca9-c6012854bf0b',
       tenantId: tenant1.id,
       restaurantId: restaurant1.id,
       name: 'Riyadh - Olaya Branch',
@@ -425,7 +429,7 @@ async function main(): Promise<void> {
 
   const branch2 = await prisma.branch.create({
     data: {
-      id: 'branch-albaik-jeddah-001',
+      id: '4316ed8e-e1df-43bb-82ab-abbc2140ab8b',
       tenantId: tenant1.id,
       restaurantId: restaurant1.id,
       name: 'Jeddah - Tahlia Branch',
@@ -448,7 +452,7 @@ async function main(): Promise<void> {
 
   await prisma.branch.create({
     data: {
-      id: 'branch-t2-shibuya-001',
+      id: 'bc678e09-5018-4c81-871e-eb1eece71274',
       tenantId: tenant2.id,
       restaurantId: restaurant2.id,
       name: 'Shibuya Main',
@@ -511,7 +515,7 @@ async function main(): Promise<void> {
   // ==========================================
   const catAppetizers = await prisma.category.create({
     data: {
-      id: 'cat-appetizers-001',
+      id: 'ad353fb4-ce19-48bb-8452-2c2849579161',
       tenantId: tenant1.id,
       restaurantId: restaurant1.id,
       name: 'Appetizers',
@@ -522,7 +526,7 @@ async function main(): Promise<void> {
 
   const catChicken = await prisma.category.create({
     data: {
-      id: 'cat-chicken-001',
+      id: 'b7ce7d14-c59f-40f5-8837-ae41c86a2258',
       tenantId: tenant1.id,
       restaurantId: restaurant1.id,
       name: 'Signature Chicken',
@@ -533,7 +537,7 @@ async function main(): Promise<void> {
 
   const catSides = await prisma.category.create({
     data: {
-      id: 'cat-sides-001',
+      id: '9e8deaff-c4eb-41b0-8eb5-2d9bf78e80bb',
       tenantId: tenant1.id,
       restaurantId: restaurant1.id,
       name: 'Sides & Rice',
@@ -544,7 +548,7 @@ async function main(): Promise<void> {
 
   const catBeverages = await prisma.category.create({
     data: {
-      id: 'cat-beverages-001',
+      id: '350dadb7-058d-4104-883f-a131d841aa85',
       tenantId: tenant1.id,
       restaurantId: restaurant1.id,
       name: 'Beverages',
@@ -555,7 +559,7 @@ async function main(): Promise<void> {
 
   const catDesserts = await prisma.category.create({
     data: {
-      id: 'cat-desserts-001',
+      id: 'f69acc1a-d5c9-4474-80ee-49bea2363b8f',
       tenantId: tenant1.id,
       restaurantId: restaurant1.id,
       name: 'Desserts',
@@ -567,7 +571,7 @@ async function main(): Promise<void> {
   // Tenant 2 categories
   const catT2Ramen = await prisma.category.create({
     data: {
-      id: 'cat-t2-ramen-001',
+      id: 'cafaa5b2-a751-482e-8d65-831005baaedb',
       tenantId: tenant2.id,
       restaurantId: restaurant2.id,
       name: 'Ramen',
@@ -578,7 +582,7 @@ async function main(): Promise<void> {
 
   const catT2Sides = await prisma.category.create({
     data: {
-      id: 'cat-t2-sides-001',
+      id: '3ee79553-2b2b-42d6-83ad-706cad639875',
       tenantId: tenant2.id,
       restaurantId: restaurant2.id,
       name: 'Sides',
@@ -595,7 +599,7 @@ async function main(): Promise<void> {
   // --- Appetizers ---
   await prisma.product.create({
     data: {
-      id: 'prod-hummus-001',
+      id: 'ad831f44-a7ff-4d1d-87c1-eb6def23a143',
       tenantId: tenant1.id,
       categoryId: catAppetizers.id,
       name: 'Hummus with Bread',
@@ -608,7 +612,7 @@ async function main(): Promise<void> {
 
   await prisma.product.create({
     data: {
-      id: 'prod-soup-001',
+      id: 'f5af4d28-c867-4ee9-8a54-fd40a5ed541c',
       tenantId: tenant1.id,
       categoryId: catAppetizers.id,
       name: 'Lentil Soup',
@@ -622,7 +626,7 @@ async function main(): Promise<void> {
   // --- Signature Chicken ---
   const classicChicken = await prisma.product.create({
     data: {
-      id: 'prod-classic-001',
+      id: 'a7a2721c-1a1d-4671-817f-2c23e12762ab',
       tenantId: tenant1.id,
       categoryId: catChicken.id,
       name: 'Classic Broasted Chicken',
@@ -635,7 +639,7 @@ async function main(): Promise<void> {
 
   const spicyChicken = await prisma.product.create({
     data: {
-      id: 'prod-spicy-001',
+      id: 'b41fbd73-6085-49e6-85ee-882f3980799f',
       tenantId: tenant1.id,
       categoryId: catChicken.id,
       name: 'Spicy Broasted Chicken',
@@ -648,7 +652,7 @@ async function main(): Promise<void> {
 
   const chickenNuggets = await prisma.product.create({
     data: {
-      id: 'prod-nuggets-001',
+      id: '9b2d794e-d318-4343-894c-8d95891e3729',
       tenantId: tenant1.id,
       categoryId: catChicken.id,
       name: 'Chicken Nuggets',
@@ -662,7 +666,7 @@ async function main(): Promise<void> {
   // --- Sides ---
   const fries = await prisma.product.create({
     data: {
-      id: 'prod-fries-001',
+      id: 'bd7fe87e-eeb4-4590-8c79-bf44217d198c',
       tenantId: tenant1.id,
       categoryId: catSides.id,
       name: 'French Fries',
@@ -675,7 +679,7 @@ async function main(): Promise<void> {
 
   await prisma.product.create({
     data: {
-      id: 'prod-rice-001',
+      id: '4b07662b-7e47-4bf5-88d5-93b7dc0c12e5',
       tenantId: tenant1.id,
       categoryId: catSides.id,
       name: 'Spiced Rice',
@@ -688,7 +692,7 @@ async function main(): Promise<void> {
 
   await prisma.product.create({
     data: {
-      id: 'prod-coleslaw-001',
+      id: '48bcd555-9585-481e-8c31-ca87701005aa',
       tenantId: tenant1.id,
       categoryId: catSides.id,
       name: 'Coleslaw',
@@ -702,7 +706,7 @@ async function main(): Promise<void> {
   // --- Beverages ---
   const cola = await prisma.product.create({
     data: {
-      id: 'prod-cola-001',
+      id: '9deab587-5c3d-4b32-8d07-f3115398cc05',
       tenantId: tenant1.id,
       categoryId: catBeverages.id,
       name: 'Soft Drink',
@@ -715,7 +719,7 @@ async function main(): Promise<void> {
 
   await prisma.product.create({
     data: {
-      id: 'prod-laban-001',
+      id: 'c1f01b11-1ba7-4bf2-8cb6-b0452c56dfe2',
       tenantId: tenant1.id,
       categoryId: catBeverages.id,
       name: 'Fresh Laban',
@@ -729,7 +733,7 @@ async function main(): Promise<void> {
   // --- Desserts ---
   await prisma.product.create({
     data: {
-      id: 'prod-baklava-001',
+      id: '7e344eef-d30f-470e-89fd-535e735ff878',
       tenantId: tenant1.id,
       categoryId: catDesserts.id,
       name: 'Baklava',
@@ -743,7 +747,7 @@ async function main(): Promise<void> {
   // --- Tenant 2 Products ---
   const tonkotsu = await prisma.product.create({
     data: {
-      id: 'prod-tonkotsu-001',
+      id: 'c702572b-f2b2-4f77-8913-2a726ca7673c',
       tenantId: tenant2.id,
       categoryId: catT2Ramen.id,
       name: 'Tonkotsu Ramen',
@@ -756,7 +760,7 @@ async function main(): Promise<void> {
 
   const misoRamen = await prisma.product.create({
     data: {
-      id: 'prod-miso-001',
+      id: 'b6b0e1b4-3541-4604-8e43-891830595b65',
       tenantId: tenant2.id,
       categoryId: catT2Ramen.id,
       name: 'Miso Ramen',
@@ -769,7 +773,7 @@ async function main(): Promise<void> {
 
   await prisma.product.create({
     data: {
-      id: 'prod-gyoza-001',
+      id: '2e312149-cbef-4d51-88e5-ce6c53b98e63',
       tenantId: tenant2.id,
       categoryId: catT2Sides.id,
       name: 'Gyoza (6 pcs)',
@@ -787,18 +791,18 @@ async function main(): Promise<void> {
   // ==========================================
   await prisma.productSize.createMany({
     data: [
-      { id: 'size-classic-s', tenantId: tenant1.id, productId: classicChicken.id, name: 'Small (4 pcs)', priceAdjustment: -10.0 },
-      { id: 'size-classic-m', tenantId: tenant1.id, productId: classicChicken.id, name: 'Medium (7 pcs)', priceAdjustment: 0 },
-      { id: 'size-classic-l', tenantId: tenant1.id, productId: classicChicken.id, name: 'Large (10 pcs)', priceAdjustment: 15.0 },
-      { id: 'size-spicy-s', tenantId: tenant1.id, productId: spicyChicken.id, name: 'Small (4 pcs)', priceAdjustment: -10.0 },
-      { id: 'size-spicy-m', tenantId: tenant1.id, productId: spicyChicken.id, name: 'Medium (7 pcs)', priceAdjustment: 0 },
-      { id: 'size-spicy-l', tenantId: tenant1.id, productId: spicyChicken.id, name: 'Large (10 pcs)', priceAdjustment: 15.0 },
-      { id: 'size-nuggets-6', tenantId: tenant1.id, productId: chickenNuggets.id, name: '6 Pieces', priceAdjustment: -6.0 },
-      { id: 'size-nuggets-12', tenantId: tenant1.id, productId: chickenNuggets.id, name: '12 Pieces', priceAdjustment: 8.0 },
-      { id: 'size-fries-s', tenantId: tenant1.id, productId: fries.id, name: 'Small', priceAdjustment: 0 },
-      { id: 'size-fries-l', tenantId: tenant1.id, productId: fries.id, name: 'Large', priceAdjustment: 4.0 },
-      { id: 'size-cola-regular', tenantId: tenant1.id, productId: cola.id, name: 'Regular', priceAdjustment: 0 },
-      { id: 'size-cola-large', tenantId: tenant1.id, productId: cola.id, name: 'Large', priceAdjustment: 2.0 },
+      { id: '14a114f0-6b4f-42b0-8e01-b66c3197f6dd', tenantId: tenant1.id, productId: classicChicken.id, name: 'Small (4 pcs)', priceAdjustment: -10.0 },
+      { id: 'bcd8ffd5-36bb-4ba9-818c-01534d407036', tenantId: tenant1.id, productId: classicChicken.id, name: 'Medium (7 pcs)', priceAdjustment: 0 },
+      { id: '86b0acde-b28d-44f8-892f-6b2fe5f4313b', tenantId: tenant1.id, productId: classicChicken.id, name: 'Large (10 pcs)', priceAdjustment: 15.0 },
+      { id: '4ebe1bbf-95a4-49c5-8027-2cce9f21dd9b', tenantId: tenant1.id, productId: spicyChicken.id, name: 'Small (4 pcs)', priceAdjustment: -10.0 },
+      { id: 'e5f3571c-c92c-4602-8cc2-91fe86a3193e', tenantId: tenant1.id, productId: spicyChicken.id, name: 'Medium (7 pcs)', priceAdjustment: 0 },
+      { id: 'e752ba4e-1f17-454b-8020-2c10cc4f8f15', tenantId: tenant1.id, productId: spicyChicken.id, name: 'Large (10 pcs)', priceAdjustment: 15.0 },
+      { id: 'c8306d3c-9515-456b-8a06-c78ad38ed5eb', tenantId: tenant1.id, productId: chickenNuggets.id, name: '6 Pieces', priceAdjustment: -6.0 },
+      { id: '4667c88c-184f-442b-805a-a4d6bc914e02', tenantId: tenant1.id, productId: chickenNuggets.id, name: '12 Pieces', priceAdjustment: 8.0 },
+      { id: 'b2f50c5b-a327-4093-8610-643023ee679b', tenantId: tenant1.id, productId: fries.id, name: 'Small', priceAdjustment: 0 },
+      { id: '34f96c36-a426-497a-8407-250b05db7541', tenantId: tenant1.id, productId: fries.id, name: 'Large', priceAdjustment: 4.0 },
+      { id: '670bda98-cb39-459e-82c7-1ecf36a92908', tenantId: tenant1.id, productId: cola.id, name: 'Regular', priceAdjustment: 0 },
+      { id: '2b4904d9-f63a-4579-8ff4-2565f359215b', tenantId: tenant1.id, productId: cola.id, name: 'Large', priceAdjustment: 2.0 },
     ],
   });
 
@@ -809,12 +813,12 @@ async function main(): Promise<void> {
   // ==========================================
   await prisma.productVariant.createMany({
     data: [
-      { id: 'var-cola-cola', tenantId: tenant1.id, productId: cola.id, sku: 'BEV-COLA', name: 'Coca-Cola', price: 0, stockQuantity: 999 },
-      { id: 'var-cola-sprite', tenantId: tenant1.id, productId: cola.id, sku: 'BEV-SPRT', name: 'Sprite', price: 0, stockQuantity: 999 },
-      { id: 'var-cola-fanta', tenantId: tenant1.id, productId: cola.id, sku: 'BEV-FNTA', name: 'Fanta', price: 0, stockQuantity: 999 },
-      { id: 'var-tonkotsu-regular', tenantId: tenant2.id, productId: tonkotsu.id, sku: 'RMN-TK-R', name: 'Regular', price: 0, stockQuantity: 50 },
-      { id: 'var-tonkotsu-spicy', tenantId: tenant2.id, productId: tonkotsu.id, sku: 'RMN-TK-S', name: 'Spicy', price: 100, stockQuantity: 50 },
-      { id: 'var-miso-regular', tenantId: tenant2.id, productId: misoRamen.id, sku: 'RMN-MISO-R', name: 'Regular', price: 0, stockQuantity: 50 },
+      { id: '3e372363-b8cb-49d2-81f8-01cce873a460', tenantId: tenant1.id, productId: cola.id, sku: 'BEV-COLA', name: 'Coca-Cola', price: 0, stockQuantity: 999 },
+      { id: 'e34ca4ad-c17b-4253-8fa8-945a795e4317', tenantId: tenant1.id, productId: cola.id, sku: 'BEV-SPRT', name: 'Sprite', price: 0, stockQuantity: 999 },
+      { id: '39321e93-fa32-40f1-87fc-1ba5b7629b02', tenantId: tenant1.id, productId: cola.id, sku: 'BEV-FNTA', name: 'Fanta', price: 0, stockQuantity: 999 },
+      { id: 'd24ceaac-a4f0-4cc9-8a53-307ae7141536', tenantId: tenant2.id, productId: tonkotsu.id, sku: 'RMN-TK-R', name: 'Regular', price: 0, stockQuantity: 50 },
+      { id: 'd7cf7729-2efa-4b1d-8927-f34cae11c442', tenantId: tenant2.id, productId: tonkotsu.id, sku: 'RMN-TK-S', name: 'Spicy', price: 100, stockQuantity: 50 },
+      { id: 'fd46573c-d9d6-4116-8462-01a87528f660', tenantId: tenant2.id, productId: misoRamen.id, sku: 'RMN-MISO-R', name: 'Regular', price: 0, stockQuantity: 50 },
     ],
   });
 
@@ -825,7 +829,7 @@ async function main(): Promise<void> {
   // ==========================================
   const extraChickenAddon = await prisma.productAddon.create({
     data: {
-      id: 'addon-extra-chicken',
+      id: 'd92ffa0d-e9be-4806-82c9-39a9b1c3d4aa',
       tenantId: tenant1.id,
       productId: classicChicken.id,
       name: 'Extra Chicken',
@@ -836,15 +840,15 @@ async function main(): Promise<void> {
 
   await prisma.addonItem.createMany({
     data: [
-      { id: 'addon-item-extra-breast', tenantId: tenant1.id, addonGroupId: extraChickenAddon.id, name: 'Extra Breast Piece', price: 8.0, isAvailable: true },
-      { id: 'addon-item-extra-wing', tenantId: tenant1.id, addonGroupId: extraChickenAddon.id, name: 'Extra Wing Piece', price: 5.0, isAvailable: true },
-      { id: 'addon-item-extra-thigh', tenantId: tenant1.id, addonGroupId: extraChickenAddon.id, name: 'Extra Thigh Piece', price: 6.0, isAvailable: true },
+      { id: '639a8589-d134-4099-8e00-feed15911ee3', tenantId: tenant1.id, addonGroupId: extraChickenAddon.id, name: 'Extra Breast Piece', price: 8.0, isAvailable: true },
+      { id: 'fe41c5d8-048f-4bdf-8f37-8254d707fc61', tenantId: tenant1.id, addonGroupId: extraChickenAddon.id, name: 'Extra Wing Piece', price: 5.0, isAvailable: true },
+      { id: '799d128e-fa8f-4a25-8d9e-105ded74b42c', tenantId: tenant1.id, addonGroupId: extraChickenAddon.id, name: 'Extra Thigh Piece', price: 6.0, isAvailable: true },
     ],
   });
 
   const sauceAddon = await prisma.productAddon.create({
     data: {
-      id: 'addon-sauces',
+      id: '94fb6730-0bc3-4878-8a1b-9baf004855ef',
       tenantId: tenant1.id,
       productId: classicChicken.id,
       name: 'Dipping Sauces',
@@ -855,9 +859,9 @@ async function main(): Promise<void> {
 
   await prisma.addonItem.createMany({
     data: [
-      { id: 'addon-item-garlic', tenantId: tenant1.id, addonGroupId: sauceAddon.id, name: 'Garlic Sauce', price: 0, isAvailable: true },
-      { id: 'addon-item-hot-sauce', tenantId: tenant1.id, addonGroupId: sauceAddon.id, name: 'Hot Sauce', price: 0, isAvailable: true },
-      { id: 'addon-item-cheese', tenantId: tenant1.id, addonGroupId: sauceAddon.id, name: 'Cheese Sauce', price: 2.0, isAvailable: true },
+      { id: '4d54a0ea-7bca-4b41-86e9-6b6a47133aaa', tenantId: tenant1.id, addonGroupId: sauceAddon.id, name: 'Garlic Sauce', price: 0, isAvailable: true },
+      { id: '9cf1221c-1550-457a-8bbe-e12c2b7f6349', tenantId: tenant1.id, addonGroupId: sauceAddon.id, name: 'Hot Sauce', price: 0, isAvailable: true },
+      { id: '46d4e503-8cb9-4e3f-893e-c59f0f10cafa', tenantId: tenant1.id, addonGroupId: sauceAddon.id, name: 'Cheese Sauce', price: 2.0, isAvailable: true },
     ],
   });
 
@@ -868,7 +872,7 @@ async function main(): Promise<void> {
   // ==========================================
   const customer1 = await prisma.customer.create({
     data: {
-      id: 'cust-001',
+      id: '386031ba-950f-43b9-8edf-a0043d696340',
       tenantId: tenant1.id,
       firstName: 'Sara',
       lastName: 'Al-Mutairi',
@@ -880,7 +884,7 @@ async function main(): Promise<void> {
 
   const customer2 = await prisma.customer.create({
     data: {
-      id: 'cust-002',
+      id: 'c505847a-10bf-49a2-8a49-5d4cb0b258bb',
       tenantId: tenant1.id,
       firstName: 'Khalid',
       lastName: 'Al-Otaibi',
@@ -892,7 +896,7 @@ async function main(): Promise<void> {
 
   const customer3 = await prisma.customer.create({
     data: {
-      id: 'cust-003',
+      id: '2c0d356f-c26e-498c-8dd9-714a555da96a',
       tenantId: tenant1.id,
       firstName: 'Noura',
       lastName: 'Saeed',
@@ -908,7 +912,7 @@ async function main(): Promise<void> {
   // ==========================================
   const order1 = await prisma.order.create({
     data: {
-      id: 'order-demo-001',
+      id: '192c2d1d-cc77-4759-808d-8a6e5dc40350',
       tenantId: tenant1.id,
       branchId: branch1.id,
       customerId: customer1.id,
@@ -925,11 +929,11 @@ async function main(): Promise<void> {
   // Classic Chicken - Medium, 1x extra breast, garlic sauce
   const orderItem1 = await prisma.orderItem.create({
     data: {
-      id: 'oi-001',
+      id: 'a967fea5-e573-4223-8052-8c3aa72fcbca',
       tenantId: tenant1.id,
       orderId: order1.id,
       productId: classicChicken.id,
-      sizeId: 'size-classic-m',
+      sizeId: 'bcd8ffd5-36bb-4ba9-818c-01534d407036',
       quantity: 1,
       unitPrice: 35.0,
       totalPrice: 43.0,
@@ -938,17 +942,17 @@ async function main(): Promise<void> {
   });
 
   await prisma.orderItemAddon.create({
-    data: { tenantId: tenant1.id, orderItemId: orderItem1.id, addonItemId: 'addon-item-extra-breast', price: 8.0 },
+    data: { tenantId: tenant1.id, orderItemId: orderItem1.id, addonItemId: '639a8589-d134-4099-8e00-feed15911ee3', price: 8.0 },
   });
 
   // Fries - Large
   await prisma.orderItem.create({
     data: {
-      id: 'oi-002',
+      id: '35544e1f-59eb-4217-806e-e09a9649d673',
       tenantId: tenant1.id,
       orderId: order1.id,
       productId: fries.id,
-      sizeId: 'size-fries-l',
+      sizeId: '34f96c36-a426-497a-8407-250b05db7541',
       quantity: 1,
       unitPrice: 12.0,
       totalPrice: 12.0,
@@ -959,11 +963,11 @@ async function main(): Promise<void> {
   // Cola - Regular
   await prisma.orderItem.create({
     data: {
-      id: 'oi-003',
+      id: 'bdd82b10-42cc-4799-8a70-6f93ff22adbd',
       tenantId: tenant1.id,
       orderId: order1.id,
       productId: cola.id,
-      sizeId: 'size-cola-regular',
+      sizeId: '670bda98-cb39-459e-82c7-1ecf36a92908',
       quantity: 1,
       unitPrice: 4.0,
       totalPrice: 4.0,
@@ -974,7 +978,7 @@ async function main(): Promise<void> {
   // Payment for order1
   await prisma.payment.create({
     data: {
-      id: 'pay-001',
+      id: 'c0afb3b4-107f-46b6-8e56-4df42e101221',
       tenantId: tenant1.id,
       orderId: order1.id,
       paymentMethod: 'CASH',
@@ -987,7 +991,7 @@ async function main(): Promise<void> {
   // Order 2 - In Progress
   const order2 = await prisma.order.create({
     data: {
-      id: 'order-demo-002',
+      id: 'a962ef47-7ecb-46f8-8241-f908c30b9aa3',
       tenantId: tenant1.id,
       branchId: branch1.id,
       customerId: customer2.id,
@@ -1003,11 +1007,11 @@ async function main(): Promise<void> {
 
   await prisma.orderItem.create({
     data: {
-      id: 'oi-004',
+      id: 'c71b9bbc-3a98-4e3f-8709-6b55ea653922',
       tenantId: tenant1.id,
       orderId: order2.id,
       productId: spicyChicken.id,
-      sizeId: 'size-spicy-l',
+      sizeId: 'e752ba4e-1f17-454b-8020-2c10cc4f8f15',
       quantity: 1,
       unitPrice: 53.0,
       totalPrice: 53.0,
@@ -1030,7 +1034,7 @@ async function main(): Promise<void> {
   // Order 3 - Takeaway, pending
   const order3 = await prisma.order.create({
     data: {
-      id: 'order-demo-003',
+      id: '9e7aec16-abbd-4079-8d10-ee7815671514',
       tenantId: tenant1.id,
       branchId: branch1.id,
       customerId: customer3.id,
@@ -1045,11 +1049,11 @@ async function main(): Promise<void> {
 
   await prisma.orderItem.create({
     data: {
-      id: 'oi-005',
+      id: 'dcd050ea-0de1-4ff8-80aa-595716072734',
       tenantId: tenant1.id,
       orderId: order3.id,
       productId: chickenNuggets.id,
-      sizeId: 'size-nuggets-12',
+      sizeId: '4667c88c-184f-442b-805a-a4d6bc914e02',
       quantity: 1,
       unitPrice: 30.0,
       totalPrice: 30.0,
@@ -1059,11 +1063,11 @@ async function main(): Promise<void> {
 
   await prisma.orderItem.create({
     data: {
-      id: 'oi-006',
+      id: '5f9d37ec-7376-43c4-81c0-12c5f527ae04',
       tenantId: tenant1.id,
       orderId: order3.id,
       productId: fries.id,
-      sizeId: 'size-fries-s',
+      sizeId: 'b2f50c5b-a327-4093-8610-643023ee679b',
       quantity: 1,
       unitPrice: 8.0,
       totalPrice: 8.0,
