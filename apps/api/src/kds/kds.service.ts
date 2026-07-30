@@ -73,7 +73,7 @@ export class KdsService {
           branchId,
           order: { status: { in: activeStatuses } },
         },
-        orderBy: { createdAt: 'asc' },
+        orderBy: { order: { createdAt: 'asc' } },
         include: {
           order: {
             include: {
