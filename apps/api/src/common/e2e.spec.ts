@@ -68,6 +68,10 @@ describe('Zayjar Platform End-to-End API Verification (TSK-2.0)', () => {
 
     jest.spyOn(prisma, '$transaction').mockImplementation(async (cb: any) => cb(txMock));
     jest.spyOn(prisma.tenant, 'findUnique').mockResolvedValue(null);
+    // FIX(R7): hermeticize the cross-tenant owner-email existence check
+    // (prisma.user.findFirst) — mirrors the subdomain availability mock above;
+    // every other DB touch in this test is already mocked.
+    jest.spyOn(prisma.user, 'findFirst').mockResolvedValue(null);
 
     const result = await tenantService.onboard({
       companyName: 'Gourmet LLC',

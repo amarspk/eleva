@@ -2,7 +2,7 @@ import { Injectable, ConflictException, Logger, NotFoundException, ForbiddenExce
 import { CreateTenantRequestDto } from './dto/create-tenant-request.dto';
 import { UpdateTenantRequestDto } from './dto/update-tenant-request.dto';
 import { AuthService } from '../auth/auth.service';
-import { prisma, prismaRead } from '@zayjar/db';
+import { prisma, prismaRead, dbTenantContext } from '@zayjar/db';
 import { EmailService } from '../notification/email/email.service';
 
 @Injectable()
@@ -43,6 +43,18 @@ export class TenantService {
    *   Tenant → Subscription (TRIALING) → User (RESTAURANT_OWNER) → Role → Restaurant → Branch
    */
   async onboard(dto: CreateTenantRequestDto): Promise<Record<string, unknown>> {
+    // FIX(R7/RT-ONB-001): public self-service onboarding provisions a NEW tenant
+    // before any tenant context can exist (route is @Public()). The db fail-safe
+    // extension therefore blocked the cross-tenant email existence check
+    // (prisma.user.findFirst) and every scoped create inside the provisioning
+    // transaction (live symptom: "Fail-Safe Block: Cross-tenant data insertion
+    // attempt detected and blocked."). Declare the explicit platform-level scope
+    // the workflow semantically is (DOC-005 §4.1) instead of weakening the
+    // fail-safe or altering TenantContextMiddleware host gating.
+    return dbTenantContext.run({ isPlatformOwner: true }, () => this.executeOnboarding(dto));
+  }
+
+  private async executeOnboarding(dto: CreateTenantRequestDto): Promise<Record<string, unknown>> {
     this.logger.log(`Initiating workspace onboarding transaction for subdomain: [${dto.subdomain}]`);
 
     // 1. Verify subdomain availability
