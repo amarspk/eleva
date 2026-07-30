@@ -1,10 +1,14 @@
 -- DOC-002 §2.7: Database Triggers & Lifecycle Hooks
+-- FIX (Runtime Defect R4, verified 2026-07-30): all payload references below now use the real
+-- Prisma schema columns ("updatedAt", "tenantId", ...). Previously snake_case references
+-- ("updated_at", "tenant_id", ...) matched no live column and made EVERY UPDATE fail on all
+-- 8 triggered tables + broke the order-status audit log. Behaviour is unchanged.
 
--- 1. Generic updated_at trigger function
+-- 1. Generic updatedAt trigger function
 CREATE OR REPLACE FUNCTION "update_updated_at"()
 RETURNS TRIGGER AS $$
 BEGIN
-  NEW."updated_at" = now();
+  NEW."updatedAt" = now();
   RETURN NEW;
 END;
 $$ LANGUAGE 'plpgsql';
@@ -26,10 +30,10 @@ CREATE OR REPLACE FUNCTION "log_order_status_change"()
 RETURNS TRIGGER AS $$
 BEGIN
   IF OLD."status" IS DISTINCT FROM NEW."status" THEN
-    INSERT INTO "audit_logs" ("id", "tenant_id", "user_id", "action", "entity_name", "entity_id", "old_values", "new_values", "ip_address", "user_agent", "created_at")
+    INSERT INTO "audit_logs" ("id", "tenantId", "userId", "action", "entityName", "entityId", "oldValues", "newValues", "ipAddress", "userAgent", "createdAt")
     VALUES (
       gen_random_uuid(),
-      NEW."tenant_id",
+      NEW."tenantId",
       NULL,
       'STATUS_CHANGE',
       'Order',
