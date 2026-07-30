@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException, BadRequestException, ConflictException, Inject, Optional } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, BadRequestException, ConflictException, ForbiddenException, Inject, Optional } from '@nestjs/common';
 import { CreateOrderRequestDto } from './dto/create-order-request.dto';
 import { UpdateOrderStatusRequestDto } from './dto/update-order-status-request.dto';
 import { OrderStatus } from '@zayjar/types';
@@ -129,6 +129,19 @@ export class OrderService {
       // Server-authoritative binding (DOC-005 4.6)
       dto.branchId = table.branchId;
       dto.tableId = table.id;
+
+      // FIX 2026-07-30 (Runtime Defect R6 — guest-checkout gating parity):
+      // DOC-001 1.10 — tenant UNPAID pauses guest ordering, CANCELED disables
+      // core access. Previously enforced on public menu/table resolve only —
+      // runtime-verified gap: checkout accepted orders under UNPAID/CANCELED.
+      const tenant = await prisma.tenant.findUnique({
+        where: { id: guestTenantId },
+        select: { status: true },
+      });
+      if (tenant?.status === 'UNPAID' || tenant?.status === 'CANCELED') {
+        this.logger.warn(`Guest checkout rejected: tenant status is [${tenant.status}].`);
+        throw new ForbiddenException('Online ordering is temporarily unavailable for this restaurant.');
+      }
 
       return this.createOrder(dto, guestTenantId);
     });

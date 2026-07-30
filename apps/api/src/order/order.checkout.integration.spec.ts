@@ -736,6 +736,8 @@ describe('Order Checkout HTTP Integration Tests', () => {
 
   it('P1. guest checkout with a valid qrCodeToken returns 201 and forces server-side branch/table binding', async () => {
     jest.spyOn(TenantTableRepository.prototype, 'findByQrCodeToken').mockResolvedValue(GUEST_TABLE as any);
+    // R6 parity gate (2026-07-30): createGuestOrder enforces tenant status — fixture ACTIVE.
+    jest.spyOn(prisma.tenant, 'findUnique').mockResolvedValue({ status: 'ACTIVE' } as any);
     mockBranch();
     mockRestaurant(0);
     mockProduct(10);
@@ -811,6 +813,8 @@ describe('Order Checkout HTTP Integration Tests', () => {
 
   it('P5. guest checkout with a variant applies the absolute variant price override (DEFECT-A)', async () => {
     jest.spyOn(TenantTableRepository.prototype, 'findByQrCodeToken').mockResolvedValue(GUEST_TABLE as any);
+    // R6 parity gate (2026-07-30): createGuestOrder enforces tenant status — fixture ACTIVE.
+    jest.spyOn(prisma.tenant, 'findUnique').mockResolvedValue({ status: 'ACTIVE' } as any);
     mockBranch();
     mockRestaurant(10);
     mockProduct(20);

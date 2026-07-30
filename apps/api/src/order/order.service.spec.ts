@@ -12,7 +12,7 @@ import {
   prisma,
 } from '@zayjar/db';
 import { OrderStatus, OrderType, PaymentMethodType } from '@zayjar/types';
-import { NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
+import { NotFoundException, BadRequestException, ConflictException, ForbiddenException } from '@nestjs/common';
 
 // Mocking argon2 C++ native modules to prevent Jest V8 multithreaded segmentation faults
 jest.mock('argon2', () => ({
@@ -486,6 +486,9 @@ describe('OrderService — Sprint 1 Step 2 (Guest Checkout / DEFECT-A / DEFECT-B
       basePrice: 10.00 as any,
       isAvailable: true,
     } as any);
+    // R6 parity gate (2026-07-30): createGuestOrder now enforces tenant status
+    // after scan resolution — default fixture: ordering allowed (ACTIVE).
+    jest.spyOn(prisma.tenant, 'findUnique').mockResolvedValue({ status: 'ACTIVE' } as any);
   }
 
   function mockCapturingTransaction(orderResult: Record<string, unknown>) {
@@ -615,6 +618,34 @@ describe('OrderService — Sprint 1 Step 2 (Guest Checkout / DEFECT-A / DEFECT-B
     };
 
     await expect(service.createGuestOrder(createDto, tenantId)).rejects.toThrow(BadRequestException);
+  });
+
+  // ==========================================
+  // G6. R6 (2026-07-30): tenant UNPAID/CANCELED → guest checkout parity gate
+  // ==========================================
+  it('guest checkout is forbidden when tenant status is UNPAID or CANCELED (R6 parity gate, DOC-001 1.10)', async () => {
+    jest.spyOn(TenantTableRepository.prototype, 'findByQrCodeToken').mockResolvedValue({
+      id: 'tbl-9',
+      tenantId,
+      branchId,
+      number: 'T-9',
+    } as any);
+
+    const createDto = {
+      branchId,
+      type: OrderType.DINE_IN,
+      items: [{ productId, quantity: 1 }],
+      paymentMethod: PaymentMethodType.CASH,
+      qrCodeToken: 'qr-token-abc',
+    };
+
+    for (const status of ['UNPAID', 'CANCELED']) {
+      jest.spyOn(prisma.tenant, 'findUnique').mockResolvedValue({ status } as any);
+      await expect(service.createGuestOrder(createDto, tenantId)).rejects.toThrow(ForbiddenException);
+      await expect(service.createGuestOrder(createDto, tenantId)).rejects.toThrow(
+        'Online ordering is temporarily unavailable',
+      );
+    }
   });
 
   // ==========================================
