@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { prisma, AuditLog } from '@zayjar/db';
+import { prisma, AuditLog, Prisma } from '@zayjar/db';
 
 export interface AuditLogEntry {
   tenantId?: string | null;
@@ -7,8 +7,8 @@ export interface AuditLogEntry {
   action: string;
   entityName: string;
   entityId?: string | null;
-  oldValues?: Record<string, unknown>;
-  newValues?: Record<string, unknown>;
+  oldValues?: Record<string, unknown> | null;
+  newValues?: Record<string, unknown> | null;
   ipAddress: string;
   userAgent: string;
 }
@@ -31,8 +31,8 @@ export class AuditService {
           action: entry.action,
           entityName: entry.entityName,
           entityId: entry.entityId || null,
-          oldValues: entry.oldValues || null,
-          newValues: entry.newValues || null,
+          oldValues: (entry.oldValues || null) as Prisma.InputJsonValue,
+          newValues: (entry.newValues || null) as Prisma.InputJsonValue,
           ipAddress: entry.ipAddress,
           userAgent: entry.userAgent,
         },

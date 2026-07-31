@@ -140,7 +140,7 @@ spec:
               memory: "1Gi"
           livenessProbe:
             httpGet:
-              path: /api/v1/health
+              path: /health
               port: http
             initialDelaySeconds: 45
             periodSeconds: 10
@@ -148,7 +148,7 @@ spec:
             failureThreshold: 5
           readinessProbe:
             httpGet:
-              path: /api/v1/health
+              path: /health
               port: http
             initialDelaySeconds: 10
             periodSeconds: 5

@@ -103,7 +103,7 @@ kubectl apply -f k8s/ingress.yml
 | PostgreSQL | `pg_isready` | `pg_isready` | 30s / 5s |
 | Redis | `redis-cli ping` | `redis-cli ping` | 15s / 5s |
 | PgBouncer | TCP socket | TCP socket | 10s / 5s |
-| API | `GET /api/v1/health` | `GET /api/v1/health` | 45s / 10s |
+| API | `GET /health` | `GET /health` | 45s / 10s |
 | Worker | `pgrep worker.js` | `pgrep worker.js` | 30s / 10s |
 | QR Menu | `GET /` | `GET /` | 30s / 10s |
 | Backoffice | `GET /` | `GET /` | 30s / 10s |

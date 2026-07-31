@@ -38,7 +38,7 @@ export class AdminService {
 
     let mrrUSD = 0;
     for (const sub of activeSubsWithPlans) {
-      const plan = sub.plan as { priceMonthly?: number | null } | undefined;
+      const plan = sub.plan as { priceMonthly?: unknown } | undefined;
       if (plan && plan.priceMonthly) {
         mrrUSD += Number(plan.priceMonthly);
       }

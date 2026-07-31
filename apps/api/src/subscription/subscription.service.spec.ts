@@ -155,7 +155,7 @@ describe('SubscriptionService Unit Tests - TSK-3.6 Subscription Gating (DOC-001 
     const evilTenantId = 'evil-tenant';
 
     let capturedTenantId: string | null = null;
-    jest.spyOn(prisma.subscription, 'findFirst').mockImplementation(async (args: any) => {
+    jest.spyOn(prisma.subscription, 'findFirst').mockImplementation((async (args: any) => {
       capturedTenantId = args.where.tenantId;
       return {
         id: 'sub_123',
@@ -163,7 +163,7 @@ describe('SubscriptionService Unit Tests - TSK-3.6 Subscription Gating (DOC-001 
         status: 'ACTIVE',
         plan: { name: 'Gold', maxBranches: 10 },
       } as any;
-    });
+    }) as any);
     jest.spyOn(prisma.tenant, 'findUnique').mockResolvedValue({ id: realTenantId, status: 'ACTIVE' } as any);
     jest.spyOn(TenantBranchRepository.prototype, 'count').mockResolvedValue(0 as any);
     jest.spyOn(dbTenantContext, 'run').mockImplementation((ctx: any, cb: any) => cb());

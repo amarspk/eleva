@@ -34,7 +34,7 @@ export class PaymentController {
     if (!user?.tenantId) {
       throw new ForbiddenException('Tenant context missing');
     }
-    const userId = user.id || user.sub;
+    const userId = user.id;
     return this.walletService.createWalletPayment(dto, user.tenantId, userId);
   }
 

@@ -3,7 +3,7 @@ import { CorrelationIdMiddleware } from './correlation-id.middleware';
 
 describe('CorrelationIdMiddleware', () => {
   let middleware: CorrelationIdMiddleware;
-  let req: Partial<Request>;
+  let req: Partial<Request> & { headers: NonNullable<Request['headers']> };
   let res: Partial<Response>;
   let next: NextFunction;
 

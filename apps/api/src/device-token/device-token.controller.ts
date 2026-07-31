@@ -27,7 +27,7 @@ export class DeviceTokenController {
     if (!user?.tenantId) {
       throw new ForbiddenException('Tenant context missing');
     }
-    const requesterUserId = user.id || user.sub;
+    const requesterUserId = user.id;
     return this.deviceTokenService.registerToken(dto, user.tenantId, requesterUserId);
   }
 
@@ -47,7 +47,7 @@ export class DeviceTokenController {
     // Non-platform owners can only list own tokens unless they are managers
     const roles = user.roles || [];
     const isPrivileged = roles.includes('RESTAURANT_OWNER') || roles.includes('BRANCH_MANAGER') || roles.includes('PLATFORM_OWNER');
-    const targetUserId = isPrivileged && userId ? userId : user.id || user.sub;
+    const targetUserId = isPrivileged && userId ? userId : user.id;
     return this.deviceTokenService.listTokens(user.tenantId, targetUserId);
   }
 
@@ -58,7 +58,7 @@ export class DeviceTokenController {
     if (!user?.tenantId) {
       throw new ForbiddenException('Tenant context missing');
     }
-    const requesterUserId = user.id || user.sub;
+    const requesterUserId = user.id;
     return this.deviceTokenService.deleteToken(id, user.tenantId, requesterUserId);
   }
 }

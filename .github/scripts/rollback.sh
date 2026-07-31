@@ -6,6 +6,7 @@
 # Usage: ./rollback.sh <environment> <api_url>
 #
 # Strategy: Identifies the previous successful deployment tag and redeploys.
+# For Kubernetes (primary): kubectl rollout undo on the five application workloads.
 # For ECS: uses aws ecs update-service to force new deployment with previous task def.
 # For Docker Compose: pulls the previous tag and restarts services.
 #
@@ -22,6 +23,34 @@ API_URL="${2:-}"
 echo "[rollback] Environment: ${ENVIRONMENT}"
 echo "[rollback] Strategy: Revert to previous stable deployment"
 echo ""
+
+# ==========================================
+# Kubernetes Rollback (primary strategy — repo's actual k8s topology)
+# ==========================================
+rollback_k8s() {
+  local NAMESPACE="zayjar"
+  local DEPLOYMENTS=(api worker qr-menu backoffice cashier)
+
+  echo "[rollback] Attempting Kubernetes rollback in namespace: ${NAMESPACE}"
+
+  if ! command -v kubectl &> /dev/null; then
+    echo "[rollback] kubectl not installed, skipping Kubernetes rollback."
+    return 1
+  fi
+
+  if [ -z "${KUBECONFIG:-}" ]; then
+    echo "[rollback] KUBECONFIG not set, skipping Kubernetes rollback."
+    return 1
+  fi
+
+  for DEPLOY in "${DEPLOYMENTS[@]}"; do
+    kubectl -n "${NAMESPACE}" rollout undo "deployment/${DEPLOY}"
+  done
+
+  kubectl -n "${NAMESPACE}" rollout status deployment/api --timeout=300s
+
+  echo "[rollback] Kubernetes rollback completed."
+}
 
 # ==========================================
 # ECS Fargate Rollback (when AWS CLI available)
@@ -106,7 +135,9 @@ rollback_compose() {
 # ==========================================
 echo "[rollback] Selecting rollback strategy..."
 
-if command -v aws &> /dev/null && [ -n "${AWS_DEFAULT_REGION:-}" ]; then
+if command -v kubectl &> /dev/null && [ -n "${KUBECONFIG:-}" ]; then
+  rollback_k8s
+elif command -v aws &> /dev/null && [ -n "${AWS_DEFAULT_REGION:-}" ]; then
   rollback_ecs
 elif command -v docker &> /dev/null; then
   rollback_compose
@@ -114,8 +145,8 @@ else
   echo "[rollback] No rollback strategy available."
   echo "[rollback] Manual intervention required."
   echo "[rollback] Steps:"
-  echo "  1. Identify the last known good image tag"
-  echo "  2. Redeploy with: docker-compose up -d --force-recreate api-core"
+  echo "  1. Kubernetes: kubectl -n zayjar rollout undo deployment/<app>"
+  echo "  2. Or redeploy with: docker-compose up -d --force-recreate api-core"
   echo "  3. Or update ECS service with previous task definition"
   exit 1
 fi

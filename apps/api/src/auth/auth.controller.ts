@@ -93,12 +93,12 @@ export class AuthController {
       throw new Error('Refresh session cookie is missing.');
     }
 
-    const { accessToken, refreshToken } = await this.authService.rotateRefreshToken(oldRefreshToken);
+    // Rotation returns the subject of the ALREADY signature-verified old
+    // refresh token (C-2 / AUTHZ-002 — no unverified decode anywhere).
+    const { accessToken, refreshToken, sub } = await this.authService.rotateRefreshToken(oldRefreshToken);
 
     // Generate new CSRF token on refresh (DOC-006 §5.3)
-    // We need the userId from the old refresh token to generate the new CSRF token
-    const decoded = await this.authService.decodeToken(oldRefreshToken);
-    const csrfToken = decoded?.sub ? await this.csrfService.generateToken(decoded.sub) : '';
+    const csrfToken = sub ? await this.csrfService.generateToken(sub) : '';
 
     // Rotate and set fresh sliding cookie
     res.cookie('__Host-Refresh-Token', refreshToken, JWT_CONFIG.cookieOptions);

@@ -3,7 +3,7 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { CreateBillingSessionRequestDto } from './dto/create-billing-session-request.dto';
 import { BillingStatusChangedEvent } from './events/billing-status-changed.event';
 import { CacheService } from '../common/cache/cache.service';
-import { prisma } from '@zayjar/db';
+import { prisma, SubscriptionStatus, TenantStatus } from '@zayjar/db';
 
 /**
  * DOC-009 §8.2 — Stripe Subscription Lifecycle Webhook Handler
@@ -123,11 +123,11 @@ export class BillingService {
     tenantId?: string | null;
     newSubscriptionStatus?: string | null;
     newTenantStatus?: string | null;
-    action: string;
+    action?: string;
   }> {
     const eventType = event.type as string;
     const dataObject = (event.data as Record<string, unknown>)?.object as Record<string, unknown> | undefined;
-    const eventId = event.id as string | undefined;
+    const eventId = event.id as string;
 
     this.logger.log(`Received Stripe webhook event: ${eventType} [${eventId}]`);
 
@@ -170,14 +170,14 @@ export class BillingService {
 
     // Extract IDs based on event type
     if (dataObject.object === 'subscription') {
-      stripeSubscriptionId = dataObject.id;
-      stripeCustomerId = dataObject.customer;
+      stripeSubscriptionId = dataObject.id as string;
+      stripeCustomerId = dataObject.customer as string;
     } else if (dataObject.object === 'invoice') {
-      stripeSubscriptionId = dataObject.subscription;
-      stripeCustomerId = dataObject.customer;
+      stripeSubscriptionId = dataObject.subscription as string | null;
+      stripeCustomerId = dataObject.customer as string;
     } else if (dataObject.customer) {
-      stripeCustomerId = dataObject.customer;
-      stripeSubscriptionId = dataObject.subscription || dataObject.id;
+      stripeCustomerId = dataObject.customer as string;
+      stripeSubscriptionId = (dataObject.subscription || dataObject.id) as string;
     }
 
     // Find tenant by stripe IDs
@@ -196,8 +196,8 @@ export class BillingService {
     }
 
     // Fallback: try to get tenantId from metadata
-    if (!tenantId && dataObject.metadata?.tenantId) {
-      tenantId = dataObject.metadata.tenantId;
+    if (!tenantId && (dataObject.metadata as Record<string, unknown> | undefined)?.tenantId) {
+      tenantId = (dataObject.metadata as Record<string, unknown>).tenantId as string;
     }
 
     if (!tenantId) {
@@ -267,16 +267,16 @@ export class BillingService {
             // DOC-009 §8.2: Update billing period and cancellation fields from Stripe data
             if (eventType === 'customer.subscription.updated') {
               if (dataObject.current_period_start) {
-                updateData.currentPeriodStart = new Date(dataObject.current_period_start * 1000);
+                updateData.currentPeriodStart = new Date((dataObject.current_period_start as number) * 1000);
               }
               if (dataObject.current_period_end) {
-                updateData.currentPeriodEnd = new Date(dataObject.current_period_end * 1000);
+                updateData.currentPeriodEnd = new Date((dataObject.current_period_end as number) * 1000);
               }
               if (typeof dataObject.cancel_at_period_end === 'boolean') {
                 updateData.cancelAtPeriodEnd = dataObject.cancel_at_period_end;
               }
               if (dataObject.canceled_at) {
-                updateData.canceledAt = new Date(dataObject.canceled_at * 1000);
+                updateData.canceledAt = new Date((dataObject.canceled_at as number) * 1000);
               }
             }
 
@@ -293,13 +293,13 @@ export class BillingService {
 
             await tx.subscription.updateMany({
               where: { tenantId },
-              data: { status: newSubscriptionStatus },
+              data: { status: newSubscriptionStatus as SubscriptionStatus },
             });
           }
 
           await tx.tenant.update({
             where: { id: tenantId },
-            data: { status: newTenantStatus },
+            data: { status: newTenantStatus as TenantStatus },
           });
         });
 
@@ -342,6 +342,7 @@ export class BillingService {
       tenantId,
       newSubscriptionStatus,
       newTenantStatus,
+      action: 'processed',
     };
   }
 
@@ -350,16 +351,16 @@ export class BillingService {
    * Persists stripeCustomerId on tenant and stripeSubscriptionId on subscription
    * after a successful Stripe Checkout session.
    */
-  private async handleCheckoutSessionCompleted(dataObject: Record<string, unknown>, eventId?: string): Promise<{
+  private async handleCheckoutSessionCompleted(dataObject: Record<string, unknown>, eventId: string): Promise<{
     received: boolean;
     eventType: string;
-    eventId?: string;
+    eventId: string;
     action: string;
     tenantId?: string | null;
   }> {
     const stripeCustomerId = dataObject.customer as string | null;
     const stripeSubscriptionId = dataObject.subscription as string | null;
-    const metadataTenantId = dataObject.metadata?.tenantId as string | null;
+    const metadataTenantId = (dataObject.metadata as Record<string, unknown> | undefined)?.tenantId as string | null;
 
     if (!metadataTenantId) {
       this.logger.warn(`checkout.session.completed [${eventId}] has no tenantId in metadata, skipping`);
@@ -424,10 +425,10 @@ export class BillingService {
    * Emits domain event so BillingNotificationListener can dispatch
    * trial expiry reminder notifications.
    */
-  private async handleTrialWillEnd(dataObject: Record<string, unknown>, eventId?: string): Promise<{
+  private async handleTrialWillEnd(dataObject: Record<string, unknown>, eventId: string): Promise<{
     received: boolean;
     eventType: string;
-    eventId?: string;
+    eventId: string;
     action: string;
     tenantId?: string | null;
   }> {
@@ -446,8 +447,8 @@ export class BillingService {
       if (subscription) { tenantId = subscription.tenantId; }
     }
 
-    if (!tenantId && dataObject.metadata?.tenantId) {
-      tenantId = dataObject.metadata.tenantId;
+    if (!tenantId && (dataObject.metadata as Record<string, unknown> | undefined)?.tenantId) {
+      tenantId = (dataObject.metadata as Record<string, unknown>).tenantId as string;
     }
 
     if (!tenantId) {

@@ -4,7 +4,7 @@ import { ImageProcessorService } from './image-processor.service';
 import { MediaCleanupQueueService } from './media-cleanup-queue.service';
 
 jest.mock('@zayjar/db', () => {
-  const mockPrisma = {
+  const mockPrisma: any = {
     media: {
       create: jest.fn(),
       findFirst: jest.fn(),
@@ -24,7 +24,7 @@ const { prisma: mockPrisma } = require('@zayjar/db');
 
 describe('MediaService — retry cleanup (TSK-5.7)', () => {
   let service: MediaService;
-  let mockStorage: StorageProvider;
+  let mockStorage: jest.Mocked<StorageProvider>;
   let mockProcessor: ImageProcessorService;
   let mockQueue: MediaCleanupQueueService;
 

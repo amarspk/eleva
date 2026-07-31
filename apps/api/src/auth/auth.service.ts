@@ -105,22 +105,14 @@ export class AuthService {
   }
 
   /**
-   * Decodes a JWT token without verification (for extracting claims like userId).
-   */
-  async decodeToken(token: string): Promise<{ sub: string; email: string; tenantId?: string } | null> {
-    try {
-      return this.jwtService.decode(token) as { sub: string; email: string; tenantId?: string };
-    } catch (err) {
-      this.logger.warn(`Token decode failed: ${(err as Error).message}`);
-      return null;
-    }
-  }
-
-  /**
    * Core Refresh Token Rotation (RTR) Engine.
    * If token is reused or blacklisted, flags tree invalidation and rejects immediately.
+   *
+   * C-2 (AUTHZ-002): also returns `sub` from the ALREADY SIGNATURE-VERIFIED
+   * payload (verifyAsync below), replacing the former decodeToken() helper
+   * that re-read claims from the token without verification.
    */
-  async rotateRefreshToken(oldToken: string): Promise<{ accessToken: string; refreshToken: string }> {
+  async rotateRefreshToken(oldToken: string): Promise<{ accessToken: string; refreshToken: string; sub: string }> {
     try {
       // 1. Verify token signature and expiration
       const decoded = await this.jwtService.verifyAsync(oldToken, {
@@ -138,14 +130,16 @@ export class AuthService {
       // 2. Blacklist the old token asynchronously to prevent double-submits
       await this.cacheService.set(sessionKey, true, 7 * 24 * 60 * 60);
 
-      // 3. Generate a fresh rotated pair
-      return this.generateTokens({
-        sub: decoded.sub,
-        email: decoded.email,
-        tenantId: decoded.tenantId || null,
-        roles: decoded.roles || [],
-        permissions: decoded.permissions || [],
+      // 3. Generate a fresh rotated pair (all claims below come from the
+      // signature-verified payload above — no unverified decode is consulted)
+      const rotatedPair = await this.generateTokens({
+        sub: decoded.sub as string,
+        email: decoded.email as string,
+        tenantId: (decoded.tenantId as string | null | undefined) || null,
+        roles: (decoded.roles as string[] | undefined) || [],
+        permissions: (decoded.permissions as string[] | undefined) || [],
       });
+      return { ...rotatedPair, sub: decoded.sub as string };
 
     } catch (err) {
       this.logger.error(`Refresh token rotation failed: ${(err as Error).message}`);

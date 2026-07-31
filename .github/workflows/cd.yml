@@ -131,24 +131,71 @@ jobs:
           echo "deploy_tag=${TAG}" >> "$GITHUB_OUTPUT"
           echo "Deploying image tag: ${TAG}"
 
-      - name: Deploy to staging
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v4
+
+      - name: Configure cluster credentials
         run: |
+          set -euo pipefail
+          KUBECONFIG_VALUE='${{ secrets.KUBECONFIG_STAGING }}'
+          if [ -z "$KUBECONFIG_VALUE" ]; then
+            echo "ERROR: KUBECONFIG_STAGING secret is not configured."
+            echo "Add the staging kubeconfig (raw YAML or base64-encoded) to the repository secrets — refusing to no-op a deployment."
+            exit 1
+          fi
+          mkdir -p "$HOME/.kube"
+          if printf '%s' "$KUBECONFIG_VALUE" | base64 --decode > /dev/null 2>&1; then
+            printf '%s' "$KUBECONFIG_VALUE" | base64 --decode > "$HOME/.kube/config"
+          else
+            printf '%s' "$KUBECONFIG_VALUE" > "$HOME/.kube/config"
+          fi
+          chmod 600 "$HOME/.kube/config"
+          echo "KUBECONFIG=$HOME/.kube/config" >> "$GITHUB_ENV"
+
+      - name: Deploy to staging (kubectl apply)
+        run: |
+          set -euo pipefail
           echo "=== Deploying to staging environment ==="
-          echo "Image tag: ${{ steps.tag.outputs.deploy_tag }}"
-          echo ""
-          echo "Deployment configuration:"
-          echo "  Environment: staging"
-          echo "  Image prefix: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}"
-          echo ""
-          # Placeholder: Replace with actual deployment command
-          # Options: ECS update-service, docker compose pull/up, kubectl apply
-          echo "[staging] Deployment would proceed here."
-          echo "[staging] Configure DEPLOY_COMMAND_STAGING secret for automation."
+          # Converge application manifests only; k8s/secrets.yml (placeholder
+          # values) and the stateful data tier are NOT re-applied — see k8s/README.md.
+          kubectl apply -f k8s/namespace.yml
+          kubectl apply -f k8s/configmap.yml
+          kubectl apply -f k8s/api/
+          kubectl apply -f k8s/worker/
+          kubectl apply -f k8s/qr-menu/
+          kubectl apply -f k8s/backoffice/
+          kubectl apply -f k8s/cashier/
+
+      - name: Pin images to deploy tag
+        run: |
+          set -euo pipefail
+          TAG="${{ steps.tag.outputs.deploy_tag }}"
+          BASE="${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}"
+          kubectl -n zayjar set image deployment/api api="${BASE}/api:${TAG}"
+          kubectl -n zayjar set image deployment/worker worker="${BASE}/api:${TAG}"
+          kubectl -n zayjar set image deployment/qr-menu qr-menu="${BASE}/qr-menu:${TAG}"
+          kubectl -n zayjar set image deployment/backoffice backoffice="${BASE}/backoffice:${TAG}"
+          kubectl -n zayjar set image deployment/cashier cashier="${BASE}/cashier:${TAG}"
+
+      - name: Wait for rollouts
+        run: |
+          set -euo pipefail
+          kubectl -n zayjar rollout status deployment/api --timeout=300s
+          kubectl -n zayjar rollout status deployment/worker --timeout=300s
+          kubectl -n zayjar rollout status deployment/qr-menu --timeout=300s
+          kubectl -n zayjar rollout status deployment/backoffice --timeout=300s
+          kubectl -n zayjar rollout status deployment/cashier --timeout=300s
 
       - name: Health check — staging
         run: |
           chmod +x .github/scripts/health-check.sh
           .github/scripts/health-check.sh "${{ secrets.STAGING_API_URL }}" "staging"
+
+      - name: Rollback on failure
+        if: failure()
+        run: |
+          chmod +x .github/scripts/rollback.sh
+          .github/scripts/rollback.sh "staging" "${{ secrets.STAGING_API_URL }}"
 
       - name: Notify deployment
         if: always()
@@ -192,19 +239,61 @@ jobs:
           echo "Prerelease: ${{ github.event.release.prerelease }}"
           echo ""
 
-      - name: Deploy to production
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v4
+
+      - name: Configure cluster credentials
         run: |
+          set -euo pipefail
+          KUBECONFIG_VALUE='${{ secrets.KUBECONFIG_PRODUCTION }}'
+          if [ -z "$KUBECONFIG_VALUE" ]; then
+            echo "ERROR: KUBECONFIG_PRODUCTION secret is not configured."
+            echo "Add the production kubeconfig (raw YAML or base64-encoded) to the repository secrets — refusing to no-op a deployment."
+            exit 1
+          fi
+          mkdir -p "$HOME/.kube"
+          if printf '%s' "$KUBECONFIG_VALUE" | base64 --decode > /dev/null 2>&1; then
+            printf '%s' "$KUBECONFIG_VALUE" | base64 --decode > "$HOME/.kube/config"
+          else
+            printf '%s' "$KUBECONFIG_VALUE" > "$HOME/.kube/config"
+          fi
+          chmod 600 "$HOME/.kube/config"
+          echo "KUBECONFIG=$HOME/.kube/config" >> "$GITHUB_ENV"
+
+      - name: Deploy to production (kubectl apply)
+        run: |
+          set -euo pipefail
           echo "=== Deploying to production environment ==="
-          echo "Image tag: ${{ steps.tag.outputs.deploy_tag }}"
           echo "Trigger: ${{ github.event_name }}"
-          echo ""
-          echo "Deployment configuration:"
-          echo "  Environment: production"
-          echo "  Image prefix: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}"
-          echo ""
-          # Placeholder: Replace with actual deployment command
-          echo "[production] Deployment would proceed here."
-          echo "[production] Configure DEPLOY_COMMAND_PRODUCTION secret for automation."
+          # Converge application manifests only; k8s/secrets.yml (placeholder
+          # values) and the stateful data tier are NOT re-applied — see k8s/README.md.
+          kubectl apply -f k8s/namespace.yml
+          kubectl apply -f k8s/configmap.yml
+          kubectl apply -f k8s/api/
+          kubectl apply -f k8s/worker/
+          kubectl apply -f k8s/qr-menu/
+          kubectl apply -f k8s/backoffice/
+          kubectl apply -f k8s/cashier/
+
+      - name: Pin images to deploy tag
+        run: |
+          set -euo pipefail
+          TAG="${{ steps.tag.outputs.deploy_tag }}"
+          BASE="${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}"
+          kubectl -n zayjar set image deployment/api api="${BASE}/api:${TAG}"
+          kubectl -n zayjar set image deployment/worker worker="${BASE}/api:${TAG}"
+          kubectl -n zayjar set image deployment/qr-menu qr-menu="${BASE}/qr-menu:${TAG}"
+          kubectl -n zayjar set image deployment/backoffice backoffice="${BASE}/backoffice:${TAG}"
+          kubectl -n zayjar set image deployment/cashier cashier="${BASE}/cashier:${TAG}"
+
+      - name: Wait for rollouts
+        run: |
+          set -euo pipefail
+          kubectl -n zayjar rollout status deployment/api --timeout=300s
+          kubectl -n zayjar rollout status deployment/worker --timeout=300s
+          kubectl -n zayjar rollout status deployment/qr-menu --timeout=300s
+          kubectl -n zayjar rollout status deployment/backoffice --timeout=300s
+          kubectl -n zayjar rollout status deployment/cashier --timeout=300s
 
       - name: Health check — production
         run: |
@@ -220,8 +309,8 @@ jobs:
             exit 0
           fi
 
-          echo "Testing GET /api/v1/health..."
-          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$API_URL/api/v1/health" || echo "000")
+          echo "Testing GET /health..."
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$API_URL/health" || echo "000")
           if [ "$HTTP_STATUS" != "200" ]; then
             echo "FAIL: Health endpoint returned $HTTP_STATUS (expected 200)"
             exit 1

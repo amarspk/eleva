@@ -21,7 +21,14 @@ export class CaslAbilityFactory {
    * Translates the decoded user permissions and ABAC properties into a CASL Ability instance dynamically.
    */
   createForUser(user: UserPayload): AppAbility {
-    const { can, cannot, build } = new AbilityBuilder<AppAbility>(createMongoAbility);
+    const builder = new AbilityBuilder<AppAbility>(createMongoAbility);
+    const { can, build } = builder;
+    // CAT-5: @casl/ability v7 (7.0.1) types rule `conditions` for pure string
+    // subject tuples as `MongoQuery<never>` (tagged instances are required to
+    // use conditions in its strict typings) — v6 accepted `MongoQuery`, and the
+    // emitted rule objects are unchanged. Unify through one assertion at this
+    // choke point instead of touching the three rule sites' runtime values.
+    const cannot = builder.cannot as (action: Action, subject: Subjects, conditions: MongoQuery) => unknown;
 
     // 1. Platform Owners bypass all scoping gates and hold full systemic keys
     if (user.roles.includes('PLATFORM_OWNER')) {

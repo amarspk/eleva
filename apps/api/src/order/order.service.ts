@@ -1,4 +1,5 @@
-import { Injectable, Logger, NotFoundException, BadRequestException, ConflictException, ForbiddenException, Inject, Optional } from '@nestjs/common';
+import {
+  Injectable, Logger, NotFoundException, BadRequestException, ConflictException, ForbiddenException, Inject, Optional } from '@nestjs/common';
 import { CreateOrderRequestDto } from './dto/create-order-request.dto';
 import { UpdateOrderStatusRequestDto } from './dto/update-order-status-request.dto';
 import { OrderStatus } from '@zayjar/types';
@@ -14,6 +15,7 @@ import {
   TenantTableRepository,
   prisma,
   dbTenantContext,
+  Prisma,
 } from '@zayjar/db';
 import { KdsGateway } from '../kds/kds.gateway';
 import { WebhookService } from '../webhook/webhook.service';
@@ -167,7 +169,7 @@ export class OrderService {
     }
 
     let subtotal = 0;
-    const orderItemsToCreate: Array<Record<string, unknown>> = [];
+    const orderItemsToCreate: Prisma.OrderItemUncheckedCreateWithoutOrderInput[] = [];
 
     // 2. Validate products and calculate totals strictly using database values
     for (const item of dto.items) {
@@ -203,7 +205,7 @@ export class OrderService {
       }
 
       let lineAddonsTotal = 0;
-      const addonsToCreate: Array<Record<string, unknown>> = [];
+      const addonsToCreate: Prisma.OrderItemAddonUncheckedCreateWithoutOrderItemInput[] = [];
 
       // B. Evaluate addons and choice selections
       if (item.addons && item.addons.length > 0) {
@@ -475,12 +477,12 @@ export class OrderService {
       this.emailService
         .sendInvoiceEmail('customer@example.com', {
           invoiceNumber,
-          orderNumber: order.orderNumber,
+          orderNumber: order.orderNumber as string,
           customerName: 'Valued Customer',
-          branchName: order.branchId,
-          subtotal: order.subtotal,
-          taxAmount: order.taxAmount,
-          total: order.total,
+          branchName: order.branchId as string,
+          subtotal: order.subtotal as number,
+          taxAmount: order.taxAmount as number,
+          total: order.total as number,
           pdfUrl,
           companyName: 'Zayjar Restaurant',
         })

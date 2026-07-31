@@ -23,7 +23,19 @@ export class WalletService {
    * Supports Apple Pay, Google Pay via Stripe, and KNET, Benefit, Mada via Tap Payments/PayTabs
    * Tenant isolation enforced via dbTenantContext and order ownership
    */
-  async createWalletPayment(dto: CreateWalletPaymentRequestDto, tenantId: string, userId: string): Promise<Record<string, unknown>> {
+  async createWalletPayment(dto: CreateWalletPaymentRequestDto, tenantId: string, userId: string): Promise<{
+    paymentId: string;
+    provider: string;
+    walletType: string;
+    amount: number;
+    currency: string;
+    status: string;
+    nextAction?: { type: string; url?: string; stripeSdk?: { walletType: string; clientSecret: string } };
+    redirectUrl?: string;
+    clientSecret?: string;
+    successUrl?: string;
+    cancelUrl?: string;
+  }> {
     this.logger.log(`Creating wallet payment for tenant [${tenantId}] order [${dto.orderId}] method [${dto.paymentMethod}] wallet [${dto.walletType}]`);
 
     // Validate order exists and belongs to tenant
@@ -80,7 +92,19 @@ export class WalletService {
     tenantId: string,
     userId: string,
     _order: Record<string, unknown>,
-  ): Promise<Record<string, unknown>> {
+  ): Promise<{
+    paymentId: string;
+    provider: string;
+    walletType: string;
+    amount: number;
+    currency: string;
+    status: string;
+    nextAction?: { type: string; url?: string; stripeSdk?: { walletType: string; clientSecret: string } };
+    redirectUrl?: string;
+    clientSecret?: string;
+    successUrl?: string;
+    cancelUrl?: string;
+  }> {
     const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
 
     if (!stripeSecretKey) {
@@ -147,7 +171,19 @@ export class WalletService {
     _tenantId: string,
     _userId: string,
     _order: Record<string, unknown>,
-  ): Promise<Record<string, unknown>> {
+  ): Promise<{
+    paymentId: string;
+    provider: string;
+    walletType: string;
+    amount: number;
+    currency: string;
+    status: string;
+    nextAction?: { type: string; url?: string; stripeSdk?: { walletType: string; clientSecret: string } };
+    redirectUrl?: string;
+    clientSecret?: string;
+    successUrl?: string;
+    cancelUrl?: string;
+  }> {
     const tapSecretKey = process.env.TAP_PAYMENTS_SECRET_KEY;
 
     if (!tapSecretKey) {
@@ -191,7 +227,19 @@ export class WalletService {
     }
   }
 
-  private async createMockPayment(dto: CreateWalletPaymentRequestDto, walletType: string, provider: string, _tenantId: string): Promise<Record<string, unknown>> {
+  private async createMockPayment(dto: CreateWalletPaymentRequestDto, walletType: string, provider: string, _tenantId: string): Promise<{
+    paymentId: string;
+    provider: string;
+    walletType: string;
+    amount: number;
+    currency: string;
+    status: string;
+    nextAction?: { type: string; url?: string; stripeSdk?: { walletType: string; clientSecret: string } };
+    redirectUrl?: string;
+    clientSecret?: string;
+    successUrl?: string;
+    cancelUrl?: string;
+  }> {
     const mockId = `mock_${walletType}_${Math.random().toString(36).substring(2, 10)}`;
     return {
       paymentId: mockId,

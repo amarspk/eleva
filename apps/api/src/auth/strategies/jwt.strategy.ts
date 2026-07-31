@@ -1,6 +1,7 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, ForbiddenException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
+import { dbTenantContext } from '@zayjar/db';
 import { JWT_CONFIG } from '../config/jwt.config';
 import { AuthService } from '../auth.service';
 import { AuthenticatedUser } from '../../common/types/request.types';
@@ -16,7 +17,12 @@ interface JwtTokenPayload {
 interface JwtRequest {
   headers: {
     authorization?: string;
+    'x-tenant-id'?: string | string[];
   };
+  // Request-scoped tenant context resolved by TenantContextMiddleware
+  // (subdomain / custom domain / X-Tenant-ID). Read at validation time to
+  // reconcile it against the verified JWT tenant (C-1 / AUTHZ-001).
+  tenantId?: string | null;
 }
 
 @Injectable()
@@ -42,6 +48,33 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       const isBlacklisted = await this.authService.isTokenBlacklisted(token);
       if (isBlacklisted) {
         throw new UnauthorizedException('This access token has been revoked or blacklisted.');
+      }
+    }
+
+    // ==========================================
+    // C-1 (AUTHZ-001) — Tenant-context reconciliation.
+    // The signature-verified JWT tenant is the ONLY authoritative tenant
+    // identity for authenticated requests: a caller-supplied X-Tenant-ID can
+    // never override it, and a middleware-resolved context that disagrees
+    // with the verified claim is rejected. PLATFORM_OWNER tokens are exempt
+    // (cross-tenant administration is their documented capability); this
+    // block preserves platform-owner rules unchanged.
+    // ==========================================
+    const isPlatformOwner = payload.roles.includes('PLATFORM_OWNER');
+    if (!isPlatformOwner && payload.tenantId) {
+      const rawHeader = req.headers['x-tenant-id'];
+      const headerTenantId = Array.isArray(rawHeader) ? rawHeader[0] : rawHeader;
+      if (headerTenantId && headerTenantId !== payload.tenantId) {
+        throw new ForbiddenException('Tenant context mismatch: X-Tenant-ID does not match the authenticated tenant.');
+      }
+      if (req.tenantId && req.tenantId !== payload.tenantId) {
+        throw new ForbiddenException('Tenant context mismatch: resolved tenant does not match the authenticated tenant.');
+      }
+      // Reconcile the request-scoped ALS context with the verified tenant so
+      // every downstream repository operation is scoped by the JWT identity.
+      const store = dbTenantContext.getStore();
+      if (store) {
+        store.tenantId = payload.tenantId;
       }
     }
 

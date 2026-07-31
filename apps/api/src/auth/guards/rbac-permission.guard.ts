@@ -104,7 +104,11 @@ export class RbacPermissionGuard implements CanActivate {
     }
 
     // 5. Verify capability criteria matches exactly (including dynamic attribute checks)
-    const hasPermission = ability.can(action, subject(resource, resourceInstance));
+    // CAT-5: @casl/ability v7 types `can(action, subject)` params as the raw tuple
+    // `Subjects` and no longer accepts the `ForcedSubject` instance returned by
+    // `subject()` for pure string-subject abilities (v6 did). The runtime path is
+    // identical — `subject()` stamps `__caslSubjectType__` and v7's matcher reads it.
+    const hasPermission = ability.can(action, subject(resource, resourceInstance) as unknown as Subjects);
     if (!hasPermission) {
       throw new ForbiddenException(
         `Access Denied: Your credentials lack the mandatory privilege [${action} on ${resource}].`

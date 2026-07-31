@@ -3,6 +3,7 @@ import { Request, Response, NextFunction } from 'express';
 import { CacheService } from '../cache/cache.service';
 import { prisma, dbTenantContext } from '@zayjar/db';
 import * as jwt from 'jsonwebtoken';
+import { JWT_CONFIG } from '../../auth/config/jwt.config';
 import { RequestWithTenant } from '../types/request.types';
 
 @Injectable()
@@ -24,12 +25,19 @@ export class TenantContextMiddleware implements NestMiddleware {
     if (authHeader && authHeader.startsWith('Bearer ')) {
       const token = authHeader.split(' ')[1];
       try {
-        const decoded = jwt.decode(token) as { roles?: string[] } | null;
-        if (decoded && decoded.roles && decoded.roles.includes('PLATFORM_OWNER')) {
+        // C-2 (AUTHZ-002): platform-owner context is derived ONLY from a
+        // signature-verified token. Forged, malformed, or expired tokens
+        // confer NO platform privilege (previously jwt.decode accepted any
+        // well-formed claims unverified). Protected routes independently
+        // re-verify the token through JwtAuthGuard/JwtStrategy (C-1), so
+        // request flow for valid authenticated users is unchanged; only the
+        // unverified-claims hole is closed here.
+        const verified = jwt.verify(token, JWT_CONFIG.accessTokenSecret) as unknown as { roles?: unknown };
+        if (Array.isArray(verified.roles) && (verified.roles as unknown[]).includes('PLATFORM_OWNER')) {
           isPlatformOwner = true;
         }
       } catch (err) {
-        // Decode failures are ignored here; the JwtAuthGuard will validate and reject properly later
+        // Verification failures are ignored here; the JwtAuthGuard will validate and reject properly later
       }
     }
 

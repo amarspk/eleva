@@ -1,4 +1,5 @@
 import * as ddTrace from 'dd-trace';
+import type { TracerOptions } from 'dd-trace';
 
 let tracerInitialized = false;
 
@@ -8,7 +9,10 @@ export function initDatadogTracer(): void {
     return;
   }
 
-  ddTrace.init({
+  // CAT-5: dd-trace v5 dropped `analytics` from `TracerOptions`; the exact
+  // same options object (including the flag, ignored by v5 at runtime) must be
+  // passed to preserve behavior — annotate the object so the literal check passes.
+  const tracerOptions: TracerOptions & { analytics: boolean } = {
     service: process.env.DD_SERVICE || 'zayjar-api',
     version: process.env.DD_VERSION || '1.0.0',
     env: process.env.DD_ENV || process.env.NODE_ENV || 'development',
@@ -21,7 +25,8 @@ export function initDatadogTracer(): void {
     tags: {
       'service.version': process.env.DD_VERSION || '1.0.0',
     },
-  });
+  };
+  ddTrace.init(tracerOptions);
 
   tracerInitialized = true;
 }

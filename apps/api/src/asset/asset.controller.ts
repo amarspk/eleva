@@ -33,7 +33,7 @@ export class AssetController {
     }
 
     const tenantId = user.tenantId;
-    const userId = user.id || user.sub;
+    const userId = user.id;
 
     if (!tenantId) {
       throw new ForbiddenException('Tenant context missing from authenticated request');

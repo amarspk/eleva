@@ -25,14 +25,14 @@ export class KdsController {
     ticketNumber: string;
     priority: string;
     elapsedMinutes: number;
-    createdAt: unknown;
+    createdAt: Date;
     orderStatus: string;
     items: Array<{
       orderItemId: string;
       name: string;
       quantity: number;
       size: string | null;
-      addons: string[];
+      addons: (string | null)[];
       cookingStatus: string;
     }>;
   }>> {

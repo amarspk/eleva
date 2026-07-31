@@ -70,7 +70,7 @@ export class MediaService {
       throw new BadRequestException(`Invalid media type: ${mediaType}`);
     }
 
-    if (!config.allowedTypes.includes(file.mimetype)) {
+    if (!(config.allowedTypes as readonly string[]).includes(file.mimetype)) {
       throw new BadRequestException(
         `Invalid file type "${file.mimetype}". Allowed: ${config.allowedTypes.join(', ')}`,
       );
@@ -109,7 +109,12 @@ export class MediaService {
 
       try {
         let attemptStorageKey: string;
-        let attemptUrls: typeof urls;
+        let attemptUrls: {
+          originalUrl: string;
+          thumbnailUrl: string | null;
+          mediumUrl: string | null;
+          largeUrl: string | null;
+        };
         let attemptWidth: number | undefined;
         let attemptHeight: number | undefined;
         let attemptFileSize: number;
@@ -194,7 +199,7 @@ export class MediaService {
               tenantId,
               entityType,
               entityId,
-              mediaType,
+              mediaType: mediaType as MediaType,
               originalName: file.originalname,
               mimeType: file.mimetype,
               originalFileSize: file.size,

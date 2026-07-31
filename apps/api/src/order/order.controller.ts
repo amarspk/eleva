@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Put, Body, Param, Query, HttpCode, HttpStatus, UseGuards, Req } from '@nestjs/common';
+import { Controller, Post, Get, Put, Body, Param, Query, HttpCode, HttpStatus, UseGuards, Req, ForbiddenException } from '@nestjs/common';
 import { OrderService } from './order.service';
 import { CreateOrderRequestDto } from './dto/create-order-request.dto';
 import { UpdateOrderStatusRequestDto } from './dto/update-order-status-request.dto';
@@ -19,6 +19,9 @@ export class OrderController {
   @RateLimit('checkout')
   async createOrder(@Body() dto: CreateOrderRequestDto, @Req() req: AuthenticatedRequest): Promise<unknown> {
     const userTenantId = req.user.tenantId;
+    if (!userTenantId) {
+      throw new ForbiddenException('Tenant context missing from authenticated request');
+    }
     return this.orderService.createOrder(dto, userTenantId);
   }
 

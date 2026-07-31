@@ -164,7 +164,7 @@ export class WebhookService {
           break;
         }
       } catch (err) {
-        lastError = err;
+        lastError = err as Error;
         this.logger.warn(`Webhook dispatch to [${targetUrl}] failed attempt ${attempts}: ${(err as Error).message}`);
       }
 

@@ -207,7 +207,7 @@ export class DispatchService implements OnModuleDestroy {
   ): Promise<{ success: boolean; provider?: string }> {
     switch (channel) {
       case 'email': {
-        const emailTo = payload.email || payload.customerEmail || 'customer@example.com';
+        const emailTo = (payload.email || payload.customerEmail || 'customer@example.com') as string;
         const template = event.includes('invoice')
           ? 'invoice'
           : event.includes('order')
@@ -223,9 +223,9 @@ export class DispatchService implements OnModuleDestroy {
       }
 
       case 'sms': {
-        const phone = payload.phone || payload.customerPhone || '+12025550144';
+        const phone = (payload.phone || payload.customerPhone || '+12025550144') as string;
         const smsMessage =
-          payload.message || `Zayjar: Event ${event} for order ${payload.orderNumber || payload.id || ''}`;
+          (payload.message || `Zayjar: Event ${event} for order ${payload.orderNumber || payload.id || ''}`) as string;
         try {
           const result = await this.smsService.sendSms(phone, smsMessage, tenantId);
           return { success: result.success, provider: result.provider };
@@ -236,9 +236,9 @@ export class DispatchService implements OnModuleDestroy {
       }
 
       case 'push': {
-        const userId = payload.userId || payload.customerId;
-        const title = payload.title || `Zayjar: ${event}`;
-        const body = payload.body || payload.message || `Event ${event} occurred`;
+        const userId = (payload.userId || payload.customerId) as string | undefined;
+        const title = (payload.title || `Zayjar: ${event}`) as string;
+        const body = (payload.body || payload.message || `Event ${event} occurred`) as string;
         try {
           if (!userId) {
             this.logger.warn(`Push skipped: no userId in payload for event ${event} tenant ${tenantId}`);
@@ -264,7 +264,7 @@ export class DispatchService implements OnModuleDestroy {
       }
 
       case 'websocket': {
-        const branchId = payload.branchId;
+        const branchId = payload.branchId as string | undefined;
         try {
           if (!branchId) {
             this.logger.warn(`WebSocket broadcast skipped: no branchId in payload for event ${event} tenant ${tenantId}`);

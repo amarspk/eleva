@@ -165,8 +165,12 @@ describe('DeviceTokenService Unit Tests - TSK-3.1 (DOC-008 7.4 FCM)', () => {
     });
 
     expect(result.sent).toBe(1);
-    expect(result.payloads![0].message.notification.title).toBe('New Order Placed');
-    expect(result.payloads![0].message.notification.body).toContain('ORD-2026');
-    expect(result.payloads![0].message.data.orderId).toBe('o888c-9a1b-42b8-bf83-097a18fcd341');
+    const msg = result.payloads![0].message as {
+      notification: { title: string; body: string };
+      data: Record<string, unknown>;
+    };
+    expect(msg.notification.title).toBe('New Order Placed');
+    expect(msg.notification.body).toContain('ORD-2026');
+    expect(msg.data.orderId).toBe('o888c-9a1b-42b8-bf83-097a18fcd341');
   });
 });

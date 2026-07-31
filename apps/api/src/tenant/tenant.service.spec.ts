@@ -39,7 +39,7 @@ describe('TenantService Unit Tests', () => {
       branch: { create: jest.fn().mockResolvedValue({ id: 'b1', name: 'Main Branch' }) },
     };
 
-    jest.spyOn(prisma, '$transaction').mockImplementation(async (cb: (tx: typeof txMock) => Promise<unknown>) => cb(txMock));
+    jest.spyOn(prisma, '$transaction').mockImplementation((async (cb: (tx: typeof txMock) => Promise<unknown>) => cb(txMock)) as any);
     jest.spyOn(prisma.tenant, 'findUnique').mockResolvedValue(null);
     jest.spyOn(prisma.user, 'findFirst').mockResolvedValue(null);
 
@@ -80,7 +80,7 @@ describe('TenantService Unit Tests', () => {
       branch: { create: jest.fn().mockResolvedValue({ id: 'b2', name: 'Kuwait City Branch' }) },
     };
 
-    jest.spyOn(prisma, '$transaction').mockImplementation(async (cb: (tx: typeof txMock) => Promise<unknown>) => cb(txMock));
+    jest.spyOn(prisma, '$transaction').mockImplementation((async (cb: (tx: typeof txMock) => Promise<unknown>) => cb(txMock)) as any);
     jest.spyOn(prisma.tenant, 'findUnique').mockResolvedValue(null);
     jest.spyOn(prisma.user, 'findFirst').mockResolvedValue(null);
 

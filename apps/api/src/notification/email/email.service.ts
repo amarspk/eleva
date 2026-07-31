@@ -64,10 +64,10 @@ export class EmailService {
     blocked?: boolean;
     reason?: string;
     mocked?: boolean;
-    to: string;
-    subject: string;
-    template: string;
-    messageId: string;
+    to?: string;
+    subject?: string;
+    template?: string;
+    messageId?: string;
     failover?: boolean;
     error?: string;
   }> {
@@ -165,7 +165,7 @@ export class EmailService {
     email: string | undefined;
   } | undefined> {
     const eventType = event.event; // e.g., bounce, dropped, spamreport
-    const email = event.email?.toLowerCase();
+    const email = (event.email as string | undefined)?.toLowerCase();
 
     if (!email) {return;}
 
@@ -196,10 +196,10 @@ export class EmailService {
     blocked?: boolean;
     reason?: string;
     mocked?: boolean;
-    to: string;
-    subject: string;
-    template: string;
-    messageId: string;
+    to?: string;
+    subject?: string;
+    template?: string;
+    messageId?: string;
     failover?: boolean;
     error?: string;
   }> {
@@ -211,10 +211,10 @@ export class EmailService {
     blocked?: boolean;
     reason?: string;
     mocked?: boolean;
-    to: string;
-    subject: string;
-    template: string;
-    messageId: string;
+    to?: string;
+    subject?: string;
+    template?: string;
+    messageId?: string;
     failover?: boolean;
     error?: string;
   }> {
@@ -226,10 +226,10 @@ export class EmailService {
     blocked?: boolean;
     reason?: string;
     mocked?: boolean;
-    to: string;
-    subject: string;
-    template: string;
-    messageId: string;
+    to?: string;
+    subject?: string;
+    template?: string;
+    messageId?: string;
     failover?: boolean;
     error?: string;
   }> {

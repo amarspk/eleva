@@ -101,11 +101,11 @@ describe('AuditService Unit Tests - DOC-006 5.7 Immutable Audit Logs', () => {
   it('should sanitize sensitive fields in audit logs', async () => {
     // The interceptor sanitizes, but service should handle any values
     const tenantId = 'tenant-123';
-    jest.spyOn(prisma.auditLog, 'create').mockImplementation(async (args: any) => {
+    jest.spyOn(prisma.auditLog, 'create').mockImplementation((async (args: any) => {
       // Ensure sensitive fields would be redacted by interceptor, but service stores as provided
       // For this test, we check that service doesn't throw
       return { id: 'audit_1', ...args.data } as any;
-    });
+    }) as any);
 
     const result = await service.log({
       tenantId,
@@ -125,10 +125,10 @@ describe('AuditService Unit Tests - DOC-006 5.7 Immutable Audit Logs', () => {
     const evilTenantId = 'evil-tenant';
 
     let capturedWhere: any = null;
-    jest.spyOn(prisma.auditLog, 'create').mockImplementation(async (args: any) => {
+    jest.spyOn(prisma.auditLog, 'create').mockImplementation((async (args: any) => {
       capturedWhere = args.data;
       return { id: 'audit_1', ...args.data } as any;
-    });
+    }) as any);
 
     await service.log({
       tenantId: realTenantId,

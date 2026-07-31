@@ -1,6 +1,13 @@
 import { LoggerService } from '@nestjs/common';
 import * as winston from 'winston';
 import * as path from 'path';
+// CAT-5: winston-daily-rotate-file 5.0.0 augments the deep module
+// 'winston/lib/winston/transports', which winston@3.19's surface `Transports`
+// type no longer reflects — and nothing imported the package, so the
+// `winston.transports.DailyRotateFile` member was also unregistered at runtime
+// (latent crash on the file-logging branch). Import the constructor directly:
+// the import performs the identical runtime registration and restores typing.
+import DailyRotateFile from 'winston-daily-rotate-file';
 import { sensitiveFieldsMask } from './sensitive-data.mask';
 
 const LOG_DIR = process.env.LOG_DIR || path.join(process.cwd(), 'logs');
@@ -16,7 +23,7 @@ const SENSITIVE_FIELDS = [
 
 const maskTransform = winston.format((info) => {
   if (info.meta && typeof info.meta === 'object') {
-    info.meta = sensitiveFieldsMask(info.meta, SENSITIVE_FIELDS);
+    info.meta = sensitiveFieldsMask(info.meta as Record<string, unknown>, SENSITIVE_FIELDS);
   }
   return info;
 });
@@ -49,7 +56,7 @@ function createWinstonLogger(): winston.Logger {
 
   if (NODE_ENV === 'production' || process.env.LOG_FILE_ENABLED === 'true') {
     transports.push(
-      new winston.transports.DailyRotateFile({
+      new DailyRotateFile({
         level: LOG_LEVEL,
         dirname: LOG_DIR,
         filename: 'zayjar-api-%DATE%.log',
@@ -64,7 +71,7 @@ function createWinstonLogger(): winston.Logger {
           winston.format.json(),
         ),
       }),
-      new winston.transports.DailyRotateFile({
+      new DailyRotateFile({
         level: 'error',
         dirname: LOG_DIR,
         filename: 'zayjar-error-%DATE%.log',

@@ -4,7 +4,7 @@ import { ImageProcessorService } from './image-processor.service';
 import { MediaCleanupQueueService } from './media-cleanup-queue.service';
 
 jest.mock('@zayjar/db', () => {
-  const mockPrisma = {
+  const mockPrisma: any = {
     media: {
       create: jest.fn(),
       findFirst: jest.fn(),
@@ -24,9 +24,9 @@ const { prisma: mockPrisma } = require('@zayjar/db');
 
 describe('MediaService', () => {
   let service: MediaService;
-  let mockStorage: StorageProvider;
+  let mockStorage: jest.Mocked<StorageProvider>;
   let mockProcessor: ImageProcessorService;
-  let mockQueue: MediaCleanupQueueService;
+  let mockQueue: jest.Mocked<MediaCleanupQueueService>;
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -508,7 +508,7 @@ describe('MediaService', () => {
         (c: any[]) => c[0].type === 'REPLACE',
       );
       expect(enqueueCall).toBeDefined();
-      const keys = enqueueCall[0].storageKeys;
+      const keys = enqueueCall![0].storageKeys;
       expect(keys).toContain('tenants/t1/document/old-doc.pdf');
       expect(keys).not.toContain('tenants/t1/document/old-doc.pdf.pdf');
     });

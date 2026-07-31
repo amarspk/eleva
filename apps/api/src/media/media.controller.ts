@@ -49,6 +49,9 @@ export class MediaController {
     @Query('entityId') entityId?: string,
   ): Promise<MediaResponseDto[]> {
     const tenantId = req.user?.tenantId;
+    if (!tenantId) {
+      throw new BadRequestException('Tenant context is required');
+    }
     return this.mediaService.findAll(tenantId, entityType, entityId);
   }
 
@@ -58,6 +61,9 @@ export class MediaController {
     @Req() req: AuthenticatedRequest,
   ): Promise<MediaResponseDto> {
     const tenantId = req.user?.tenantId;
+    if (!tenantId) {
+      throw new BadRequestException('Tenant context is required');
+    }
     return this.mediaService.findOne(id, tenantId);
   }
 
@@ -68,6 +74,9 @@ export class MediaController {
     @Req() req: AuthenticatedRequest,
   ): Promise<{ message: string }> {
     const tenantId = req.user?.tenantId;
+    if (!tenantId) {
+      throw new BadRequestException('Tenant context is required');
+    }
     await this.mediaService.remove(id, tenantId);
     return { message: 'Media deleted successfully' };
   }

@@ -265,7 +265,7 @@ describe('OrderService Unit Tests', () => {
     const branchId = 'branch-uuid-1234';
 
     // Mock order at each stage
-    const makeOrder = (status: OrderStatus) => ({
+    const makeOrder = (status: OrderStatus): any => ({
       id,
       tenantId,
       branchId,

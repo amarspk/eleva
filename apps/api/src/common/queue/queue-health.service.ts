@@ -78,7 +78,7 @@ export class QueueHealthService implements OnModuleDestroy {
       this.logger.warn(`Cannot create worker for ${name}: no Redis connection`);
       return null;
     }
-    const config = WORKER_CONFIG[name as QueueName] || {
+    const config = (WORKER_CONFIG as Partial<Record<QueueName, (typeof WORKER_CONFIG)[keyof typeof WORKER_CONFIG]>>)[name as QueueName] || {
       concurrency: 5,
       limiter: { max: 50, duration: 1000 },
     };

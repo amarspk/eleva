@@ -10,7 +10,21 @@ export interface PrismaModelDelegate<T extends { id: string } = { id: string }> 
 }
 
 export abstract class BaseTenantRepository<TModel extends { id: string }> {
-  constructor(protected readonly delegate: PrismaModelDelegate<TModel>) {}
+  protected readonly delegate: PrismaModelDelegate<TModel>;
+
+  // FIX(CAT-1a): accept the delegate as `unknown` and unify at the single choke
+  // point. The $extended tenant-scoped client's delegates
+  // (`DynamicModelExtensionThis<…>` with `Exact<A, …Args>` generic params) are
+  // structurally incompatible with ANY hand-written structural delegate
+  // interface (arrow-property params are checked contravariantly and
+  // `Record<string, unknown>` is not assignable to the extension's
+  // `{ [x: string]: {} }` index params), which produced TS2345 at all 16
+  // TenantXRepository `super(prisma.<model>)` call sites. `unknown` + one
+  // internal assertion keeps the repository contract (`PrismaModelDelegate`)
+  // intact for every subclass/super-method usage while restoring assignability.
+  constructor(delegate: unknown) {
+    this.delegate = delegate as PrismaModelDelegate<TModel>;
+  }
 
   /**
    * Resolves the active tenantId from the thread-local AsyncLocalStorage context.

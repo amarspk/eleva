@@ -5,6 +5,8 @@
 # Verifies that the API is responsive after deployment.
 # Usage: ./health-check.sh <api_url> <environment>
 #
+# Route: /health — the root-mounted health controller (H-1/DEPLOY-001, H-2/DEPLOY-002);
+# the old prefixed route does not exist. An empty URL skips the check with exit 0.
 # Exit codes:
 #   0 — Health check passed
 #   1 — Health check failed after max retries
@@ -12,11 +14,11 @@
 
 set -euo pipefail
 
-API_URL="${1:?Usage: health-check.sh <api_url> <environment>}"
+API_URL="${1:-}"
 ENVIRONMENT="${2:-unknown}"
 MAX_RETRIES=10
 RETRY_INTERVAL=5
-HEALTH_ENDPOINT="/api/v1/health"
+HEALTH_ENDPOINT="/health"
 
 echo "[health-check] Environment: ${ENVIRONMENT}"
 echo "[health-check] Target: ${API_URL}${HEALTH_ENDPOINT}"

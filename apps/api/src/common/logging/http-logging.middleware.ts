@@ -13,8 +13,7 @@ export class HttpLoggingMiddleware implements NestMiddleware {
     const correlationId = (req as RequestWithTenant).correlationId || req.headers['x-request-id'] || '';
 
     const originalEnd = res.end;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    res.end = function (this: Response, ...args: any[]) {
+    res.end = function (this: Response, ...args: Parameters<Response['end']>) {
       const duration = Date.now() - start;
       const { statusCode } = res;
 

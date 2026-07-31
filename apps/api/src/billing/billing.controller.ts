@@ -28,7 +28,7 @@ export class BillingController {
     }
 
     const tenantId = user.tenantId;
-    const userId = user.id || user.sub;
+    const userId = user.id;
     const roles = user.roles || [];
 
     // Enforce RESTAURANT_OWNER role for billing:write per spec
@@ -53,7 +53,7 @@ export class BillingController {
   @Post('webhooks')
   @HttpCode(HttpStatus.OK)
   async handleWebhook(@Req() req: AuthenticatedRequest, @Headers('stripe-signature') signature?: string): Promise<{ received: boolean; action?: string; eventType?: string; eventId?: string; tenantId?: string | null; newSubscriptionStatus?: string | null; newTenantStatus?: string | null }> {
-    const rawBody: Buffer | undefined = (req as Record<string, unknown>).rawBody as Buffer | undefined;
+    const rawBody: Buffer | undefined = (req as unknown as Record<string, unknown>).rawBody as Buffer | undefined;
     if (!rawBody) {
       return { received: true, action: 'missing_raw_body' };
     }

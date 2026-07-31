@@ -52,6 +52,12 @@ export class AppModule implements NestModule {
       .apply(SanitizationMiddleware)
       .forRoutes('*')
       .apply(TenantContextMiddleware)
+      // H-2 (DEPLOY-002): '/health' is infrastructure-facing — Kubernetes
+      // liveness/readiness probes and container healthchecks must reach the
+      // health endpoint without tenant resolution. Excluded here at the
+      // consumer level so the exemption is path-exact (only '/health') and
+      // every other route keeps the full tenant fail-safe unchanged.
+      .exclude('health')
       .forRoutes('*');
   }
 }

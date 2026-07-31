@@ -85,6 +85,10 @@ export class SubscriptionService {
     const subscription = await this.checkSubscriptionStatus(tenantId);
     const plan = subscription.plan as Record<string, unknown> | undefined;
 
+    if (!plan) {
+      throw new NotFoundException('Subscription plan not found');
+    }
+
     const maxProducts = (plan?.maxProductsPerBranch as number) ?? 0;
 
     const _where: Record<string, unknown> = {};
@@ -113,6 +117,10 @@ export class SubscriptionService {
     const subscription = await this.checkSubscriptionStatus(tenantId);
     const plan = subscription.plan as Record<string, unknown> | undefined;
 
+    if (!plan) {
+      throw new NotFoundException('Subscription plan not found');
+    }
+
     if (!plan.allowCustomDomains) {
       throw new ForbiddenException(
         `Custom domains not allowed on current plan [${plan.name}]. Please upgrade to a higher tier.`,
@@ -129,6 +137,10 @@ export class SubscriptionService {
     const subscription = await this.checkSubscriptionStatus(tenantId);
     const plan = subscription.plan as Record<string, unknown> | undefined;
 
+    if (!plan) {
+      throw new NotFoundException('Subscription plan not found');
+    }
+
     if (!plan.allowOnlinePayments) {
       throw new ForbiddenException(
         `Online payments not allowed on current plan [${plan.name}]. Please upgrade.`,
@@ -144,6 +156,10 @@ export class SubscriptionService {
   async checkAnalyticsAllowed(tenantId: string): Promise<boolean> {
     const subscription = await this.checkSubscriptionStatus(tenantId);
     const plan = subscription.plan as Record<string, unknown> | undefined;
+
+    if (!plan) {
+      throw new NotFoundException('Subscription plan not found');
+    }
 
     if (!plan.allowAnalytics) {
       throw new ForbiddenException(

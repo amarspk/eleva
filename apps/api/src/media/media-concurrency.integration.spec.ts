@@ -46,7 +46,10 @@ describeIfDb('Media concurrent replacement (real database)', () => {
       data: { id: tenantId, name: 'Concurrency Test Tenant', subdomain: `ctest-${Date.now()}` },
     });
     await prisma.product.create({
-      data: { id: productId, tenantId, name: 'Test Product', price: 10 },
+      // Drift note (see PROJECT_STATE §19 row 21): 'price' predates the current Product model
+      // (renamed to basePrice; categoryId chain now required) — literal asserted as-is to keep
+      // this DATABASE_URL-gated suite's runtime byte-identical; functional seed repair deferred.
+      data: { id: productId, tenantId, name: 'Test Product', price: 10 } as any,
     });
   });
 

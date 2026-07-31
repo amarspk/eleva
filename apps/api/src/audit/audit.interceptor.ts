@@ -28,8 +28,8 @@ export class AuditInterceptor implements NestInterceptor {
 
     const user = request.user;
     const tenantId = user?.tenantId || request.tenantId || null;
-    const userId = user?.id || (user as Record<string, unknown>)?.sub || null;
-    const ipAddress = request.ip || request.headers['x-forwarded-for'] || request.connection?.remoteAddress || 'unknown';
+    const userId = user?.id || null;
+    const ipAddress = (request.ip || request.headers['x-forwarded-for'] || request.connection?.remoteAddress || 'unknown') as string;
     const userAgent = request.headers['user-agent'] || 'unknown';
 
     // Capture old values? For simplicity, we capture request body as newValues, and no oldValues
@@ -41,7 +41,7 @@ export class AuditInterceptor implements NestInterceptor {
         next: async (responseData) => {
           try {
             // Determine entity name and ID from URL
-            const entityInfo = this.parseEntityFromUrl(url, request.params, responseData);
+            const entityInfo = this.parseEntityFromUrl(url, request.params, responseData as Record<string, unknown> | undefined);
 
             await this.auditService.log({
               tenantId,
@@ -80,7 +80,7 @@ export class AuditInterceptor implements NestInterceptor {
     );
   }
 
-  private parseEntityFromUrl(url: string, params: Record<string, string> | undefined, responseData: Record<string, unknown> | undefined): { entityName: string; entityId: string | null } {
+  private parseEntityFromUrl(url: string, params: Record<string, string | string[]> | undefined, responseData: Record<string, unknown> | undefined): { entityName: string; entityId: string | null } {
     // Extract entity from URL pattern /api/v1/{entity}/...
     // e.g., /api/v1/branches -> Branch, /api/v1/menu/products -> Product, /api/v1/orders/:id/status -> Order
     const parts = url.split('/').filter(Boolean);
@@ -125,11 +125,11 @@ export class AuditInterceptor implements NestInterceptor {
     return { entityName, entityId };
   }
 
-  private sanitizeValues(values: unknown): unknown {
+  private sanitizeValues(values: unknown): Record<string, unknown> | null {
     if (!values) {return null;}
     // Remove sensitive fields
     const sensitive = ['password', 'passwordHash', 'secret', 'mfaSecret', 'secretKey'];
-    const sanitized = { ...values };
+    const sanitized: Record<string, unknown> = { ...(values as Record<string, unknown>) };
     for (const key of sensitive) {
       if (key in sanitized) {
         sanitized[key] = '[REDACTED]';

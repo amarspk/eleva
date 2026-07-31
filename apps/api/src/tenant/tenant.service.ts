@@ -30,9 +30,21 @@ export class TenantService {
     allowOnlinePayments: boolean;
     allowAnalytics: boolean;
   }>> {
-    return prismaRead.subscriptionPlan.findMany({
+    const plans = await prismaRead.subscriptionPlan.findMany({
       orderBy: { priceMonthly: 'asc' },
     });
+    return plans as unknown as Array<{
+      id: string;
+      name: string;
+      priceMonthly: number;
+      priceYearly: number;
+      maxBranches: number;
+      maxRestaurants: number;
+      maxProductsPerBranch: number;
+      allowCustomDomains: boolean;
+      allowOnlinePayments: boolean;
+      allowAnalytics: boolean;
+    }>;
   }
 
   /**
@@ -42,7 +54,12 @@ export class TenantService {
    * Creates in a single transaction:
    *   Tenant → Subscription (TRIALING) → User (RESTAURANT_OWNER) → Role → Restaurant → Branch
    */
-  async onboard(dto: CreateTenantRequestDto): Promise<Record<string, unknown>> {
+  async onboard(dto: CreateTenantRequestDto): Promise<{
+    tenant: { id: string; name: string; subdomain: string; status: string };
+    owner: { id: string; email: string };
+    restaurant: { id: string; name: string; currency: string; timezone: string };
+    branch: { id: string; name: string };
+  }> {
     // FIX(R7/RT-ONB-001): public self-service onboarding provisions a NEW tenant
     // before any tenant context can exist (route is @Public()). The db fail-safe
     // extension therefore blocked the cross-tenant email existence check
@@ -54,7 +71,12 @@ export class TenantService {
     return dbTenantContext.run({ isPlatformOwner: true }, () => this.executeOnboarding(dto));
   }
 
-  private async executeOnboarding(dto: CreateTenantRequestDto): Promise<Record<string, unknown>> {
+  private async executeOnboarding(dto: CreateTenantRequestDto): Promise<{
+    tenant: { id: string; name: string; subdomain: string; status: string };
+    owner: { id: string; email: string };
+    restaurant: { id: string; name: string; currency: string; timezone: string };
+    branch: { id: string; name: string };
+  }> {
     this.logger.log(`Initiating workspace onboarding transaction for subdomain: [${dto.subdomain}]`);
 
     // 1. Verify subdomain availability
@@ -245,7 +267,7 @@ export class TenantService {
     }
 
     // Merge static branding fields with JSONB dynamic branding (DOC-001 §1.5)
-    const dynamicBranding = (tenant.branding as Record<string, unknown>) || {};
+    const dynamicBranding = ((tenant as { branding?: unknown }).branding as Record<string, unknown>) || {};
 
     return {
       id: tenant.id,
@@ -313,7 +335,7 @@ export class TenantService {
 
     // Merge dynamic branding keys into JSONB column (DOC-001 §1.5)
     if (dto.branding?.dynamic) {
-      const existingBranding = (existing.branding as Record<string, unknown>) || {};
+      const existingBranding = ((existing as { branding?: unknown }).branding as Record<string, unknown>) || {};
       data.branding = { ...existingBranding, ...dto.branding.dynamic };
     }
 
@@ -322,7 +344,7 @@ export class TenantService {
       data,
     });
 
-    const dynamicBranding = (updated.branding as Record<string, unknown>) || {};
+    const dynamicBranding = ((updated as { branding?: unknown }).branding as Record<string, unknown>) || {};
 
     return {
       id: updated.id,

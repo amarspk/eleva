@@ -156,7 +156,7 @@ async function processChannel(
 ): Promise<{ success: boolean; provider?: string }> {
   switch (channel) {
     case 'email': {
-      const emailTo = payload.email || payload.customerEmail || 'customer@example.com';
+      const emailTo = (payload.email || payload.customerEmail || 'customer@example.com') as string;
       const template = event.includes('invoice')
         ? 'invoice'
         : event.includes('order')
@@ -167,16 +167,16 @@ async function processChannel(
     }
 
     case 'sms': {
-      const phone = payload.phone || payload.customerPhone || '+12025550144';
-      const smsMessage = payload.message || `Zayjar: Event ${event} for order ${payload.orderNumber || payload.id || ''}`;
+      const phone = (payload.phone || payload.customerPhone || '+12025550144') as string;
+      const smsMessage = (payload.message || `Zayjar: Event ${event} for order ${payload.orderNumber || payload.id || ''}`) as string;
       const result = await services.smsService.sendSms(phone, smsMessage, tenantId);
       return { success: result.success, provider: result.provider };
     }
 
     case 'push': {
-      const userId = payload.userId || payload.customerId;
-      const title = payload.title || `Zayjar: ${event}`;
-      const body = payload.body || payload.message || `Event ${event} occurred`;
+      const userId = (payload.userId || payload.customerId) as string | undefined;
+      const title = (payload.title || `Zayjar: ${event}`) as string;
+      const body = (payload.body || payload.message || `Event ${event} occurred`) as string;
       if (!userId) {
         return { success: false, provider: 'fcm' };
       }
@@ -191,7 +191,7 @@ async function processChannel(
     }
 
     case 'websocket': {
-      const branchId = payload.branchId;
+      const branchId = payload.branchId as string | undefined;
       if (!branchId) {
         return { success: false, provider: 'socket.io' };
       }
