@@ -4,6 +4,7 @@
 import React, { useEffect, useState } from 'react';
 import { openDB, IDBPDatabase } from 'idb';
 import type { ProductModel } from '@zayjar/types';
+import { loadSession, logoutStaff, readCsrfCookie } from '../lib/auth';
 
 interface CartItem {
   id: string;
@@ -199,6 +200,15 @@ export const CashierTerminal: React.FC<{ tenantId: string; branchId: string; api
     await triggerServiceWorkerSync();
   };
 
+  // Sprint 2 Task 1 (Auth-UI): sign out — blacklist the access token
+  // server-side, clear the local session, and return to the standalone login.
+  const handleSignOut = async () => {
+    await logoutStaff(loadSession());
+    if (typeof window !== 'undefined') {
+      window.location.href = '/login';
+    }
+  };
+
   const addToCart = (productId: string, name: string, price: number) => {
     setCart((prev) => {
       const existing = prev.find((i) => i.productId === productId);
@@ -213,6 +223,10 @@ export const CashierTerminal: React.FC<{ tenantId: string; branchId: string; api
   const total = subtotal;
 
   const handleCheckout = async () => {
+    if (!branchId) {
+      alert('No branch selected. Open the terminal with ?branchId=<branch-id>.');
+      return;
+    }
     const orderNumber = `ORD-${new Date().getFullYear()}-${Math.floor(10000 + Math.random() * 90000)}`;
     const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') || '' : '';
     const offlineOrder: OfflineOrder = {
@@ -257,6 +271,7 @@ export const CashierTerminal: React.FC<{ tenantId: string; branchId: string; api
           'Authorization': `Bearer ${token}`,
           'X-Tenant-ID': tenantId,
           'X-Branch-ID': branchId,
+          'X-CSRF-Token': readCsrfCookie(),
         },
         body: JSON.stringify({
           branchId,
@@ -291,6 +306,12 @@ export const CashierTerminal: React.FC<{ tenantId: string; branchId: string; api
           <span className={`px-2 py-1 rounded ${isOnline ? 'bg-green-600' : 'bg-red-600'}`}>{isOnline ? 'Online' : 'Offline'}</span>
           <span className={`px-2 py-1 rounded ${serviceWorkerReady ? 'bg-blue-600' : 'bg-gray-600'}`}>SW: {serviceWorkerReady ? 'Ready' : 'Loading'}</span>
           <span>Tenant Isolated</span>
+          <button
+            onClick={handleSignOut}
+            className="px-2 py-1 rounded bg-gray-700 hover:bg-gray-600 text-white"
+          >
+            Sign out
+          </button>
         </div>
       </header>
 

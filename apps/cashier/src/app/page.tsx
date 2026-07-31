@@ -1,30 +1,46 @@
 'use client';
-/* eslint-disable */
 
 import React, { useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
+import { useRouter } from 'next/navigation';
+import { loadSession, resolveApiBase, StaffSession } from './lib/auth';
 
 const CashierTerminal = dynamic(() => import('./components/CashierTerminal'), {
   loading: () => <div className="flex items-center justify-center h-screen">Loading Cashier Terminal...</div>,
-  ssr: false
+  ssr: false,
 });
 
+/**
+ * Cashier entry point (Sprint 2 Task 1 — Auth-UI gate). Requires a stored staff
+ * session; unauthenticated visitors are redirected to /login. The tenant is
+ * taken from the authenticated session (never hardcoded); the branch is taken
+ * from the `?branchId=` query parameter.
+ */
 export default function Page(): React.ReactNode {
-  const [tenantId, setTenantId] = useState('tenant-uuid-1111');
-  const [branchId, setBranchId] = useState('branch-uuid-1234');
-  const [apiUrl, setApiUrl] = useState('http://localhost:8000');
+  const router = useRouter();
+  const [session, setSession] = useState<StaffSession | null>(null);
+  const [ready, setReady] = useState(false);
+  const [branchId, setBranchId] = useState('');
 
   useEffect(() => {
-    const host = window.location.hostname;
-    const subdomain = host.split('.')[0];
-    console.log(`Cashier PWA loaded for tenant subdomain: ${subdomain}, tenant isolation enforced`);
+    const stored = loadSession();
+    setSession(stored);
+    setReady(true);
+    if (!stored) {
+      router.replace('/login');
+      return;
+    }
     const params = new URLSearchParams(window.location.search);
-    const branchParam = params.get('branchId');
-    const tenantParam = params.get('tenantId');
-    if (branchParam) setBranchId(branchParam);
-    if (tenantParam) setTenantId(tenantParam);
-    setApiUrl(process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000');
-  }, []);
+    setBranchId(params.get('branchId') || '');
+  }, [router]);
 
-  return <CashierTerminal tenantId={tenantId} branchId={branchId} apiUrl={apiUrl} />;
+  if (!ready || !session) {
+    return (
+      <div className="flex items-center justify-center h-screen">Loading Cashier Terminal...</div>
+    );
+  }
+
+  return (
+    <CashierTerminal tenantId={session.tenantId || ''} branchId={branchId} apiUrl={resolveApiBase()} />
+  );
 }
