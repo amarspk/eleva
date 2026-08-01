@@ -60,8 +60,19 @@ describe('Zayjar Platform End-to-End API Verification (TSK-2.0)', () => {
       tenant: { create: jest.fn().mockResolvedValue({ id: 't1', name: 'Gourmet LLC', subdomain: 'gourmet', status: 'TRIALING' }) },
       subscription: { create: jest.fn().mockResolvedValue({}) },
       user: { create: jest.fn().mockResolvedValue({ id: 'u1', email: 'owner@gourmet.com' }) },
-      role: { create: jest.fn().mockResolvedValue({ id: 'r1' }) },
+      role: {
+        create: jest.fn().mockResolvedValue({ id: 'r1' }),
+        findFirst: jest.fn().mockResolvedValue({
+          id: 'r-canonical',
+          rolePermissions: [
+            { permissionId: 'p-branch-read' },
+            { permissionId: 'p-product-read' },
+            { permissionId: 'p-order-create' },
+          ],
+        }),
+      },
       userRole: { create: jest.fn().mockResolvedValue({}) },
+      rolePermission: { createMany: jest.fn().mockResolvedValue({ count: 3 }) },
       restaurant: { create: jest.fn().mockResolvedValue({ id: 'rest1' }) },
       branch: { create: jest.fn().mockResolvedValue({ id: 'b1', name: 'Main Branch' }) },
     };
@@ -86,6 +97,18 @@ describe('Zayjar Platform End-to-End API Verification (TSK-2.0)', () => {
     expect(result.tenant.id).toBe('t1');
     expect(result.owner.id).toBe('u1');
     expect(result.branch.id).toBe('b1');
+    // RT-ONB-002: the onboarded owner role inherits the canonical
+    // RESTAURANT_OWNER permission set (excluding the just-created role).
+    expect(txMock.role.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { name: 'RESTAURANT_OWNER', NOT: { id: 'r1' } } }),
+    );
+    expect(txMock.rolePermission.createMany).toHaveBeenCalledWith({
+      data: [
+        { roleId: 'r1', permissionId: 'p-branch-read' },
+        { roleId: 'r1', permissionId: 'p-product-read' },
+        { roleId: 'r1', permissionId: 'p-order-create' },
+      ],
+    });
   });
 
   // ==========================================

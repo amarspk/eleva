@@ -150,6 +150,37 @@ export class TenantService {
         },
       });
 
+      // D1. Provision the canonical RESTAURANT_OWNER permission set (RT-ONB-002).
+      // The onboarding flow must grant the newly onboarded owner the SAME default
+      // permissions the platform's seeded RESTAURANT_OWNER role carries — the
+      // seed (packages/db/prisma/seed.ts) links the owner to every permission
+      // row. We clone that set by reading the canonical seeded role (the oldest
+      // RESTAURANT_OWNER role; the seed runs first on any provisioned database)
+      // and replicating its role_permissions links onto the new per-tenant role.
+      // This keeps a single source of truth (the seed data) and guarantees
+      // onboarded owners behave identically to seeded owners. Fail fast if the
+      // baseline role or its permission links are missing — a silent partial
+      // grant would reproduce the broken-tenant defect this replaces.
+      const canonicalOwnerRole = await tx.role.findFirst({
+        where: { name: 'RESTAURANT_OWNER', NOT: { id: ownerRole.id } },
+        include: { rolePermissions: true },
+        orderBy: { createdAt: 'asc' },
+      });
+      if (!canonicalOwnerRole) {
+        throw new Error(
+          'Cannot provision owner permissions: no RESTAURANT_OWNER role exists in the database. Run the canonical seed to provision the baseline roles.',
+        );
+      }
+      const ownerPermissionIds = canonicalOwnerRole.rolePermissions.map((rp) => rp.permissionId);
+      if (ownerPermissionIds.length === 0) {
+        throw new Error(
+          'Cannot provision owner permissions: the canonical RESTAURANT_OWNER role has no permissions. Run the canonical seed to provision the baseline permission set.',
+        );
+      }
+      await tx.rolePermission.createMany({
+        data: ownerPermissionIds.map((permissionId) => ({ roleId: ownerRole.id, permissionId })),
+      });
+
       // E. Create Restaurant with wizard-provided or default values
       const restaurant = await tx.restaurant.create({
         data: {

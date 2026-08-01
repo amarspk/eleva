@@ -33,8 +33,19 @@ describe('TenantService Unit Tests', () => {
       tenant: { create: jest.fn().mockResolvedValue({ id: 't1', name: 'Gourmet', subdomain: 'gourmet', status: 'TRIALING' }) },
       subscription: { create: jest.fn().mockResolvedValue({}) },
       user: { create: jest.fn().mockResolvedValue({ id: 'u1', email: 'owner@gourmet.com' }) },
-      role: { create: jest.fn().mockResolvedValue({ id: 'r1' }) },
+      role: {
+        create: jest.fn().mockResolvedValue({ id: 'r1' }),
+        findFirst: jest.fn().mockResolvedValue({
+          id: 'r-canonical',
+          rolePermissions: [
+            { permissionId: 'perm-branch-read' },
+            { permissionId: 'perm-product-read' },
+            { permissionId: 'perm-order-create' },
+          ],
+        }),
+      },
       userRole: { create: jest.fn().mockResolvedValue({}) },
+      rolePermission: { createMany: jest.fn().mockResolvedValue({ count: 3 }) },
       restaurant: { create: jest.fn().mockResolvedValue({ id: 'rest1', name: 'Gourmet', currency: 'USD', timezone: 'UTC' }) },
       branch: { create: jest.fn().mockResolvedValue({ id: 'b1', name: 'Main Branch' }) },
     };
@@ -59,6 +70,22 @@ describe('TenantService Unit Tests', () => {
     expect((result.owner as Record<string, string>).id).toBe('u1');
     expect((result.branch as Record<string, string>).id).toBe('b1');
     expect(mockAuthService.hashPassword).toHaveBeenCalledWith('Password123!');
+    // RT-ONB-002: the new owner role inherits the canonical seeded
+    // RESTAURANT_OWNER permission set (same permissionIds, new role id target),
+    // excluding the just-created role from the lookup.
+    expect(txMock.role.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { name: 'RESTAURANT_OWNER', NOT: { id: 'r1' } },
+        orderBy: { createdAt: 'asc' },
+      }),
+    );
+    expect(txMock.rolePermission.createMany).toHaveBeenCalledWith({
+      data: [
+        { roleId: 'r1', permissionId: 'perm-branch-read' },
+        { roleId: 'r1', permissionId: 'perm-product-read' },
+        { roleId: 'r1', permissionId: 'perm-order-create' },
+      ],
+    });
     expect(txMock.restaurant.create).toHaveBeenCalledWith({
       data: expect.objectContaining({
         name: 'Gourmet',
@@ -74,8 +101,15 @@ describe('TenantService Unit Tests', () => {
       tenant: { create: jest.fn().mockResolvedValue({ id: 't2', name: 'Spice Route', subdomain: 'spice-route', status: 'TRIALING' }) },
       subscription: { create: jest.fn().mockResolvedValue({}) },
       user: { create: jest.fn().mockResolvedValue({ id: 'u2', email: 'chef@spice.com' }) },
-      role: { create: jest.fn().mockResolvedValue({ id: 'r2' }) },
+      role: {
+        create: jest.fn().mockResolvedValue({ id: 'r2' }),
+        findFirst: jest.fn().mockResolvedValue({
+          id: 'r-canonical',
+          rolePermissions: [{ permissionId: 'perm-menu-read' }],
+        }),
+      },
       userRole: { create: jest.fn().mockResolvedValue({}) },
+      rolePermission: { createMany: jest.fn().mockResolvedValue({ count: 1 }) },
       restaurant: { create: jest.fn().mockResolvedValue({ id: 'rest2', name: 'Spice Kitchen', currency: 'KWD', timezone: 'Asia/Kuwait' }) },
       branch: { create: jest.fn().mockResolvedValue({ id: 'b2', name: 'Kuwait City Branch' }) },
     };
@@ -135,6 +169,70 @@ describe('TenantService Unit Tests', () => {
         longitude: 47.9774,
       }),
     });
+  });
+
+  // RT-ONB-002: provisioning must fail fast instead of silently creating a
+  // permission-less owner role when the canonical permission baseline is absent.
+  it('should fail fast when the canonical RESTAURANT_OWNER role is missing', async () => {
+    const txMock = {
+      tenant: { create: jest.fn().mockResolvedValue({ id: 't3', name: 'X', subdomain: 'x', status: 'TRIALING' }) },
+      subscription: { create: jest.fn().mockResolvedValue({}) },
+      user: { create: jest.fn().mockResolvedValue({ id: 'u3', email: 'o@x.com' }) },
+      role: {
+        create: jest.fn().mockResolvedValue({ id: 'r3' }),
+        findFirst: jest.fn().mockResolvedValue(null),
+      },
+      userRole: { create: jest.fn().mockResolvedValue({}) },
+      restaurant: { create: jest.fn().mockResolvedValue({ id: 'rest3' }) },
+      branch: { create: jest.fn().mockResolvedValue({ id: 'b3', name: 'Main Branch' }) },
+    };
+
+    jest.spyOn(prisma, '$transaction').mockImplementation((async (cb: (tx: typeof txMock) => Promise<unknown>) => cb(txMock)) as any);
+    jest.spyOn(prisma.tenant, 'findUnique').mockResolvedValue(null);
+    jest.spyOn(prisma.user, 'findFirst').mockResolvedValue(null);
+
+    await expect(
+      service.onboard({
+        companyName: 'X',
+        subdomain: 'x',
+        ownerFirstName: 'O',
+        ownerLastName: 'W',
+        ownerEmail: 'o@x.com',
+        ownerPassword: 'Password123!',
+        planId: 'plan1',
+      }),
+    ).rejects.toThrow('no RESTAURANT_OWNER role exists');
+  });
+
+  it('should fail fast when the canonical owner role has no permissions', async () => {
+    const txMock = {
+      tenant: { create: jest.fn().mockResolvedValue({ id: 't4', name: 'Y', subdomain: 'y', status: 'TRIALING' }) },
+      subscription: { create: jest.fn().mockResolvedValue({}) },
+      user: { create: jest.fn().mockResolvedValue({ id: 'u4', email: 'o@y.com' }) },
+      role: {
+        create: jest.fn().mockResolvedValue({ id: 'r4' }),
+        findFirst: jest.fn().mockResolvedValue({ id: 'r-canonical', rolePermissions: [] }),
+      },
+      userRole: { create: jest.fn().mockResolvedValue({}) },
+      restaurant: { create: jest.fn().mockResolvedValue({ id: 'rest4' }) },
+      branch: { create: jest.fn().mockResolvedValue({ id: 'b4', name: 'Main Branch' }) },
+    };
+
+    jest.spyOn(prisma, '$transaction').mockImplementation((async (cb: (tx: typeof txMock) => Promise<unknown>) => cb(txMock)) as any);
+    jest.spyOn(prisma.tenant, 'findUnique').mockResolvedValue(null);
+    jest.spyOn(prisma.user, 'findFirst').mockResolvedValue(null);
+
+    await expect(
+      service.onboard({
+        companyName: 'Y',
+        subdomain: 'y',
+        ownerFirstName: 'O',
+        ownerLastName: 'W',
+        ownerEmail: 'o@y.com',
+        ownerPassword: 'Password123!',
+        planId: 'plan1',
+      }),
+    ).rejects.toThrow('has no permissions');
   });
 
   it('should reject duplicate subdomain during onboarding', async () => {

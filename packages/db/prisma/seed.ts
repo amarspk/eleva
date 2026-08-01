@@ -175,6 +175,24 @@ async function main(): Promise<void> {
     { id: '2706f2f7-2490-40de-8dcc-efc14bdfbd45', action: 'write', resource: 'billing', description: 'Manage billing' },
     { id: '1031ff3d-6db6-425d-83a9-5609d545e07b', action: 'read', resource: 'analytics', description: 'View analytics' },
     { id: '817580df-8bb2-4095-8a2a-5faab2fc1032', action: 'write', resource: 'tenant', description: 'Manage tenant settings' },
+    // NOTE (RT-ONB-002 fix, 2026-07-31): the rows below use the vocabulary the
+    // RBAC guard actually checks (CaslAbilityFactory Subjects/Actions:
+    // Product/Order/Branch/Table/Tenant x create/read/update). The legacy rows
+    // above keep resources/actions ('menu', 'kds', 'write', ...) that the CASL
+    // factory never matches — they are retained for backward compatibility with
+    // the MANAGER/CASHIER/KITCHEN_STAFF filters below and are harmless no-ops
+    // for the owner. The owner is linked to EVERY row ("Owner gets everything"),
+    // so these 8 rows give newly onboarded owners working staff access.
+    // IDs are deterministic v4-shaped UUIDs (sha256("zayjar:permission:res:act"),
+    // R5 convention — reproducible across clean databases).
+    { id: '066e12a9-3a23-4871-98d6-a5866104aaf3', action: 'read', resource: 'product', description: 'View products' },
+    { id: 'a1e53cff-66fe-4702-abf3-7dfecbc94d69', action: 'create', resource: 'product', description: 'Create products' },
+    { id: '6b767e5a-0e08-43a7-a6d4-b957c1e8a659', action: 'create', resource: 'branch', description: 'Create branches' },
+    { id: '74f3d3d2-c05a-4244-8159-162767e35a90', action: 'read', resource: 'table', description: 'View tables' },
+    { id: '5b472a2b-bd83-40a7-9492-cf12a7456f87', action: 'create', resource: 'table', description: 'Create tables' },
+    { id: 'c18479ea-2b68-44c9-9c67-b7f04497704f', action: 'create', resource: 'order', description: 'Create orders' },
+    { id: '9fac8c1f-75ee-4c77-9c3f-11450d5dc3ae', action: 'update', resource: 'order', description: 'Update orders' },
+    { id: '788d9744-f80a-4a4e-9ca9-def860879b4b', action: 'update', resource: 'tenant', description: 'Update tenant settings' },
   ];
 
   const permissions = await Promise.all(
