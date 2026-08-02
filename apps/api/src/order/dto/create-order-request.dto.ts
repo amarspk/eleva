@@ -67,4 +67,14 @@ export class CreateOrderRequestDto {
   @IsEnum(PaymentMethodType)
   @IsNotEmpty()
   paymentMethod!: PaymentMethodType;
+
+  /**
+   * Optional discount code (Sprint 2 Task 4 — discount engine). Server-side
+   * validated against the tenant's active discounts; invalid/expired/limited
+   * codes reject the checkout with a uniform error. Normalized (trim + upper)
+   * by the order service before lookup.
+   */
+  @IsString()
+  @IsOptional()
+  discountCode?: string;
 }

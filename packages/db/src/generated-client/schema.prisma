@@ -66,6 +66,11 @@ enum PaymentMethodType {
   LOCAL_WALLET
 }
 
+enum DiscountType {
+  PERCENTAGE
+  FIXED_AMOUNT
+}
+
 enum PaymentStatus {
   PENDING
   AUTHORIZED
@@ -96,6 +101,7 @@ model Tenant {
   bannerUrl        String?      @db.VarChar(2048)
   primaryColor     String       @default("#000000") @db.VarChar(7)
   secondaryColor   String       @default("#FFFFFF") @db.VarChar(7)
+  branding         Json?        @default("{}")
   stripeCustomerId String?      @db.VarChar(255)
   createdAt        DateTime     @default(now()) @db.Timestamptz
   updatedAt        DateTime     @updatedAt @db.Timestamptz
@@ -120,6 +126,7 @@ model Tenant {
   customers       Customer[]
   payments        Payment[]
   invoices        Invoice[]
+  discounts       Discount[]
   deviceTokens    DeviceToken[]
   kitchenQueues   KitchenQueue[]
   sessionLogs     SessionLog[]
@@ -357,6 +364,9 @@ model Product {
   updatedAt       DateTime  @updatedAt @db.Timestamptz
   deletedAt       DateTime? @db.Timestamptz
 
+  // Database-generated tsvector for full-text search (managed by PostgreSQL, not Prisma)
+  tsvMenuSearch Unsupported("tsvector")? @map("tsv_menu_search")
+
   tenant          Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   category        Category         @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   productSizes    ProductSize[]
@@ -442,28 +452,56 @@ model AddonItem {
   @@map("addon_items")
 }
 
+model Discount {
+  id          String       @id @default(uuid()) @db.Uuid
+  tenantId    String       @db.Uuid
+  code        String       @db.VarChar(50)
+  name        String?      @db.VarChar(100)
+  description String?      @db.Text
+  type        DiscountType
+  value       Decimal      @db.Decimal(10, 2)
+  active      Boolean      @default(true)
+  validFrom   DateTime?    @db.Timestamptz
+  validTo     DateTime?    @db.Timestamptz
+  usageLimit  Int?
+  usageCount  Int          @default(0)
+  createdAt   DateTime     @default(now()) @db.Timestamptz
+  updatedAt   DateTime     @updatedAt @db.Timestamptz
+
+  tenant Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  orders Order[]
+
+  @@unique([tenantId, code], map: "idx_discounts_tenant_code")
+  @@index([tenantId], map: "idx_discounts_tenant")
+  @@map("discounts")
+}
+
 model Order {
-  id             String      @id @default(uuid()) @db.Uuid
-  tenantId       String      @db.Uuid
-  branchId       String      @db.Uuid
-  customerId     String?     @db.Uuid
-  tableId        String?     @db.Uuid
-  orderNumber    String      @db.VarChar(50)
+  id             String             @id @default(uuid()) @db.Uuid
+  tenantId       String             @db.Uuid
+  branchId       String             @db.Uuid
+  customerId     String?            @db.Uuid
+  tableId        String?            @db.Uuid
+  orderNumber    String             @db.VarChar(50)
   type           OrderType
-  status         OrderStatus @default(DRAFT)
-  subtotal       Decimal     @db.Decimal(10, 2)
-  taxAmount      Decimal     @db.Decimal(10, 2)
-  discountAmount Decimal     @default(0.00) @db.Decimal(10, 2)
-  tipAmount      Decimal     @default(0.00) @db.Decimal(10, 2)
-  total          Decimal     @db.Decimal(10, 2)
-  specialNotes   String?     @db.Text
-  createdAt      DateTime    @default(now()) @db.Timestamptz
-  updatedAt      DateTime    @updatedAt @db.Timestamptz
+  paymentMethod  PaymentMethodType?
+  status         OrderStatus        @default(DRAFT)
+  subtotal       Decimal            @db.Decimal(10, 2)
+  taxAmount      Decimal            @db.Decimal(10, 2)
+  discountAmount Decimal            @default(0.00) @db.Decimal(10, 2)
+  discountId     String?            @db.Uuid
+  discountCode   String?            @db.VarChar(50)
+  tipAmount      Decimal            @default(0.00) @db.Decimal(10, 2)
+  total          Decimal            @db.Decimal(10, 2)
+  specialNotes   String?            @db.Text
+  createdAt      DateTime           @default(now()) @db.Timestamptz
+  updatedAt      DateTime           @updatedAt @db.Timestamptz
 
   tenant        Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   branch        Branch         @relation(fields: [branchId], references: [id], onDelete: Restrict)
   customer      Customer?      @relation(fields: [customerId], references: [id], onDelete: SetNull)
   table         Table?         @relation(fields: [tableId], references: [id], onDelete: SetNull)
+  discount      Discount?      @relation(fields: [discountId], references: [id], onDelete: SetNull)
   orderItems    OrderItem[]
   payments      Payment[]
   invoices      Invoice?
@@ -473,6 +511,9 @@ model Order {
   @@index([customerId], map: "idx_orders_customer")
   @@index([tableId], map: "idx_orders_table")
   @@index([status], map: "idx_orders_status")
+  @@index([discountId], map: "idx_orders_discount")
+  // Composite index for KDS polling optimization (database-level, managed by PostgreSQL)
+  @@index([tenantId, branchId, status, createdAt(sort: Desc)], map: "idx_orders_kds_polling")
   @@map("orders")
 }
 
@@ -498,6 +539,8 @@ model OrderItem {
 
   @@index([orderId], map: "idx_order_items_parent")
   @@index([productId], map: "idx_order_items_product")
+  // Composite index for KDS (database-level, managed by PostgreSQL)
+  @@index([orderId, cookingStatus], map: "idx_order_items_kds")
   @@map("order_items")
 }
 

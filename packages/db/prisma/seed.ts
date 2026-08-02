@@ -38,6 +38,7 @@ async function main(): Promise<void> {
   await prisma.role.deleteMany();
   await prisma.user.deleteMany();
   await prisma.subscription.deleteMany();
+  await prisma.discount.deleteMany();
   await prisma.tenant.deleteMany();
   await prisma.subscriptionPlan.deleteMany();
 
@@ -1127,6 +1128,39 @@ async function main(): Promise<void> {
   console.log('Created audit log entries.');
 
   // ==========================================
+  // 14. DISCOUNTS (Tenant 1) — Sprint 2 Task 4
+  // ==========================================
+  // Demo discounts for the seeded albaik tenant so the discount engine is
+  // usable out of the box. IDs are deterministic v4-shaped UUIDs
+  // (sha256("zayjar:discount:<CODE>"), R5 convention).
+  await prisma.discount.create({
+    data: {
+      id: '94364284-e295-4af5-8281-aa9e41dd209a',
+      tenantId: tenant1.id,
+      code: 'SAVE10',
+      name: 'Save 10%',
+      description: '10% off the pre-tax subtotal (demo)',
+      type: 'PERCENTAGE',
+      value: 10.0,
+      active: true,
+    },
+  });
+  await prisma.discount.create({
+    data: {
+      id: '0e9ce987-4af4-4ffd-82ee-9f76340209ad',
+      tenantId: tenant1.id,
+      code: 'FIXED5',
+      name: '5 Off',
+      description: '5.00 off the pre-tax subtotal, capped at the subtotal (demo)',
+      type: 'FIXED_AMOUNT',
+      value: 5.0,
+      active: true,
+      usageLimit: 100,
+    },
+  });
+  console.log('Created discounts.');
+
+  // ==========================================
   // SUMMARY
   // ==========================================
   const counts = {
@@ -1146,6 +1180,7 @@ async function main(): Promise<void> {
     customers: await prisma.customer.count(),
     orders: await prisma.order.count(),
     orderItems: await prisma.orderItem.count(),
+    discounts: await prisma.discount.count(),
   };
 
   console.log('\n=== Seed Complete ===');

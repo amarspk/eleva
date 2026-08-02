@@ -21,6 +21,7 @@ import { KdsGateway } from '../kds/kds.gateway';
 import { WebhookService } from '../webhook/webhook.service';
 import { EmailService } from '../notification/email/email.service';
 import { SmsService } from '../notification/sms/sms.service';
+import { DiscountService } from '../discount/discount.service';
 
 @Injectable()
 export class OrderService {
@@ -241,16 +242,36 @@ export class OrderService {
       });
     }
 
-    // 3. Compute totals on the server
+    // 3. Compute taxes on the server (discount is resolved atomically inside
+    // the transaction — see step 4 — so usage increments with order creation).
     const taxRate = Number(restaurant.taxPercentage || 0.00) / 100;
     const taxAmount = Number((subtotal * taxRate).toFixed(2));
-    const discountAmount = 0.00; // Placeholders for discount engines
-    const total = Number((subtotal + taxAmount - discountAmount).toFixed(2));
 
     const orderNumber = `ORD-${new Date().getFullYear()}-${Math.floor(10000 + Math.random() * 90000)}`;
 
     // 4. Execute atomic database transaction
     const order = await prisma.$transaction(async (tx) => {
+      // Discount engine (Sprint 2 Task 4): resolve the optional discount code
+      // inside the transaction. Validation failures abort the whole checkout
+      // with a uniform message; a successful usage increment is atomic with the
+      // order creation (no race on usageCount).
+      const discountCode = dto.discountCode ? dto.discountCode.trim().toUpperCase() : null;
+      let discountAmount = 0.00;
+      let discountId: string | null = null;
+      if (discountCode) {
+        const discount = await tx.discount.findUnique({
+          where: { tenantId_code: { tenantId: userTenantId, code: discountCode } },
+        });
+        const resolved = DiscountService.validateDiscount(discount, discountCode, subtotal);
+        discountId = resolved.discountId;
+        discountAmount = resolved.amount;
+        await tx.discount.update({
+          where: { id: discountId },
+          data: { usageCount: { increment: 1 } },
+        });
+      }
+      const total = Number((subtotal + taxAmount - discountAmount).toFixed(2));
+
       const createdOrder = await tx.order.create({
         data: {
           tenantId: userTenantId,
@@ -258,10 +279,13 @@ export class OrderService {
           tableId: dto.tableId || null,
           orderNumber,
           type: dto.type,
+          paymentMethod: dto.paymentMethod,
           status: 'PENDING', // Awaiting payment/dispatch confirmation
           subtotal,
           taxAmount,
           discountAmount,
+          discountId,
+          discountCode,
           total,
           specialNotes: dto.specialNotes || null,
           orderItems: {

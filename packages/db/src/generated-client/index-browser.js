@@ -132,6 +132,7 @@ exports.Prisma.TenantScalarFieldEnum = {
   bannerUrl: 'bannerUrl',
   primaryColor: 'primaryColor',
   secondaryColor: 'secondaryColor',
+  branding: 'branding',
   stripeCustomerId: 'stripeCustomerId',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt',
@@ -331,6 +332,23 @@ exports.Prisma.AddonItemScalarFieldEnum = {
   updatedAt: 'updatedAt'
 };
 
+exports.Prisma.DiscountScalarFieldEnum = {
+  id: 'id',
+  tenantId: 'tenantId',
+  code: 'code',
+  name: 'name',
+  description: 'description',
+  type: 'type',
+  value: 'value',
+  active: 'active',
+  validFrom: 'validFrom',
+  validTo: 'validTo',
+  usageLimit: 'usageLimit',
+  usageCount: 'usageCount',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
 exports.Prisma.OrderScalarFieldEnum = {
   id: 'id',
   tenantId: 'tenantId',
@@ -339,10 +357,13 @@ exports.Prisma.OrderScalarFieldEnum = {
   tableId: 'tableId',
   orderNumber: 'orderNumber',
   type: 'type',
+  paymentMethod: 'paymentMethod',
   status: 'status',
   subtotal: 'subtotal',
   taxAmount: 'taxAmount',
   discountAmount: 'discountAmount',
+  discountId: 'discountId',
+  discountCode: 'discountCode',
   tipAmount: 'tipAmount',
   total: 'total',
   specialNotes: 'specialNotes',
@@ -502,12 +523,12 @@ exports.Prisma.SortOrder = {
   desc: 'desc'
 };
 
-exports.Prisma.JsonNullValueInput = {
+exports.Prisma.NullableJsonNullValueInput = {
+  DbNull: Prisma.DbNull,
   JsonNull: Prisma.JsonNull
 };
 
-exports.Prisma.NullableJsonNullValueInput = {
-  DbNull: Prisma.DbNull,
+exports.Prisma.JsonNullValueInput = {
   JsonNull: Prisma.JsonNull
 };
 
@@ -516,15 +537,15 @@ exports.Prisma.QueryMode = {
   insensitive: 'insensitive'
 };
 
-exports.Prisma.NullsOrder = {
-  first: 'first',
-  last: 'last'
-};
-
 exports.Prisma.JsonNullValueFilter = {
   DbNull: Prisma.DbNull,
   JsonNull: Prisma.JsonNull,
   AnyNull: Prisma.AnyNull
+};
+
+exports.Prisma.NullsOrder = {
+  first: 'first',
+  last: 'last'
 };
 exports.TenantStatus = exports.$Enums.TenantStatus = {
   TRIALING: 'TRIALING',
@@ -549,10 +570,22 @@ exports.TableStatus = exports.$Enums.TableStatus = {
   DIRTY: 'DIRTY'
 };
 
+exports.DiscountType = exports.$Enums.DiscountType = {
+  PERCENTAGE: 'PERCENTAGE',
+  FIXED_AMOUNT: 'FIXED_AMOUNT'
+};
+
 exports.OrderType = exports.$Enums.OrderType = {
   DINE_IN: 'DINE_IN',
   TAKE_AWAY: 'TAKE_AWAY',
   DELIVERY: 'DELIVERY'
+};
+
+exports.PaymentMethodType = exports.$Enums.PaymentMethodType = {
+  CASH: 'CASH',
+  CREDIT_CARD: 'CREDIT_CARD',
+  APPLE_PAY: 'APPLE_PAY',
+  LOCAL_WALLET: 'LOCAL_WALLET'
 };
 
 exports.OrderStatus = exports.$Enums.OrderStatus = {
@@ -570,13 +603,6 @@ exports.CookingStatus = exports.$Enums.CookingStatus = {
   PREPARING: 'PREPARING',
   COOKED: 'COOKED',
   SERVED: 'SERVED'
-};
-
-exports.PaymentMethodType = exports.$Enums.PaymentMethodType = {
-  CASH: 'CASH',
-  CREDIT_CARD: 'CREDIT_CARD',
-  APPLE_PAY: 'APPLE_PAY',
-  LOCAL_WALLET: 'LOCAL_WALLET'
 };
 
 exports.PaymentStatus = exports.$Enums.PaymentStatus = {
@@ -613,6 +639,7 @@ exports.Prisma.ModelName = {
   ProductVariant: 'ProductVariant',
   ProductAddon: 'ProductAddon',
   AddonItem: 'AddonItem',
+  Discount: 'Discount',
   Order: 'Order',
   OrderItem: 'OrderItem',
   OrderItemAddon: 'OrderItemAddon',

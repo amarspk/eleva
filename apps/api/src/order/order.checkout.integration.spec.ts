@@ -70,13 +70,17 @@ function mockAddon(price = 3, isAvailable = true) {
   ]);
 }
 
-function mockTransaction(orderResult: any) {
+function mockTransaction(orderResult: any, discountRow: any = null) {
   const txMock = {
     order: {
       create: jest.fn().mockResolvedValue(orderResult),
     },
     kitchenQueue: {
       create: jest.fn().mockResolvedValue({ id: 'kq-1', ticketNumber: '001', priority: 'NORMAL' }),
+    },
+    discount: {
+      findUnique: jest.fn().mockResolvedValue(discountRow),
+      update: jest.fn().mockResolvedValue({}),
     },
   };
   return jest.spyOn(prisma, '$transaction').mockImplementation(async (cb: any) => cb(txMock));
@@ -90,6 +94,7 @@ function baseOrderResult(overrides: Partial<any> = {}) {
     branchId: BRANCH_ID,
     tableId: null,
     type: OrderType.DINE_IN,
+    paymentMethod: PaymentMethodType.CASH,
     status: 'PENDING',
     subtotal: 48.00,
     taxAmount: 4.80,
@@ -208,8 +213,56 @@ describe('Order Checkout HTTP Integration Tests', () => {
     expect(res.body.orderNumber).toMatch(/^ORD-\d{4}-\d{5}$/);
     expect(res.body.status).toBe('PENDING');
     expect(res.body.branchId).toBe(BRANCH_ID);
+    // Sprint 2 Task 3: the paymentMethod sent in the payload is now persisted
+    // on the order and echoed back in the response (was previously dropped).
+    expect(res.body.paymentMethod).toBe(PaymentMethodType.CASH);
     expect(Array.isArray(res.body.orderItems)).toBe(true);
     expect(res.body.orderItems[0].orderItemAddons).toBeDefined();
+  });
+
+  // ==========================================
+  // 1b. Discount Engine (Sprint 2 Task 4)
+  // ==========================================
+  it('POST /api/v1/orders/checkout — valid discountCode applies the discount and persists it', async () => {
+    mockBranch();
+    mockRestaurant(10);
+    mockProduct(20);
+    mockSize(5);
+    mockAddon(3);
+
+    // 10% PERCENTAGE discount; base order subtotal is 48.00 → 4.80 discount.
+    mockTransaction(
+      baseOrderResult({ discountAmount: 4.80, discountId: 'disc-1', discountCode: 'SAVE10' }),
+      { id: 'disc-1', type: 'PERCENTAGE', value: 10, active: true, validFrom: null, validTo: null, usageLimit: null, usageCount: 0 },
+    );
+
+    const res = await request(app.getHttpServer())
+      .post('/api/v1/orders/checkout')
+      .set('X-Tenant-ID', TENANT_ID)
+      .send(checkoutPayload({ discountCode: 'SAVE10' }));
+
+    expect(res.status).toBe(201);
+    expect(res.body.discountAmount).toBe(4.80);
+    expect(res.body.discountCode).toBe('SAVE10');
+    expect(res.body.discountId).toBe('disc-1');
+  });
+
+  it('POST /api/v1/orders/checkout — invalid discountCode returns 400 with the uniform message', async () => {
+    mockBranch();
+    mockRestaurant(10);
+    mockProduct(20);
+    mockSize(5);
+    mockAddon(3);
+    // discountRow defaults to null → resolve fails → checkout rejected.
+    mockTransaction(baseOrderResult());
+
+    const res = await request(app.getHttpServer())
+      .post('/api/v1/orders/checkout')
+      .set('X-Tenant-ID', TENANT_ID)
+      .send(checkoutPayload({ discountCode: 'NOPE' }));
+
+    expect(res.status).toBe(400);
+    expect(res.body.message).toBe('The discount code is invalid or expired.');
   });
 
   // ==========================================

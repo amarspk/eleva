@@ -170,10 +170,13 @@ describe('RbacPermissionGuard Unit & ABAC Tests', () => {
         tableId: null,
         orderNumber: 'ORD-123',
         type: 'DINE_IN',
+        paymentMethod: null,
         status: 'PAID' as any, // Real status in DB is PAID
         subtotal: 10 as any,
         taxAmount: 1 as any,
         discountAmount: 0 as any,
+        discountId: null,
+        discountCode: null,
         tipAmount: 0 as any,
         total: 11 as any,
         specialNotes: null,

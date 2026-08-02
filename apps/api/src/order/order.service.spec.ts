@@ -13,6 +13,7 @@ import {
 } from '@zayjar/db';
 import { OrderStatus, OrderType, PaymentMethodType } from '@zayjar/types';
 import { NotFoundException, BadRequestException, ConflictException, ForbiddenException } from '@nestjs/common';
+import { DISCOUNT_INVALID_MESSAGE } from '../discount/discount.service';
 
 // Mocking argon2 C++ native modules to prevent Jest V8 multithreaded segmentation faults
 jest.mock('argon2', () => ({
@@ -88,6 +89,9 @@ describe('OrderService Unit Tests', () => {
       kitchenQueue: {
         create: jest.fn().mockResolvedValue({ id: 'kq-1', ticketNumber: '12345', priority: 'NORMAL' }),
       },
+      discount: {
+        update: jest.fn().mockResolvedValue({}),
+      },
     };
     jest.spyOn(prisma, '$transaction').mockImplementation(async (cb: any) => cb(txMock));
 
@@ -118,7 +122,174 @@ describe('OrderService Unit Tests', () => {
           subtotal: 28.00,
           taxAmount: 4.20,
           total: 32.20,
+          // Sprint 2 Task 3: the DTO's paymentMethod is persisted on the order.
+          paymentMethod: PaymentMethodType.CASH,
         }),
+      }),
+    );
+  });
+
+  // ==========================================
+  // 1b. Discount Engine (Sprint 2 Task 4)
+  // ==========================================
+  it('should apply a percentage discount code and persist discount fields on the order', async () => {
+    const tenantId = 'tenant-uuid-1111';
+    const branchId = 'branch-uuid-1234';
+    const productId = 'prod-uuid-999';
+    const sizeId = 'size-uuid-222';
+    const addonItemId = 'addon-item-uuid-333';
+
+    jest.spyOn(TenantBranchRepository.prototype, 'findById').mockResolvedValue({
+      id: branchId, tenantId, restaurantId: 'rest-uuid-999',
+    } as any);
+    jest.spyOn(TenantRestaurantRepository.prototype, 'findById').mockResolvedValue({
+      id: 'rest-uuid-999', taxPercentage: 15.00 as any,
+    } as any);
+    jest.spyOn(TenantProductRepository.prototype, 'findById').mockResolvedValue({
+      id: productId, basePrice: 10.00 as any, isAvailable: true,
+    } as any);
+    jest.spyOn(TenantProductSizeRepository.prototype, 'findMany').mockResolvedValue([
+      { id: sizeId, priceAdjustment: 2.50 as any } as any,
+    ]);
+    jest.spyOn(TenantAddonItemRepository.prototype, 'findMany').mockResolvedValue([
+      { id: addonItemId, price: 1.50 as any, isAvailable: true } as any,
+    ]);
+
+    const txMock = {
+      order: { create: jest.fn().mockResolvedValue({ id: 'order-disc', total: 29.40 }) },
+      kitchenQueue: { create: jest.fn().mockResolvedValue({ id: 'kq-1' }) },
+      discount: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: 'disc-1', type: 'PERCENTAGE', value: 10, active: true,
+          validFrom: null, validTo: null, usageLimit: null, usageCount: 0,
+        }),
+        update: jest.fn().mockResolvedValue({}),
+      },
+    };
+    jest.spyOn(prisma, '$transaction').mockImplementation(async (cb: any) => cb(txMock));
+
+    await service.createOrder(
+      {
+        branchId,
+        type: OrderType.DINE_IN,
+        items: [{ productId, sizeId, quantity: 2, addons: [{ addonItemId }] }],
+        paymentMethod: PaymentMethodType.CASH,
+        // normalization: trimmed + uppercased before lookup
+        discountCode: ' save10 ',
+      },
+      tenantId,
+    );
+
+    // subtotal 28.00, tax 4.20 (15%), discount 10% = 2.80 → total 29.40
+    expect(txMock.discount.findUnique).toHaveBeenCalledWith({
+      where: { tenantId_code: { tenantId, code: 'SAVE10' } },
+    });
+    expect(txMock.discount.update).toHaveBeenCalledWith({
+      where: { id: 'disc-1' },
+      data: { usageCount: { increment: 1 } },
+    });
+    expect(txMock.order.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          discountAmount: 2.80,
+          discountId: 'disc-1',
+          discountCode: 'SAVE10',
+          total: 29.40,
+        }),
+      }),
+    );
+  });
+
+  it('should reject an invalid discount code with the uniform error and not create the order', async () => {
+    const tenantId = 'tenant-uuid-1111';
+    const branchId = 'branch-uuid-1234';
+    const productId = 'prod-uuid-999';
+    const sizeId = 'size-uuid-222';
+    const addonItemId = 'addon-item-uuid-333';
+
+    jest.spyOn(TenantBranchRepository.prototype, 'findById').mockResolvedValue({
+      id: branchId, tenantId, restaurantId: 'rest-uuid-999',
+    } as any);
+    jest.spyOn(TenantRestaurantRepository.prototype, 'findById').mockResolvedValue({
+      id: 'rest-uuid-999', taxPercentage: 15.00 as any,
+    } as any);
+    jest.spyOn(TenantProductRepository.prototype, 'findById').mockResolvedValue({
+      id: productId, basePrice: 10.00 as any, isAvailable: true,
+    } as any);
+    jest.spyOn(TenantProductSizeRepository.prototype, 'findMany').mockResolvedValue([
+      { id: sizeId, priceAdjustment: 2.50 as any } as any,
+    ]);
+    jest.spyOn(TenantAddonItemRepository.prototype, 'findMany').mockResolvedValue([
+      { id: addonItemId, price: 1.50 as any, isAvailable: true } as any,
+    ]);
+
+    const txMock = {
+      order: { create: jest.fn().mockResolvedValue({}) },
+      kitchenQueue: { create: jest.fn().mockResolvedValue({}) },
+      discount: {
+        findUnique: jest.fn().mockResolvedValue(null),
+        update: jest.fn().mockResolvedValue({}),
+      },
+    };
+    jest.spyOn(prisma, '$transaction').mockImplementation(async (cb: any) => cb(txMock));
+
+    await expect(
+      service.createOrder(
+        {
+          branchId,
+          type: OrderType.DINE_IN,
+          items: [{ productId, sizeId, quantity: 2, addons: [{ addonItemId }] }],
+          paymentMethod: PaymentMethodType.CASH,
+          discountCode: 'NOPE',
+        },
+        tenantId,
+      ),
+    ).rejects.toThrow(DISCOUNT_INVALID_MESSAGE);
+
+    expect(txMock.discount.update).not.toHaveBeenCalled();
+    expect(txMock.order.create).not.toHaveBeenCalled();
+  });
+
+  it('should not resolve a discount when no discountCode is provided', async () => {
+    const tenantId = 'tenant-uuid-1111';
+    const branchId = 'branch-uuid-1234';
+    const productId = 'prod-uuid-999';
+
+    jest.spyOn(TenantBranchRepository.prototype, 'findById').mockResolvedValue({
+      id: branchId, tenantId, restaurantId: 'rest-uuid-999',
+    } as any);
+    jest.spyOn(TenantRestaurantRepository.prototype, 'findById').mockResolvedValue({
+      id: 'rest-uuid-999', taxPercentage: 0 as any,
+    } as any);
+    jest.spyOn(TenantProductRepository.prototype, 'findById').mockResolvedValue({
+      id: productId, basePrice: 10.00 as any, isAvailable: true,
+    } as any);
+
+    const txMock = {
+      order: { create: jest.fn().mockResolvedValue({ id: 'order-node', total: 10.00 }) },
+      kitchenQueue: { create: jest.fn().mockResolvedValue({ id: 'kq-1' }) },
+      discount: {
+        findUnique: jest.fn(),
+        update: jest.fn(),
+      },
+    };
+    jest.spyOn(prisma, '$transaction').mockImplementation(async (cb: any) => cb(txMock));
+
+    await service.createOrder(
+      {
+        branchId,
+        type: OrderType.DINE_IN,
+        items: [{ productId, quantity: 1 }],
+        paymentMethod: PaymentMethodType.CASH,
+      },
+      tenantId,
+    );
+
+    expect(txMock.discount.findUnique).not.toHaveBeenCalled();
+    expect(txMock.discount.update).not.toHaveBeenCalled();
+    expect(txMock.order.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ discountAmount: 0, discountCode: null, discountId: null }),
       }),
     );
   });
@@ -497,6 +668,9 @@ describe('OrderService — Sprint 1 Step 2 (Guest Checkout / DEFECT-A / DEFECT-B
       order: { create: createMock },
       kitchenQueue: {
         create: jest.fn().mockResolvedValue({ id: 'kq-1', ticketNumber: '001', priority: 'NORMAL' }),
+      },
+      discount: {
+        update: jest.fn().mockResolvedValue({}),
       },
     };
     jest.spyOn(prisma, '$transaction').mockImplementation(async (cb: any) => cb(txMock));
