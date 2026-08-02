@@ -22,6 +22,8 @@ import { WebhookService } from '../webhook/webhook.service';
 import { EmailService } from '../notification/email/email.service';
 import { SmsService } from '../notification/sms/sms.service';
 import { DiscountService } from '../discount/discount.service';
+import { InvoicePdfService } from '../invoice/invoice-pdf.service';
+import { InvoiceStorageService } from '../invoice/invoice-storage.service';
 
 @Injectable()
 export class OrderService {
@@ -42,6 +44,8 @@ export class OrderService {
     @Optional() @Inject(WebhookService) private readonly webhookService?: WebhookService,
     @Optional() @Inject(EmailService) private readonly emailService?: EmailService,
     @Optional() @Inject(SmsService) private readonly smsService?: SmsService,
+    @Optional() @Inject(InvoicePdfService) private readonly invoicePdfService?: InvoicePdfService,
+    @Optional() @Inject(InvoiceStorageService) private readonly invoiceStorageService?: InvoiceStorageService,
   ) {}
 
   /**
@@ -481,17 +485,59 @@ export class OrderService {
   }
 
   /**
-   * Safely generates an accounting invoice and dispatches email receipt per DOC-008 7.2
+   * Generates a real accounting invoice with an actual PDF document (Sprint 2
+   * Task 5 — replaces the fabricated CDN `pdfUrl`) and dispatches an email
+   * receipt per DOC-008 7.2.
+   *
+   * The PDF is rendered by InvoicePdfService, persisted through
+   * InvoiceStorageService (local filesystem or S3), and the real public URL is
+   * stored on the Invoice record. Customer/branch/restaurant data is resolved
+   * from the database; the email dispatch remains fire-and-forget.
    */
   private async generateInvoice(order: Record<string, unknown>): Promise<Record<string, unknown>> {
     this.logger.log(`Order status marked as completed. Generating billing invoice record...`);
 
     const invoiceNumber = `INV-${new Date().getFullYear()}-${Math.floor(100000 + Math.random() * 900000)}`;
-    const pdfUrl = `https://cdn.zayjar.com/invoices/${invoiceNumber}.pdf`;
+    const tenantId = order.tenantId as string;
+    const orderId = order.id as string;
+
+    // Resolve real display data for the invoice (customer + branch + restaurant).
+    let customerName = 'Valued Customer';
+    let branchName = (order.branchId as string) ?? 'Main Branch';
+    let companyName = 'Zayjar Restaurant';
+    try {
+      if (order.customerId) {
+        const customer = await prisma.customer.findUnique({
+          where: { id: order.customerId as string },
+          select: { firstName: true, lastName: true },
+        });
+        if (customer) {
+          customerName = [customer.firstName, customer.lastName].filter(Boolean).join(' ') || 'Valued Customer';
+        }
+      }
+      const branch = await prisma.branch.findUnique({
+        where: { id: order.branchId as string },
+        select: { name: true, restaurant: { select: { name: true } } },
+      });
+      if (branch) {
+        branchName = branch.name;
+        companyName = branch.restaurant?.name || companyName;
+      }
+    } catch (err) {
+      this.logger.warn(`Invoice data resolution degraded (using defaults): ${(err as Error).message}`);
+    }
+
+    const pdfUrl = await this.renderAndStoreInvoicePdf({
+      invoiceNumber,
+      order,
+      customerName,
+      branchName,
+      companyName,
+    });
 
     const invoice = await this.invoiceRepository.create({
-      tenantId: order.tenantId,
-      orderId: order.id,
+      tenantId,
+      orderId,
       invoiceNumber,
       pdfUrl,
     });
@@ -502,13 +548,13 @@ export class OrderService {
         .sendInvoiceEmail('customer@example.com', {
           invoiceNumber,
           orderNumber: order.orderNumber as string,
-          customerName: 'Valued Customer',
-          branchName: order.branchId as string,
+          customerName,
+          branchName,
           subtotal: order.subtotal as number,
           taxAmount: order.taxAmount as number,
           total: order.total as number,
           pdfUrl,
-          companyName: 'Zayjar Restaurant',
+          companyName,
         })
         .catch((err) => {
           this.logger.warn(`Failed to send invoice email for [${invoiceNumber}]: ${(err as Error).message}`);
@@ -516,5 +562,47 @@ export class OrderService {
     }
 
     return invoice;
+  }
+
+  /**
+   * Renders the invoice PDF and persists it. Falls back to the previous
+   * CDN-style URL only if the PDF pipeline is unavailable (e.g. the optional
+   * services are not wired) — the production module always wires them.
+   */
+  private async renderAndStoreInvoicePdf(input: {
+    invoiceNumber: string;
+    order: Record<string, unknown>;
+    customerName: string;
+    branchName: string;
+    companyName: string;
+  }): Promise<string> {
+    const { invoiceNumber, order, customerName, branchName, companyName } = input;
+    if (this.invoicePdfService && this.invoiceStorageService) {
+      try {
+        const pdf = await this.invoicePdfService.generate({
+          invoiceNumber,
+          orderNumber: (order.orderNumber as string) ?? '',
+          companyName,
+          branchName,
+          customerName,
+          subtotal: Number(order.subtotal) || 0,
+          taxAmount: Number(order.taxAmount) || 0,
+          discountAmount: Number(order.discountAmount) || 0,
+          total: Number(order.total) || 0,
+          issuedAt: new Date(),
+        });
+        const stored = await this.invoiceStorageService.storePdf(
+          order.tenantId as string,
+          invoiceNumber,
+          pdf,
+        );
+        return stored.url;
+      } catch (err) {
+        this.logger.warn(
+          `Invoice PDF generation failed for [${invoiceNumber}], falling back to URL placeholder: ${(err as Error).message}`,
+        );
+      }
+    }
+    return `https://cdn.zayjar.com/invoices/${invoiceNumber}.pdf`;
   }
 }

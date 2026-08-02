@@ -486,6 +486,70 @@ describe('OrderService Unit Tests', () => {
     );
   });
 
+  it('should persist the real stored invoice PDF URL when the invoice PDF pipeline is wired (Sprint 2 Task 5)', async () => {
+    const id = 'order-invoice-pdf-001';
+    const tenantId = 'tenant-uuid-1111';
+    const branchId = 'branch-uuid-1234';
+
+    const makeOrder = (status: OrderStatus): any => ({
+      id,
+      tenantId,
+      branchId,
+      orderNumber: 'ORD-2026-12345',
+      status,
+      subtotal: 50.00,
+      taxAmount: 5.00,
+      discountAmount: 2.50,
+      total: 52.50,
+    });
+
+    jest.spyOn(TenantOrderRepository.prototype, 'findById')
+      .mockResolvedValueOnce(makeOrder(OrderStatus.PENDING))
+      .mockResolvedValueOnce(makeOrder(OrderStatus.ACCEPTED))
+      .mockResolvedValueOnce(makeOrder(OrderStatus.PREPARING))
+      .mockResolvedValueOnce(makeOrder(OrderStatus.READY));
+
+    jest.spyOn(TenantOrderRepository.prototype, 'update')
+      .mockResolvedValueOnce(makeOrder(OrderStatus.ACCEPTED))
+      .mockResolvedValueOnce(makeOrder(OrderStatus.PREPARING))
+      .mockResolvedValueOnce(makeOrder(OrderStatus.READY))
+      .mockResolvedValueOnce(makeOrder(OrderStatus.COMPLETED));
+
+    const invoiceSpy = jest.spyOn(TenantInvoiceRepository.prototype, 'create')
+      .mockResolvedValue({ id: 'inv-pdf', invoiceNumber: 'INV-2026-777777', pdfUrl: '/uploads/invoices/t1/INV-2026-777777.pdf' } as any);
+
+    // Wire mock PDF + storage services onto the instance (they are @Optional
+    // and absent from the bare OrderService testing module).
+    const pdfSpy = jest.fn().mockResolvedValue(Buffer.from('%PDF-1.4 mock'));
+    const storageSpy = jest.fn().mockResolvedValue({
+      storageKey: 'invoices/t1/INV-2026-777777.pdf',
+      url: '/uploads/invoices/t1/INV-2026-777777.pdf',
+      size: 14,
+    });
+    (service as unknown as { invoicePdfService: unknown }).invoicePdfService = {
+      generate: pdfSpy,
+    } as never;
+    (service as unknown as { invoiceStorageService: unknown }).invoiceStorageService = {
+      storePdf: storageSpy,
+    } as never;
+
+    await service.updateOrderStatus(id, { status: OrderStatus.ACCEPTED });
+    await service.updateOrderStatus(id, { status: OrderStatus.PREPARING });
+    await service.updateOrderStatus(id, { status: OrderStatus.READY });
+    await service.updateOrderStatus(id, { status: OrderStatus.COMPLETED });
+
+    expect(pdfSpy).toHaveBeenCalledTimes(1);
+    expect(storageSpy).toHaveBeenCalledTimes(1);
+    expect(invoiceSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tenantId,
+        orderId: id,
+        invoiceNumber: expect.stringMatching(/^INV-\d{4}-\d{6}$/),
+        pdfUrl: '/uploads/invoices/t1/INV-2026-777777.pdf',
+      }),
+    );
+  });
+
   // ==========================================
   // 6. Cancel from Every Valid State
   // ==========================================

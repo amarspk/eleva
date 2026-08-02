@@ -7,9 +7,10 @@ import { KdsModule } from '../kds/kds.module';
 import { WebhookModule } from '../webhook/webhook.module';
 import { NotificationModule } from '../notification/notification.module';
 import { RateLimitModule } from '../common/rate-limit/rate-limit.module';
+import { InvoiceModule } from '../invoice/invoice.module';
 
 @Module({
-  imports: [AuthModule, forwardRef(() => KdsModule), forwardRef(() => WebhookModule), NotificationModule, RateLimitModule],
+  imports: [AuthModule, forwardRef(() => KdsModule), forwardRef(() => WebhookModule), NotificationModule, RateLimitModule, InvoiceModule],
   controllers: [OrderController, PublicOrderController],
   providers: [OrderService],
   exports: [OrderService],

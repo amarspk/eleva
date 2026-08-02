@@ -1,4 +1,5 @@
 import { NestFactory } from '@nestjs/core';
+import { NestExpressApplication } from '@nestjs/platform-express';
 import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module';
 import { SecretsManagerService } from './common/secrets/secrets-manager.service';
@@ -30,7 +31,7 @@ async function bootstrap(): Promise<void> {
   const secretsService = new SecretsManagerService();
   await secretsService.loadSecrets();
 
-  const app = await NestFactory.create(AppModule, {
+  const app: NestExpressApplication = await NestFactory.create(AppModule, {
     logger: new ZayjarLogger('NestJS'),
   });
 
@@ -65,6 +66,13 @@ async function bootstrap(): Promise<void> {
     app.enableCors({ origin: '*', methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'] });
     logger.warn('CORS_ORIGIN not set — allowing all origins (development mode only)');
   }
+
+  // Serve locally-stored generated assets (media uploads + invoice PDFs) from
+  // the storage directory used by LocalStorageProvider (STORAGE_LOCAL_PATH,
+  // default ./uploads). In production behind nginx/S3 the same URL shape is
+  // served upstream; this route makes the URLs real in local/dev runtimes.
+  const staticRoot = process.env.STORAGE_LOCAL_PATH || './uploads';
+  app.useStaticAssets(staticRoot, { prefix: '/uploads/' });
 
   app.enableShutdownHooks();
 
