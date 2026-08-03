@@ -95,6 +95,13 @@ jobs:
         run: pnpm --filter @zayjar/db run prisma:generate
 
       - name: Validate Prisma schema
+        # `prisma validate` resolves datasource `url = env("DATABASE_URL")` before
+        # validating, so it hard-fails with P1012 when the variable is unset.
+        # This step is a static schema check only — it never opens a connection —
+        # so a syntactically valid placeholder URL is sufficient and keeps the
+        # job free of any database service dependency.
+        env:
+          DATABASE_URL: postgresql://prisma:prisma@localhost:5432/prisma?schema=public
         run: pnpm --filter @zayjar/db exec prisma validate
 
       - name: Build all packages

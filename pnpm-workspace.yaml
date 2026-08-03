@@ -1,8 +1,30 @@
 packages:
   - 'apps/*'
   - 'packages/*'
+# Dependency build/lifecycle scripts are blocked by default in pnpm 10+.
+# Only packages whose install scripts are REQUIRED for a working install are
+# approved here (least privilege — every entry is justified and verified):
+#
+#   @prisma/engines  - postinstall downloads the query + schema engine binaries.
+#                      Without it `prisma generate` / `migrate` / `validate` have
+#                      no engine and the CLI path is unusable (ENV-TSK-0006).
+#   @prisma/client   - postinstall wires the generated client to those engines.
+#   prisma           - CLI package; shares the engines postinstall contract.
+#   argon2           - native addon. The shipped glibc prebuild SIGSEGVs on
+#                      modern glibc (verified live); its install script runs
+#                      node-gyp-build, which compiles from source and produces a
+#                      working binding. Password hashing/auth depends on it.
+#
+# Deliberately NOT approved (verified unnecessary — they load correctly without
+# their scripts): sharp (uses prebuilt @img/sharp-* packages), @nestjs/core
+# (donation banner), protobufjs (version-scheme check), unrs-resolver,
+# @firebase/util (reads FIREBASE_WEBAPP_CONFIG, unused server-side).
 allowBuilds:
   '@datadog/native-appsec': true
   '@datadog/native-iast-taint-tracking': true
   '@datadog/native-metrics': true
   msgpackr-extract: true
+  '@prisma/client': true
+  '@prisma/engines': true
+  prisma: true
+  argon2: true
