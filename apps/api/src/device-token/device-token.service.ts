@@ -1,11 +1,17 @@
-import { Injectable, Logger, ConflictException, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, ConflictException, NotFoundException, Inject, Optional } from '@nestjs/common';
 import { CreateDeviceTokenRequestDto } from './dto/create-device-token-request.dto';
-import { TenantDeviceTokenRepository, dbTenantContext } from '@zayjar/db';
+import { TenantDeviceTokenRepository, TenantNotificationRepository, dbTenantContext } from '@zayjar/db';
+import { FcmService } from '../fcm/fcm.service';
 
 @Injectable()
 export class DeviceTokenService {
   private readonly logger = new Logger(DeviceTokenService.name);
   private readonly deviceTokenRepository = new TenantDeviceTokenRepository();
+  private readonly notificationRepository = new TenantNotificationRepository();
+
+  constructor(
+    @Optional() @Inject(FcmService) private readonly fcmService?: FcmService,
+  ) {}
 
   /**
    * Registers FCM device token per DOC-008 7.4
@@ -108,8 +114,14 @@ export class DeviceTokenService {
   }
 
   /**
-   * Sends FCM push notification payload structure per DOC-008 7.4
-   * Mock implementation for dev/test, logs payload
+   * Sends an FCM push notification per DOC-008 7.4 (Sprint 2 Task 7).
+   *
+   * When FCM is configured (FcmService.isAvailable()), sends real push
+   * messages through the Firebase Admin SDK, prunes registration tokens that
+   * are no longer registered, and persists an in-app Notification row for the
+   * recipient. When FCM is NOT configured, it preserves the previous
+   * log-only behavior (dev/test fallback) — identical output contract
+   * ({ sent, payloads }) in both paths.
    */
   async sendPushNotification(tenantId: string, userId: string, title: string, body: string, data?: Record<string, unknown>): Promise<{
     sent: number;
@@ -122,8 +134,6 @@ export class DeviceTokenService {
       return { sent: 0 };
     }
 
-    // In real implementation, would use Firebase Admin SDK
-    // For now, log payload per DOC-008 structure and return mock success
     const payloads = tokens.map((t) => ({
       message: {
         token: t.token,
@@ -135,12 +145,72 @@ export class DeviceTokenService {
       },
     }));
 
+    // Real FCM path (Sprint 2 Task 7).
+    if (this.fcmService?.isAvailable()) {
+      const { successCount, unregisteredTokens } = await this.fcmService.sendPush(
+        tokens.map((t) => t.token),
+        title,
+        body,
+        { ...(data || {}), tenantId },
+      );
+
+      if (unregisteredTokens.length > 0) {
+        this.logger.warn(
+          `Pruning ${unregisteredTokens.length} unregistered FCM token(s) for tenant [${tenantId}] user [${userId}]`,
+        );
+        await Promise.all(
+          unregisteredTokens.map(async (token) => {
+            const match = tokens.find((t) => t.token === token);
+            if (match) {
+              await dbTenantContext.run({ tenantId }, async () => {
+                await this.deviceTokenRepository.delete(match.id);
+              }).catch((err) => this.logger.warn(`Failed to prune token [${token}]: ${(err as Error).message}`));
+            }
+          }),
+        );
+      }
+
+      // Persist an in-app notification mirror for the recipient.
+      await this.persistNotification(tenantId, userId, title, body, 'push');
+
+      this.logger.log(
+        `Sent ${successCount}/${tokens.length} FCM notifications for tenant [${tenantId}] user [${userId}] title [${title}]`,
+      );
+      return { sent: successCount, payloads };
+    }
+
+    // Fallback: log-only (previous behavior, dev/test).
     this.logger.log(`Dispatching ${payloads.length} FCM notifications for tenant [${tenantId}] user [${userId}] title [${title}]`);
 
-    // Mock send
     return {
       sent: payloads.length,
       payloads,
     };
+  }
+
+  /**
+   * Persists an in-app notification row (tenant-scoped). Failures are logged
+   * and never fail the push send.
+   */
+  private async persistNotification(
+    tenantId: string,
+    userId: string,
+    title: string,
+    body: string,
+    type: string,
+  ): Promise<void> {
+    try {
+      await dbTenantContext.run({ tenantId }, async () => {
+        await this.notificationRepository.create({
+          recipientType: 'USER',
+          recipientId: userId,
+          title,
+          body,
+          type,
+        });
+      });
+    } catch (err) {
+      this.logger.warn(`Failed to persist notification for tenant [${tenantId}] user [${userId}]: ${(err as Error).message}`);
+    }
   }
 }

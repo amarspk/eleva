@@ -127,6 +127,7 @@ model Tenant {
   payments        Payment[]
   invoices        Invoice[]
   discounts       Discount[]
+  notifications   Notification[]
   deviceTokens    DeviceToken[]
   kitchenQueues   KitchenQueue[]
   sessionLogs     SessionLog[]
@@ -693,6 +694,9 @@ model Notification {
   isRead        Boolean  @default(false)
   createdAt     DateTime @default(now()) @db.Timestamptz
 
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId], map: "idx_notifications_tenant")
   @@index([recipientId, isRead], map: "idx_notifications_recipient")
   @@map("notifications")
 }

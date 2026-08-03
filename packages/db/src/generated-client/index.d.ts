@@ -3590,6 +3590,7 @@ export namespace Prisma {
     payments: number
     invoices: number
     discounts: number
+    notifications: number
     deviceTokens: number
     kitchenQueues: number
     sessionLogs: number
@@ -3616,6 +3617,7 @@ export namespace Prisma {
     payments?: boolean | TenantCountOutputTypeCountPaymentsArgs
     invoices?: boolean | TenantCountOutputTypeCountInvoicesArgs
     discounts?: boolean | TenantCountOutputTypeCountDiscountsArgs
+    notifications?: boolean | TenantCountOutputTypeCountNotificationsArgs
     deviceTokens?: boolean | TenantCountOutputTypeCountDeviceTokensArgs
     kitchenQueues?: boolean | TenantCountOutputTypeCountKitchenQueuesArgs
     sessionLogs?: boolean | TenantCountOutputTypeCountSessionLogsArgs
@@ -3758,6 +3760,13 @@ export namespace Prisma {
    */
   export type TenantCountOutputTypeCountDiscountsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     where?: DiscountWhereInput
+  }
+
+  /**
+   * TenantCountOutputType without action
+   */
+  export type TenantCountOutputTypeCountNotificationsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: NotificationWhereInput
   }
 
   /**
@@ -4677,6 +4686,7 @@ export namespace Prisma {
     payments?: boolean | Tenant$paymentsArgs<ExtArgs>
     invoices?: boolean | Tenant$invoicesArgs<ExtArgs>
     discounts?: boolean | Tenant$discountsArgs<ExtArgs>
+    notifications?: boolean | Tenant$notificationsArgs<ExtArgs>
     deviceTokens?: boolean | Tenant$deviceTokensArgs<ExtArgs>
     kitchenQueues?: boolean | Tenant$kitchenQueuesArgs<ExtArgs>
     sessionLogs?: boolean | Tenant$sessionLogsArgs<ExtArgs>
@@ -4739,6 +4749,7 @@ export namespace Prisma {
     payments?: boolean | Tenant$paymentsArgs<ExtArgs>
     invoices?: boolean | Tenant$invoicesArgs<ExtArgs>
     discounts?: boolean | Tenant$discountsArgs<ExtArgs>
+    notifications?: boolean | Tenant$notificationsArgs<ExtArgs>
     deviceTokens?: boolean | Tenant$deviceTokensArgs<ExtArgs>
     kitchenQueues?: boolean | Tenant$kitchenQueuesArgs<ExtArgs>
     sessionLogs?: boolean | Tenant$sessionLogsArgs<ExtArgs>
@@ -4770,6 +4781,7 @@ export namespace Prisma {
       payments: Prisma.$PaymentPayload<ExtArgs>[]
       invoices: Prisma.$InvoicePayload<ExtArgs>[]
       discounts: Prisma.$DiscountPayload<ExtArgs>[]
+      notifications: Prisma.$NotificationPayload<ExtArgs>[]
       deviceTokens: Prisma.$DeviceTokenPayload<ExtArgs>[]
       kitchenQueues: Prisma.$KitchenQueuePayload<ExtArgs>[]
       sessionLogs: Prisma.$SessionLogPayload<ExtArgs>[]
@@ -5174,6 +5186,7 @@ export namespace Prisma {
     payments<T extends Tenant$paymentsArgs<ExtArgs> = {}>(args?: Subset<T, Tenant$paymentsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$PaymentPayload<ExtArgs>, T, "findMany"> | Null>
     invoices<T extends Tenant$invoicesArgs<ExtArgs> = {}>(args?: Subset<T, Tenant$invoicesArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$InvoicePayload<ExtArgs>, T, "findMany"> | Null>
     discounts<T extends Tenant$discountsArgs<ExtArgs> = {}>(args?: Subset<T, Tenant$discountsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$DiscountPayload<ExtArgs>, T, "findMany"> | Null>
+    notifications<T extends Tenant$notificationsArgs<ExtArgs> = {}>(args?: Subset<T, Tenant$notificationsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$NotificationPayload<ExtArgs>, T, "findMany"> | Null>
     deviceTokens<T extends Tenant$deviceTokensArgs<ExtArgs> = {}>(args?: Subset<T, Tenant$deviceTokensArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$DeviceTokenPayload<ExtArgs>, T, "findMany"> | Null>
     kitchenQueues<T extends Tenant$kitchenQueuesArgs<ExtArgs> = {}>(args?: Subset<T, Tenant$kitchenQueuesArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$KitchenQueuePayload<ExtArgs>, T, "findMany"> | Null>
     sessionLogs<T extends Tenant$sessionLogsArgs<ExtArgs> = {}>(args?: Subset<T, Tenant$sessionLogsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$SessionLogPayload<ExtArgs>, T, "findMany"> | Null>
@@ -5908,6 +5921,26 @@ export namespace Prisma {
     take?: number
     skip?: number
     distinct?: DiscountScalarFieldEnum | DiscountScalarFieldEnum[]
+  }
+
+  /**
+   * Tenant.notifications
+   */
+  export type Tenant$notificationsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Notification
+     */
+    select?: NotificationSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: NotificationInclude<ExtArgs> | null
+    where?: NotificationWhereInput
+    orderBy?: NotificationOrderByWithRelationInput | NotificationOrderByWithRelationInput[]
+    cursor?: NotificationWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: NotificationScalarFieldEnum | NotificationScalarFieldEnum[]
   }
 
   /**
@@ -34346,6 +34379,7 @@ export namespace Prisma {
     type?: boolean
     isRead?: boolean
     createdAt?: boolean
+    tenant?: boolean | TenantDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["notification"]>
 
   export type NotificationSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
@@ -34358,6 +34392,7 @@ export namespace Prisma {
     type?: boolean
     isRead?: boolean
     createdAt?: boolean
+    tenant?: boolean | TenantDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["notification"]>
 
   export type NotificationSelectScalar = {
@@ -34372,10 +34407,18 @@ export namespace Prisma {
     createdAt?: boolean
   }
 
+  export type NotificationInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    tenant?: boolean | TenantDefaultArgs<ExtArgs>
+  }
+  export type NotificationIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    tenant?: boolean | TenantDefaultArgs<ExtArgs>
+  }
 
   export type $NotificationPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     name: "Notification"
-    objects: {}
+    objects: {
+      tenant: Prisma.$TenantPayload<ExtArgs>
+    }
     scalars: $Extensions.GetPayloadResult<{
       id: string
       tenantId: string
@@ -34750,6 +34793,7 @@ export namespace Prisma {
    */
   export interface Prisma__NotificationClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> extends Prisma.PrismaPromise<T> {
     readonly [Symbol.toStringTag]: "PrismaPromise"
+    tenant<T extends TenantDefaultArgs<ExtArgs> = {}>(args?: Subset<T, TenantDefaultArgs<ExtArgs>>): Prisma__TenantClient<$Result.GetResult<Prisma.$TenantPayload<ExtArgs>, T, "findUniqueOrThrow"> | Null, Null, ExtArgs>
     /**
      * Attaches callbacks for the resolution and/or rejection of the Promise.
      * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -34801,6 +34845,10 @@ export namespace Prisma {
      */
     select?: NotificationSelect<ExtArgs> | null
     /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: NotificationInclude<ExtArgs> | null
+    /**
      * Filter, which Notification to fetch.
      */
     where: NotificationWhereUniqueInput
@@ -34815,6 +34863,10 @@ export namespace Prisma {
      */
     select?: NotificationSelect<ExtArgs> | null
     /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: NotificationInclude<ExtArgs> | null
+    /**
      * Filter, which Notification to fetch.
      */
     where: NotificationWhereUniqueInput
@@ -34828,6 +34880,10 @@ export namespace Prisma {
      * Select specific fields to fetch from the Notification
      */
     select?: NotificationSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: NotificationInclude<ExtArgs> | null
     /**
      * Filter, which Notification to fetch.
      */
@@ -34873,6 +34929,10 @@ export namespace Prisma {
      */
     select?: NotificationSelect<ExtArgs> | null
     /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: NotificationInclude<ExtArgs> | null
+    /**
      * Filter, which Notification to fetch.
      */
     where?: NotificationWhereInput
@@ -34917,6 +34977,10 @@ export namespace Prisma {
      */
     select?: NotificationSelect<ExtArgs> | null
     /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: NotificationInclude<ExtArgs> | null
+    /**
      * Filter, which Notifications to fetch.
      */
     where?: NotificationWhereInput
@@ -34956,6 +35020,10 @@ export namespace Prisma {
      */
     select?: NotificationSelect<ExtArgs> | null
     /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: NotificationInclude<ExtArgs> | null
+    /**
      * The data needed to create a Notification.
      */
     data: XOR<NotificationCreateInput, NotificationUncheckedCreateInput>
@@ -34985,6 +35053,10 @@ export namespace Prisma {
      */
     data: NotificationCreateManyInput | NotificationCreateManyInput[]
     skipDuplicates?: boolean
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: NotificationIncludeCreateManyAndReturn<ExtArgs> | null
   }
 
   /**
@@ -34995,6 +35067,10 @@ export namespace Prisma {
      * Select specific fields to fetch from the Notification
      */
     select?: NotificationSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: NotificationInclude<ExtArgs> | null
     /**
      * The data needed to update a Notification.
      */
@@ -35028,6 +35104,10 @@ export namespace Prisma {
      */
     select?: NotificationSelect<ExtArgs> | null
     /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: NotificationInclude<ExtArgs> | null
+    /**
      * The filter to search for the Notification to update in case it exists.
      */
     where: NotificationWhereUniqueInput
@@ -35049,6 +35129,10 @@ export namespace Prisma {
      * Select specific fields to fetch from the Notification
      */
     select?: NotificationSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: NotificationInclude<ExtArgs> | null
     /**
      * Filter which Notification to delete.
      */
@@ -35073,6 +35157,10 @@ export namespace Prisma {
      * Select specific fields to fetch from the Notification
      */
     select?: NotificationSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: NotificationInclude<ExtArgs> | null
   }
 
 
@@ -38020,6 +38108,7 @@ export namespace Prisma {
     payments?: PaymentListRelationFilter
     invoices?: InvoiceListRelationFilter
     discounts?: DiscountListRelationFilter
+    notifications?: NotificationListRelationFilter
     deviceTokens?: DeviceTokenListRelationFilter
     kitchenQueues?: KitchenQueueListRelationFilter
     sessionLogs?: SessionLogListRelationFilter
@@ -38061,6 +38150,7 @@ export namespace Prisma {
     payments?: PaymentOrderByRelationAggregateInput
     invoices?: InvoiceOrderByRelationAggregateInput
     discounts?: DiscountOrderByRelationAggregateInput
+    notifications?: NotificationOrderByRelationAggregateInput
     deviceTokens?: DeviceTokenOrderByRelationAggregateInput
     kitchenQueues?: KitchenQueueOrderByRelationAggregateInput
     sessionLogs?: SessionLogOrderByRelationAggregateInput
@@ -38105,6 +38195,7 @@ export namespace Prisma {
     payments?: PaymentListRelationFilter
     invoices?: InvoiceListRelationFilter
     discounts?: DiscountListRelationFilter
+    notifications?: NotificationListRelationFilter
     deviceTokens?: DeviceTokenListRelationFilter
     kitchenQueues?: KitchenQueueListRelationFilter
     sessionLogs?: SessionLogListRelationFilter
@@ -40433,6 +40524,7 @@ export namespace Prisma {
     type?: StringFilter<"Notification"> | string
     isRead?: BoolFilter<"Notification"> | boolean
     createdAt?: DateTimeFilter<"Notification"> | Date | string
+    tenant?: XOR<TenantRelationFilter, TenantWhereInput>
   }
 
   export type NotificationOrderByWithRelationInput = {
@@ -40445,6 +40537,7 @@ export namespace Prisma {
     type?: SortOrder
     isRead?: SortOrder
     createdAt?: SortOrder
+    tenant?: TenantOrderByWithRelationInput
   }
 
   export type NotificationWhereUniqueInput = Prisma.AtLeast<{
@@ -40460,6 +40553,7 @@ export namespace Prisma {
     type?: StringFilter<"Notification"> | string
     isRead?: BoolFilter<"Notification"> | boolean
     createdAt?: DateTimeFilter<"Notification"> | Date | string
+    tenant?: XOR<TenantRelationFilter, TenantWhereInput>
   }, "id">
 
   export type NotificationOrderByWithAggregationInput = {
@@ -40728,6 +40822,7 @@ export namespace Prisma {
     payments?: PaymentCreateNestedManyWithoutTenantInput
     invoices?: InvoiceCreateNestedManyWithoutTenantInput
     discounts?: DiscountCreateNestedManyWithoutTenantInput
+    notifications?: NotificationCreateNestedManyWithoutTenantInput
     deviceTokens?: DeviceTokenCreateNestedManyWithoutTenantInput
     kitchenQueues?: KitchenQueueCreateNestedManyWithoutTenantInput
     sessionLogs?: SessionLogCreateNestedManyWithoutTenantInput
@@ -40769,6 +40864,7 @@ export namespace Prisma {
     payments?: PaymentUncheckedCreateNestedManyWithoutTenantInput
     invoices?: InvoiceUncheckedCreateNestedManyWithoutTenantInput
     discounts?: DiscountUncheckedCreateNestedManyWithoutTenantInput
+    notifications?: NotificationUncheckedCreateNestedManyWithoutTenantInput
     deviceTokens?: DeviceTokenUncheckedCreateNestedManyWithoutTenantInput
     kitchenQueues?: KitchenQueueUncheckedCreateNestedManyWithoutTenantInput
     sessionLogs?: SessionLogUncheckedCreateNestedManyWithoutTenantInput
@@ -40810,6 +40906,7 @@ export namespace Prisma {
     payments?: PaymentUpdateManyWithoutTenantNestedInput
     invoices?: InvoiceUpdateManyWithoutTenantNestedInput
     discounts?: DiscountUpdateManyWithoutTenantNestedInput
+    notifications?: NotificationUpdateManyWithoutTenantNestedInput
     deviceTokens?: DeviceTokenUpdateManyWithoutTenantNestedInput
     kitchenQueues?: KitchenQueueUpdateManyWithoutTenantNestedInput
     sessionLogs?: SessionLogUpdateManyWithoutTenantNestedInput
@@ -40851,6 +40948,7 @@ export namespace Prisma {
     payments?: PaymentUncheckedUpdateManyWithoutTenantNestedInput
     invoices?: InvoiceUncheckedUpdateManyWithoutTenantNestedInput
     discounts?: DiscountUncheckedUpdateManyWithoutTenantNestedInput
+    notifications?: NotificationUncheckedUpdateManyWithoutTenantNestedInput
     deviceTokens?: DeviceTokenUncheckedUpdateManyWithoutTenantNestedInput
     kitchenQueues?: KitchenQueueUncheckedUpdateManyWithoutTenantNestedInput
     sessionLogs?: SessionLogUncheckedUpdateManyWithoutTenantNestedInput
@@ -43307,7 +43405,6 @@ export namespace Prisma {
 
   export type NotificationCreateInput = {
     id?: string
-    tenantId: string
     recipientType: string
     recipientId: string
     title: string
@@ -43315,6 +43412,7 @@ export namespace Prisma {
     type: string
     isRead?: boolean
     createdAt?: Date | string
+    tenant: TenantCreateNestedOneWithoutNotificationsInput
   }
 
   export type NotificationUncheckedCreateInput = {
@@ -43331,7 +43429,6 @@ export namespace Prisma {
 
   export type NotificationUpdateInput = {
     id?: StringFieldUpdateOperationsInput | string
-    tenantId?: StringFieldUpdateOperationsInput | string
     recipientType?: StringFieldUpdateOperationsInput | string
     recipientId?: StringFieldUpdateOperationsInput | string
     title?: StringFieldUpdateOperationsInput | string
@@ -43339,6 +43436,7 @@ export namespace Prisma {
     type?: StringFieldUpdateOperationsInput | string
     isRead?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    tenant?: TenantUpdateOneRequiredWithoutNotificationsNestedInput
   }
 
   export type NotificationUncheckedUpdateInput = {
@@ -43367,7 +43465,6 @@ export namespace Prisma {
 
   export type NotificationUpdateManyMutationInput = {
     id?: StringFieldUpdateOperationsInput | string
-    tenantId?: StringFieldUpdateOperationsInput | string
     recipientType?: StringFieldUpdateOperationsInput | string
     recipientId?: StringFieldUpdateOperationsInput | string
     title?: StringFieldUpdateOperationsInput | string
@@ -43831,6 +43928,12 @@ export namespace Prisma {
     none?: DiscountWhereInput
   }
 
+  export type NotificationListRelationFilter = {
+    every?: NotificationWhereInput
+    some?: NotificationWhereInput
+    none?: NotificationWhereInput
+  }
+
   export type DeviceTokenListRelationFilter = {
     every?: DeviceTokenWhereInput
     some?: DeviceTokenWhereInput
@@ -43935,6 +44038,10 @@ export namespace Prisma {
   }
 
   export type DiscountOrderByRelationAggregateInput = {
+    _count?: SortOrder
+  }
+
+  export type NotificationOrderByRelationAggregateInput = {
     _count?: SortOrder
   }
 
@@ -46096,6 +46203,13 @@ export namespace Prisma {
     connect?: DiscountWhereUniqueInput | DiscountWhereUniqueInput[]
   }
 
+  export type NotificationCreateNestedManyWithoutTenantInput = {
+    create?: XOR<NotificationCreateWithoutTenantInput, NotificationUncheckedCreateWithoutTenantInput> | NotificationCreateWithoutTenantInput[] | NotificationUncheckedCreateWithoutTenantInput[]
+    connectOrCreate?: NotificationCreateOrConnectWithoutTenantInput | NotificationCreateOrConnectWithoutTenantInput[]
+    createMany?: NotificationCreateManyTenantInputEnvelope
+    connect?: NotificationWhereUniqueInput | NotificationWhereUniqueInput[]
+  }
+
   export type DeviceTokenCreateNestedManyWithoutTenantInput = {
     create?: XOR<DeviceTokenCreateWithoutTenantInput, DeviceTokenUncheckedCreateWithoutTenantInput> | DeviceTokenCreateWithoutTenantInput[] | DeviceTokenUncheckedCreateWithoutTenantInput[]
     connectOrCreate?: DeviceTokenCreateOrConnectWithoutTenantInput | DeviceTokenCreateOrConnectWithoutTenantInput[]
@@ -46261,6 +46375,13 @@ export namespace Prisma {
     connectOrCreate?: DiscountCreateOrConnectWithoutTenantInput | DiscountCreateOrConnectWithoutTenantInput[]
     createMany?: DiscountCreateManyTenantInputEnvelope
     connect?: DiscountWhereUniqueInput | DiscountWhereUniqueInput[]
+  }
+
+  export type NotificationUncheckedCreateNestedManyWithoutTenantInput = {
+    create?: XOR<NotificationCreateWithoutTenantInput, NotificationUncheckedCreateWithoutTenantInput> | NotificationCreateWithoutTenantInput[] | NotificationUncheckedCreateWithoutTenantInput[]
+    connectOrCreate?: NotificationCreateOrConnectWithoutTenantInput | NotificationCreateOrConnectWithoutTenantInput[]
+    createMany?: NotificationCreateManyTenantInputEnvelope
+    connect?: NotificationWhereUniqueInput | NotificationWhereUniqueInput[]
   }
 
   export type DeviceTokenUncheckedCreateNestedManyWithoutTenantInput = {
@@ -46578,6 +46699,20 @@ export namespace Prisma {
     update?: DiscountUpdateWithWhereUniqueWithoutTenantInput | DiscountUpdateWithWhereUniqueWithoutTenantInput[]
     updateMany?: DiscountUpdateManyWithWhereWithoutTenantInput | DiscountUpdateManyWithWhereWithoutTenantInput[]
     deleteMany?: DiscountScalarWhereInput | DiscountScalarWhereInput[]
+  }
+
+  export type NotificationUpdateManyWithoutTenantNestedInput = {
+    create?: XOR<NotificationCreateWithoutTenantInput, NotificationUncheckedCreateWithoutTenantInput> | NotificationCreateWithoutTenantInput[] | NotificationUncheckedCreateWithoutTenantInput[]
+    connectOrCreate?: NotificationCreateOrConnectWithoutTenantInput | NotificationCreateOrConnectWithoutTenantInput[]
+    upsert?: NotificationUpsertWithWhereUniqueWithoutTenantInput | NotificationUpsertWithWhereUniqueWithoutTenantInput[]
+    createMany?: NotificationCreateManyTenantInputEnvelope
+    set?: NotificationWhereUniqueInput | NotificationWhereUniqueInput[]
+    disconnect?: NotificationWhereUniqueInput | NotificationWhereUniqueInput[]
+    delete?: NotificationWhereUniqueInput | NotificationWhereUniqueInput[]
+    connect?: NotificationWhereUniqueInput | NotificationWhereUniqueInput[]
+    update?: NotificationUpdateWithWhereUniqueWithoutTenantInput | NotificationUpdateWithWhereUniqueWithoutTenantInput[]
+    updateMany?: NotificationUpdateManyWithWhereWithoutTenantInput | NotificationUpdateManyWithWhereWithoutTenantInput[]
+    deleteMany?: NotificationScalarWhereInput | NotificationScalarWhereInput[]
   }
 
   export type DeviceTokenUpdateManyWithoutTenantNestedInput = {
@@ -46910,6 +47045,20 @@ export namespace Prisma {
     update?: DiscountUpdateWithWhereUniqueWithoutTenantInput | DiscountUpdateWithWhereUniqueWithoutTenantInput[]
     updateMany?: DiscountUpdateManyWithWhereWithoutTenantInput | DiscountUpdateManyWithWhereWithoutTenantInput[]
     deleteMany?: DiscountScalarWhereInput | DiscountScalarWhereInput[]
+  }
+
+  export type NotificationUncheckedUpdateManyWithoutTenantNestedInput = {
+    create?: XOR<NotificationCreateWithoutTenantInput, NotificationUncheckedCreateWithoutTenantInput> | NotificationCreateWithoutTenantInput[] | NotificationUncheckedCreateWithoutTenantInput[]
+    connectOrCreate?: NotificationCreateOrConnectWithoutTenantInput | NotificationCreateOrConnectWithoutTenantInput[]
+    upsert?: NotificationUpsertWithWhereUniqueWithoutTenantInput | NotificationUpsertWithWhereUniqueWithoutTenantInput[]
+    createMany?: NotificationCreateManyTenantInputEnvelope
+    set?: NotificationWhereUniqueInput | NotificationWhereUniqueInput[]
+    disconnect?: NotificationWhereUniqueInput | NotificationWhereUniqueInput[]
+    delete?: NotificationWhereUniqueInput | NotificationWhereUniqueInput[]
+    connect?: NotificationWhereUniqueInput | NotificationWhereUniqueInput[]
+    update?: NotificationUpdateWithWhereUniqueWithoutTenantInput | NotificationUpdateWithWhereUniqueWithoutTenantInput[]
+    updateMany?: NotificationUpdateManyWithWhereWithoutTenantInput | NotificationUpdateManyWithWhereWithoutTenantInput[]
+    deleteMany?: NotificationScalarWhereInput | NotificationScalarWhereInput[]
   }
 
   export type DeviceTokenUncheckedUpdateManyWithoutTenantNestedInput = {
@@ -48992,6 +49141,20 @@ export namespace Prisma {
     update?: XOR<XOR<UserUpdateToOneWithWhereWithoutSessionLogsInput, UserUpdateWithoutSessionLogsInput>, UserUncheckedUpdateWithoutSessionLogsInput>
   }
 
+  export type TenantCreateNestedOneWithoutNotificationsInput = {
+    create?: XOR<TenantCreateWithoutNotificationsInput, TenantUncheckedCreateWithoutNotificationsInput>
+    connectOrCreate?: TenantCreateOrConnectWithoutNotificationsInput
+    connect?: TenantWhereUniqueInput
+  }
+
+  export type TenantUpdateOneRequiredWithoutNotificationsNestedInput = {
+    create?: XOR<TenantCreateWithoutNotificationsInput, TenantUncheckedCreateWithoutNotificationsInput>
+    connectOrCreate?: TenantCreateOrConnectWithoutNotificationsInput
+    upsert?: TenantUpsertWithoutNotificationsInput
+    connect?: TenantWhereUniqueInput
+    update?: XOR<XOR<TenantUpdateToOneWithWhereWithoutNotificationsInput, TenantUpdateWithoutNotificationsInput>, TenantUncheckedUpdateWithoutNotificationsInput>
+  }
+
   export type WebhookCreateeventsInput = {
     set: string[]
   }
@@ -50272,6 +50435,38 @@ export namespace Prisma {
     skipDuplicates?: boolean
   }
 
+  export type NotificationCreateWithoutTenantInput = {
+    id?: string
+    recipientType: string
+    recipientId: string
+    title: string
+    body: string
+    type: string
+    isRead?: boolean
+    createdAt?: Date | string
+  }
+
+  export type NotificationUncheckedCreateWithoutTenantInput = {
+    id?: string
+    recipientType: string
+    recipientId: string
+    title: string
+    body: string
+    type: string
+    isRead?: boolean
+    createdAt?: Date | string
+  }
+
+  export type NotificationCreateOrConnectWithoutTenantInput = {
+    where: NotificationWhereUniqueInput
+    create: XOR<NotificationCreateWithoutTenantInput, NotificationUncheckedCreateWithoutTenantInput>
+  }
+
+  export type NotificationCreateManyTenantInputEnvelope = {
+    data: NotificationCreateManyTenantInput | NotificationCreateManyTenantInput[]
+    skipDuplicates?: boolean
+  }
+
   export type DeviceTokenCreateWithoutTenantInput = {
     id?: string
     token: string
@@ -51060,6 +51255,37 @@ export namespace Prisma {
     updatedAt?: DateTimeFilter<"Discount"> | Date | string
   }
 
+  export type NotificationUpsertWithWhereUniqueWithoutTenantInput = {
+    where: NotificationWhereUniqueInput
+    update: XOR<NotificationUpdateWithoutTenantInput, NotificationUncheckedUpdateWithoutTenantInput>
+    create: XOR<NotificationCreateWithoutTenantInput, NotificationUncheckedCreateWithoutTenantInput>
+  }
+
+  export type NotificationUpdateWithWhereUniqueWithoutTenantInput = {
+    where: NotificationWhereUniqueInput
+    data: XOR<NotificationUpdateWithoutTenantInput, NotificationUncheckedUpdateWithoutTenantInput>
+  }
+
+  export type NotificationUpdateManyWithWhereWithoutTenantInput = {
+    where: NotificationScalarWhereInput
+    data: XOR<NotificationUpdateManyMutationInput, NotificationUncheckedUpdateManyWithoutTenantInput>
+  }
+
+  export type NotificationScalarWhereInput = {
+    AND?: NotificationScalarWhereInput | NotificationScalarWhereInput[]
+    OR?: NotificationScalarWhereInput[]
+    NOT?: NotificationScalarWhereInput | NotificationScalarWhereInput[]
+    id?: UuidFilter<"Notification"> | string
+    tenantId?: UuidFilter<"Notification"> | string
+    recipientType?: StringFilter<"Notification"> | string
+    recipientId?: UuidFilter<"Notification"> | string
+    title?: StringFilter<"Notification"> | string
+    body?: StringFilter<"Notification"> | string
+    type?: StringFilter<"Notification"> | string
+    isRead?: BoolFilter<"Notification"> | boolean
+    createdAt?: DateTimeFilter<"Notification"> | Date | string
+  }
+
   export type DeviceTokenUpsertWithWhereUniqueWithoutTenantInput = {
     where: DeviceTokenWhereUniqueInput
     update: XOR<DeviceTokenUpdateWithoutTenantInput, DeviceTokenUncheckedUpdateWithoutTenantInput>
@@ -51328,6 +51554,7 @@ export namespace Prisma {
     payments?: PaymentCreateNestedManyWithoutTenantInput
     invoices?: InvoiceCreateNestedManyWithoutTenantInput
     discounts?: DiscountCreateNestedManyWithoutTenantInput
+    notifications?: NotificationCreateNestedManyWithoutTenantInput
     deviceTokens?: DeviceTokenCreateNestedManyWithoutTenantInput
     kitchenQueues?: KitchenQueueCreateNestedManyWithoutTenantInput
     sessionLogs?: SessionLogCreateNestedManyWithoutTenantInput
@@ -51368,6 +51595,7 @@ export namespace Prisma {
     payments?: PaymentUncheckedCreateNestedManyWithoutTenantInput
     invoices?: InvoiceUncheckedCreateNestedManyWithoutTenantInput
     discounts?: DiscountUncheckedCreateNestedManyWithoutTenantInput
+    notifications?: NotificationUncheckedCreateNestedManyWithoutTenantInput
     deviceTokens?: DeviceTokenUncheckedCreateNestedManyWithoutTenantInput
     kitchenQueues?: KitchenQueueUncheckedCreateNestedManyWithoutTenantInput
     sessionLogs?: SessionLogUncheckedCreateNestedManyWithoutTenantInput
@@ -51463,6 +51691,7 @@ export namespace Prisma {
     payments?: PaymentUpdateManyWithoutTenantNestedInput
     invoices?: InvoiceUpdateManyWithoutTenantNestedInput
     discounts?: DiscountUpdateManyWithoutTenantNestedInput
+    notifications?: NotificationUpdateManyWithoutTenantNestedInput
     deviceTokens?: DeviceTokenUpdateManyWithoutTenantNestedInput
     kitchenQueues?: KitchenQueueUpdateManyWithoutTenantNestedInput
     sessionLogs?: SessionLogUpdateManyWithoutTenantNestedInput
@@ -51503,6 +51732,7 @@ export namespace Prisma {
     payments?: PaymentUncheckedUpdateManyWithoutTenantNestedInput
     invoices?: InvoiceUncheckedUpdateManyWithoutTenantNestedInput
     discounts?: DiscountUncheckedUpdateManyWithoutTenantNestedInput
+    notifications?: NotificationUncheckedUpdateManyWithoutTenantNestedInput
     deviceTokens?: DeviceTokenUncheckedUpdateManyWithoutTenantNestedInput
     kitchenQueues?: KitchenQueueUncheckedUpdateManyWithoutTenantNestedInput
     sessionLogs?: SessionLogUncheckedUpdateManyWithoutTenantNestedInput
@@ -51588,6 +51818,7 @@ export namespace Prisma {
     payments?: PaymentCreateNestedManyWithoutTenantInput
     invoices?: InvoiceCreateNestedManyWithoutTenantInput
     discounts?: DiscountCreateNestedManyWithoutTenantInput
+    notifications?: NotificationCreateNestedManyWithoutTenantInput
     deviceTokens?: DeviceTokenCreateNestedManyWithoutTenantInput
     kitchenQueues?: KitchenQueueCreateNestedManyWithoutTenantInput
     sessionLogs?: SessionLogCreateNestedManyWithoutTenantInput
@@ -51628,6 +51859,7 @@ export namespace Prisma {
     payments?: PaymentUncheckedCreateNestedManyWithoutTenantInput
     invoices?: InvoiceUncheckedCreateNestedManyWithoutTenantInput
     discounts?: DiscountUncheckedCreateNestedManyWithoutTenantInput
+    notifications?: NotificationUncheckedCreateNestedManyWithoutTenantInput
     deviceTokens?: DeviceTokenUncheckedCreateNestedManyWithoutTenantInput
     kitchenQueues?: KitchenQueueUncheckedCreateNestedManyWithoutTenantInput
     sessionLogs?: SessionLogUncheckedCreateNestedManyWithoutTenantInput
@@ -51760,6 +51992,7 @@ export namespace Prisma {
     payments?: PaymentUpdateManyWithoutTenantNestedInput
     invoices?: InvoiceUpdateManyWithoutTenantNestedInput
     discounts?: DiscountUpdateManyWithoutTenantNestedInput
+    notifications?: NotificationUpdateManyWithoutTenantNestedInput
     deviceTokens?: DeviceTokenUpdateManyWithoutTenantNestedInput
     kitchenQueues?: KitchenQueueUpdateManyWithoutTenantNestedInput
     sessionLogs?: SessionLogUpdateManyWithoutTenantNestedInput
@@ -51800,6 +52033,7 @@ export namespace Prisma {
     payments?: PaymentUncheckedUpdateManyWithoutTenantNestedInput
     invoices?: InvoiceUncheckedUpdateManyWithoutTenantNestedInput
     discounts?: DiscountUncheckedUpdateManyWithoutTenantNestedInput
+    notifications?: NotificationUncheckedUpdateManyWithoutTenantNestedInput
     deviceTokens?: DeviceTokenUncheckedUpdateManyWithoutTenantNestedInput
     kitchenQueues?: KitchenQueueUncheckedUpdateManyWithoutTenantNestedInput
     sessionLogs?: SessionLogUncheckedUpdateManyWithoutTenantNestedInput
@@ -51897,6 +52131,7 @@ export namespace Prisma {
     payments?: PaymentCreateNestedManyWithoutTenantInput
     invoices?: InvoiceCreateNestedManyWithoutTenantInput
     discounts?: DiscountCreateNestedManyWithoutTenantInput
+    notifications?: NotificationCreateNestedManyWithoutTenantInput
     deviceTokens?: DeviceTokenCreateNestedManyWithoutTenantInput
     kitchenQueues?: KitchenQueueCreateNestedManyWithoutTenantInput
     sessionLogs?: SessionLogCreateNestedManyWithoutTenantInput
@@ -51937,6 +52172,7 @@ export namespace Prisma {
     payments?: PaymentUncheckedCreateNestedManyWithoutTenantInput
     invoices?: InvoiceUncheckedCreateNestedManyWithoutTenantInput
     discounts?: DiscountUncheckedCreateNestedManyWithoutTenantInput
+    notifications?: NotificationUncheckedCreateNestedManyWithoutTenantInput
     deviceTokens?: DeviceTokenUncheckedCreateNestedManyWithoutTenantInput
     kitchenQueues?: KitchenQueueUncheckedCreateNestedManyWithoutTenantInput
     sessionLogs?: SessionLogUncheckedCreateNestedManyWithoutTenantInput
@@ -52033,6 +52269,7 @@ export namespace Prisma {
     payments?: PaymentUpdateManyWithoutTenantNestedInput
     invoices?: InvoiceUpdateManyWithoutTenantNestedInput
     discounts?: DiscountUpdateManyWithoutTenantNestedInput
+    notifications?: NotificationUpdateManyWithoutTenantNestedInput
     deviceTokens?: DeviceTokenUpdateManyWithoutTenantNestedInput
     kitchenQueues?: KitchenQueueUpdateManyWithoutTenantNestedInput
     sessionLogs?: SessionLogUpdateManyWithoutTenantNestedInput
@@ -52073,6 +52310,7 @@ export namespace Prisma {
     payments?: PaymentUncheckedUpdateManyWithoutTenantNestedInput
     invoices?: InvoiceUncheckedUpdateManyWithoutTenantNestedInput
     discounts?: DiscountUncheckedUpdateManyWithoutTenantNestedInput
+    notifications?: NotificationUncheckedUpdateManyWithoutTenantNestedInput
     deviceTokens?: DeviceTokenUncheckedUpdateManyWithoutTenantNestedInput
     kitchenQueues?: KitchenQueueUncheckedUpdateManyWithoutTenantNestedInput
     sessionLogs?: SessionLogUncheckedUpdateManyWithoutTenantNestedInput
@@ -52450,6 +52688,7 @@ export namespace Prisma {
     payments?: PaymentCreateNestedManyWithoutTenantInput
     invoices?: InvoiceCreateNestedManyWithoutTenantInput
     discounts?: DiscountCreateNestedManyWithoutTenantInput
+    notifications?: NotificationCreateNestedManyWithoutTenantInput
     deviceTokens?: DeviceTokenCreateNestedManyWithoutTenantInput
     kitchenQueues?: KitchenQueueCreateNestedManyWithoutTenantInput
     sessionLogs?: SessionLogCreateNestedManyWithoutTenantInput
@@ -52490,6 +52729,7 @@ export namespace Prisma {
     payments?: PaymentUncheckedCreateNestedManyWithoutTenantInput
     invoices?: InvoiceUncheckedCreateNestedManyWithoutTenantInput
     discounts?: DiscountUncheckedCreateNestedManyWithoutTenantInput
+    notifications?: NotificationUncheckedCreateNestedManyWithoutTenantInput
     deviceTokens?: DeviceTokenUncheckedCreateNestedManyWithoutTenantInput
     kitchenQueues?: KitchenQueueUncheckedCreateNestedManyWithoutTenantInput
     sessionLogs?: SessionLogUncheckedCreateNestedManyWithoutTenantInput
@@ -52626,6 +52866,7 @@ export namespace Prisma {
     payments?: PaymentUpdateManyWithoutTenantNestedInput
     invoices?: InvoiceUpdateManyWithoutTenantNestedInput
     discounts?: DiscountUpdateManyWithoutTenantNestedInput
+    notifications?: NotificationUpdateManyWithoutTenantNestedInput
     deviceTokens?: DeviceTokenUpdateManyWithoutTenantNestedInput
     kitchenQueues?: KitchenQueueUpdateManyWithoutTenantNestedInput
     sessionLogs?: SessionLogUpdateManyWithoutTenantNestedInput
@@ -52666,6 +52907,7 @@ export namespace Prisma {
     payments?: PaymentUncheckedUpdateManyWithoutTenantNestedInput
     invoices?: InvoiceUncheckedUpdateManyWithoutTenantNestedInput
     discounts?: DiscountUncheckedUpdateManyWithoutTenantNestedInput
+    notifications?: NotificationUncheckedUpdateManyWithoutTenantNestedInput
     deviceTokens?: DeviceTokenUncheckedUpdateManyWithoutTenantNestedInput
     kitchenQueues?: KitchenQueueUncheckedUpdateManyWithoutTenantNestedInput
     sessionLogs?: SessionLogUncheckedUpdateManyWithoutTenantNestedInput
@@ -52738,6 +52980,7 @@ export namespace Prisma {
     payments?: PaymentCreateNestedManyWithoutTenantInput
     invoices?: InvoiceCreateNestedManyWithoutTenantInput
     discounts?: DiscountCreateNestedManyWithoutTenantInput
+    notifications?: NotificationCreateNestedManyWithoutTenantInput
     deviceTokens?: DeviceTokenCreateNestedManyWithoutTenantInput
     kitchenQueues?: KitchenQueueCreateNestedManyWithoutTenantInput
     sessionLogs?: SessionLogCreateNestedManyWithoutTenantInput
@@ -52778,6 +53021,7 @@ export namespace Prisma {
     payments?: PaymentUncheckedCreateNestedManyWithoutTenantInput
     invoices?: InvoiceUncheckedCreateNestedManyWithoutTenantInput
     discounts?: DiscountUncheckedCreateNestedManyWithoutTenantInput
+    notifications?: NotificationUncheckedCreateNestedManyWithoutTenantInput
     deviceTokens?: DeviceTokenUncheckedCreateNestedManyWithoutTenantInput
     kitchenQueues?: KitchenQueueUncheckedCreateNestedManyWithoutTenantInput
     sessionLogs?: SessionLogUncheckedCreateNestedManyWithoutTenantInput
@@ -52991,6 +53235,7 @@ export namespace Prisma {
     payments?: PaymentUpdateManyWithoutTenantNestedInput
     invoices?: InvoiceUpdateManyWithoutTenantNestedInput
     discounts?: DiscountUpdateManyWithoutTenantNestedInput
+    notifications?: NotificationUpdateManyWithoutTenantNestedInput
     deviceTokens?: DeviceTokenUpdateManyWithoutTenantNestedInput
     kitchenQueues?: KitchenQueueUpdateManyWithoutTenantNestedInput
     sessionLogs?: SessionLogUpdateManyWithoutTenantNestedInput
@@ -53031,6 +53276,7 @@ export namespace Prisma {
     payments?: PaymentUncheckedUpdateManyWithoutTenantNestedInput
     invoices?: InvoiceUncheckedUpdateManyWithoutTenantNestedInput
     discounts?: DiscountUncheckedUpdateManyWithoutTenantNestedInput
+    notifications?: NotificationUncheckedUpdateManyWithoutTenantNestedInput
     deviceTokens?: DeviceTokenUncheckedUpdateManyWithoutTenantNestedInput
     kitchenQueues?: KitchenQueueUncheckedUpdateManyWithoutTenantNestedInput
     sessionLogs?: SessionLogUncheckedUpdateManyWithoutTenantNestedInput
@@ -53156,6 +53402,7 @@ export namespace Prisma {
     payments?: PaymentCreateNestedManyWithoutTenantInput
     invoices?: InvoiceCreateNestedManyWithoutTenantInput
     discounts?: DiscountCreateNestedManyWithoutTenantInput
+    notifications?: NotificationCreateNestedManyWithoutTenantInput
     deviceTokens?: DeviceTokenCreateNestedManyWithoutTenantInput
     kitchenQueues?: KitchenQueueCreateNestedManyWithoutTenantInput
     sessionLogs?: SessionLogCreateNestedManyWithoutTenantInput
@@ -53196,6 +53443,7 @@ export namespace Prisma {
     payments?: PaymentUncheckedCreateNestedManyWithoutTenantInput
     invoices?: InvoiceUncheckedCreateNestedManyWithoutTenantInput
     discounts?: DiscountUncheckedCreateNestedManyWithoutTenantInput
+    notifications?: NotificationUncheckedCreateNestedManyWithoutTenantInput
     deviceTokens?: DeviceTokenUncheckedCreateNestedManyWithoutTenantInput
     kitchenQueues?: KitchenQueueUncheckedCreateNestedManyWithoutTenantInput
     sessionLogs?: SessionLogUncheckedCreateNestedManyWithoutTenantInput
@@ -53353,6 +53601,7 @@ export namespace Prisma {
     payments?: PaymentUpdateManyWithoutTenantNestedInput
     invoices?: InvoiceUpdateManyWithoutTenantNestedInput
     discounts?: DiscountUpdateManyWithoutTenantNestedInput
+    notifications?: NotificationUpdateManyWithoutTenantNestedInput
     deviceTokens?: DeviceTokenUpdateManyWithoutTenantNestedInput
     kitchenQueues?: KitchenQueueUpdateManyWithoutTenantNestedInput
     sessionLogs?: SessionLogUpdateManyWithoutTenantNestedInput
@@ -53393,6 +53642,7 @@ export namespace Prisma {
     payments?: PaymentUncheckedUpdateManyWithoutTenantNestedInput
     invoices?: InvoiceUncheckedUpdateManyWithoutTenantNestedInput
     discounts?: DiscountUncheckedUpdateManyWithoutTenantNestedInput
+    notifications?: NotificationUncheckedUpdateManyWithoutTenantNestedInput
     deviceTokens?: DeviceTokenUncheckedUpdateManyWithoutTenantNestedInput
     kitchenQueues?: KitchenQueueUncheckedUpdateManyWithoutTenantNestedInput
     sessionLogs?: SessionLogUncheckedUpdateManyWithoutTenantNestedInput
@@ -53496,6 +53746,7 @@ export namespace Prisma {
     payments?: PaymentCreateNestedManyWithoutTenantInput
     invoices?: InvoiceCreateNestedManyWithoutTenantInput
     discounts?: DiscountCreateNestedManyWithoutTenantInput
+    notifications?: NotificationCreateNestedManyWithoutTenantInput
     deviceTokens?: DeviceTokenCreateNestedManyWithoutTenantInput
     kitchenQueues?: KitchenQueueCreateNestedManyWithoutTenantInput
     sessionLogs?: SessionLogCreateNestedManyWithoutTenantInput
@@ -53536,6 +53787,7 @@ export namespace Prisma {
     payments?: PaymentUncheckedCreateNestedManyWithoutTenantInput
     invoices?: InvoiceUncheckedCreateNestedManyWithoutTenantInput
     discounts?: DiscountUncheckedCreateNestedManyWithoutTenantInput
+    notifications?: NotificationUncheckedCreateNestedManyWithoutTenantInput
     deviceTokens?: DeviceTokenUncheckedCreateNestedManyWithoutTenantInput
     kitchenQueues?: KitchenQueueUncheckedCreateNestedManyWithoutTenantInput
     sessionLogs?: SessionLogUncheckedCreateNestedManyWithoutTenantInput
@@ -53671,6 +53923,7 @@ export namespace Prisma {
     payments?: PaymentUpdateManyWithoutTenantNestedInput
     invoices?: InvoiceUpdateManyWithoutTenantNestedInput
     discounts?: DiscountUpdateManyWithoutTenantNestedInput
+    notifications?: NotificationUpdateManyWithoutTenantNestedInput
     deviceTokens?: DeviceTokenUpdateManyWithoutTenantNestedInput
     kitchenQueues?: KitchenQueueUpdateManyWithoutTenantNestedInput
     sessionLogs?: SessionLogUpdateManyWithoutTenantNestedInput
@@ -53711,6 +53964,7 @@ export namespace Prisma {
     payments?: PaymentUncheckedUpdateManyWithoutTenantNestedInput
     invoices?: InvoiceUncheckedUpdateManyWithoutTenantNestedInput
     discounts?: DiscountUncheckedUpdateManyWithoutTenantNestedInput
+    notifications?: NotificationUncheckedUpdateManyWithoutTenantNestedInput
     deviceTokens?: DeviceTokenUncheckedUpdateManyWithoutTenantNestedInput
     kitchenQueues?: KitchenQueueUncheckedUpdateManyWithoutTenantNestedInput
     sessionLogs?: SessionLogUncheckedUpdateManyWithoutTenantNestedInput
@@ -53804,6 +54058,7 @@ export namespace Prisma {
     payments?: PaymentCreateNestedManyWithoutTenantInput
     invoices?: InvoiceCreateNestedManyWithoutTenantInput
     discounts?: DiscountCreateNestedManyWithoutTenantInput
+    notifications?: NotificationCreateNestedManyWithoutTenantInput
     deviceTokens?: DeviceTokenCreateNestedManyWithoutTenantInput
     kitchenQueues?: KitchenQueueCreateNestedManyWithoutTenantInput
     sessionLogs?: SessionLogCreateNestedManyWithoutTenantInput
@@ -53844,6 +54099,7 @@ export namespace Prisma {
     payments?: PaymentUncheckedCreateNestedManyWithoutTenantInput
     invoices?: InvoiceUncheckedCreateNestedManyWithoutTenantInput
     discounts?: DiscountUncheckedCreateNestedManyWithoutTenantInput
+    notifications?: NotificationUncheckedCreateNestedManyWithoutTenantInput
     deviceTokens?: DeviceTokenUncheckedCreateNestedManyWithoutTenantInput
     kitchenQueues?: KitchenQueueUncheckedCreateNestedManyWithoutTenantInput
     sessionLogs?: SessionLogUncheckedCreateNestedManyWithoutTenantInput
@@ -54063,6 +54319,7 @@ export namespace Prisma {
     payments?: PaymentUpdateManyWithoutTenantNestedInput
     invoices?: InvoiceUpdateManyWithoutTenantNestedInput
     discounts?: DiscountUpdateManyWithoutTenantNestedInput
+    notifications?: NotificationUpdateManyWithoutTenantNestedInput
     deviceTokens?: DeviceTokenUpdateManyWithoutTenantNestedInput
     kitchenQueues?: KitchenQueueUpdateManyWithoutTenantNestedInput
     sessionLogs?: SessionLogUpdateManyWithoutTenantNestedInput
@@ -54103,6 +54360,7 @@ export namespace Prisma {
     payments?: PaymentUncheckedUpdateManyWithoutTenantNestedInput
     invoices?: InvoiceUncheckedUpdateManyWithoutTenantNestedInput
     discounts?: DiscountUncheckedUpdateManyWithoutTenantNestedInput
+    notifications?: NotificationUncheckedUpdateManyWithoutTenantNestedInput
     deviceTokens?: DeviceTokenUncheckedUpdateManyWithoutTenantNestedInput
     kitchenQueues?: KitchenQueueUncheckedUpdateManyWithoutTenantNestedInput
     sessionLogs?: SessionLogUncheckedUpdateManyWithoutTenantNestedInput
@@ -54242,6 +54500,7 @@ export namespace Prisma {
     payments?: PaymentCreateNestedManyWithoutTenantInput
     invoices?: InvoiceCreateNestedManyWithoutTenantInput
     discounts?: DiscountCreateNestedManyWithoutTenantInput
+    notifications?: NotificationCreateNestedManyWithoutTenantInput
     deviceTokens?: DeviceTokenCreateNestedManyWithoutTenantInput
     kitchenQueues?: KitchenQueueCreateNestedManyWithoutTenantInput
     sessionLogs?: SessionLogCreateNestedManyWithoutTenantInput
@@ -54282,6 +54541,7 @@ export namespace Prisma {
     payments?: PaymentUncheckedCreateNestedManyWithoutTenantInput
     invoices?: InvoiceUncheckedCreateNestedManyWithoutTenantInput
     discounts?: DiscountUncheckedCreateNestedManyWithoutTenantInput
+    notifications?: NotificationUncheckedCreateNestedManyWithoutTenantInput
     deviceTokens?: DeviceTokenUncheckedCreateNestedManyWithoutTenantInput
     kitchenQueues?: KitchenQueueUncheckedCreateNestedManyWithoutTenantInput
     sessionLogs?: SessionLogUncheckedCreateNestedManyWithoutTenantInput
@@ -54419,6 +54679,7 @@ export namespace Prisma {
     payments?: PaymentUpdateManyWithoutTenantNestedInput
     invoices?: InvoiceUpdateManyWithoutTenantNestedInput
     discounts?: DiscountUpdateManyWithoutTenantNestedInput
+    notifications?: NotificationUpdateManyWithoutTenantNestedInput
     deviceTokens?: DeviceTokenUpdateManyWithoutTenantNestedInput
     kitchenQueues?: KitchenQueueUpdateManyWithoutTenantNestedInput
     sessionLogs?: SessionLogUpdateManyWithoutTenantNestedInput
@@ -54459,6 +54720,7 @@ export namespace Prisma {
     payments?: PaymentUncheckedUpdateManyWithoutTenantNestedInput
     invoices?: InvoiceUncheckedUpdateManyWithoutTenantNestedInput
     discounts?: DiscountUncheckedUpdateManyWithoutTenantNestedInput
+    notifications?: NotificationUncheckedUpdateManyWithoutTenantNestedInput
     deviceTokens?: DeviceTokenUncheckedUpdateManyWithoutTenantNestedInput
     kitchenQueues?: KitchenQueueUncheckedUpdateManyWithoutTenantNestedInput
     sessionLogs?: SessionLogUncheckedUpdateManyWithoutTenantNestedInput
@@ -54564,6 +54826,7 @@ export namespace Prisma {
     payments?: PaymentCreateNestedManyWithoutTenantInput
     invoices?: InvoiceCreateNestedManyWithoutTenantInput
     discounts?: DiscountCreateNestedManyWithoutTenantInput
+    notifications?: NotificationCreateNestedManyWithoutTenantInput
     deviceTokens?: DeviceTokenCreateNestedManyWithoutTenantInput
     kitchenQueues?: KitchenQueueCreateNestedManyWithoutTenantInput
     sessionLogs?: SessionLogCreateNestedManyWithoutTenantInput
@@ -54604,6 +54867,7 @@ export namespace Prisma {
     payments?: PaymentUncheckedCreateNestedManyWithoutTenantInput
     invoices?: InvoiceUncheckedCreateNestedManyWithoutTenantInput
     discounts?: DiscountUncheckedCreateNestedManyWithoutTenantInput
+    notifications?: NotificationUncheckedCreateNestedManyWithoutTenantInput
     deviceTokens?: DeviceTokenUncheckedCreateNestedManyWithoutTenantInput
     kitchenQueues?: KitchenQueueUncheckedCreateNestedManyWithoutTenantInput
     sessionLogs?: SessionLogUncheckedCreateNestedManyWithoutTenantInput
@@ -54741,6 +55005,7 @@ export namespace Prisma {
     payments?: PaymentUpdateManyWithoutTenantNestedInput
     invoices?: InvoiceUpdateManyWithoutTenantNestedInput
     discounts?: DiscountUpdateManyWithoutTenantNestedInput
+    notifications?: NotificationUpdateManyWithoutTenantNestedInput
     deviceTokens?: DeviceTokenUpdateManyWithoutTenantNestedInput
     kitchenQueues?: KitchenQueueUpdateManyWithoutTenantNestedInput
     sessionLogs?: SessionLogUpdateManyWithoutTenantNestedInput
@@ -54781,6 +55046,7 @@ export namespace Prisma {
     payments?: PaymentUncheckedUpdateManyWithoutTenantNestedInput
     invoices?: InvoiceUncheckedUpdateManyWithoutTenantNestedInput
     discounts?: DiscountUncheckedUpdateManyWithoutTenantNestedInput
+    notifications?: NotificationUncheckedUpdateManyWithoutTenantNestedInput
     deviceTokens?: DeviceTokenUncheckedUpdateManyWithoutTenantNestedInput
     kitchenQueues?: KitchenQueueUncheckedUpdateManyWithoutTenantNestedInput
     sessionLogs?: SessionLogUncheckedUpdateManyWithoutTenantNestedInput
@@ -54886,6 +55152,7 @@ export namespace Prisma {
     payments?: PaymentCreateNestedManyWithoutTenantInput
     invoices?: InvoiceCreateNestedManyWithoutTenantInput
     discounts?: DiscountCreateNestedManyWithoutTenantInput
+    notifications?: NotificationCreateNestedManyWithoutTenantInput
     deviceTokens?: DeviceTokenCreateNestedManyWithoutTenantInput
     kitchenQueues?: KitchenQueueCreateNestedManyWithoutTenantInput
     sessionLogs?: SessionLogCreateNestedManyWithoutTenantInput
@@ -54926,6 +55193,7 @@ export namespace Prisma {
     payments?: PaymentUncheckedCreateNestedManyWithoutTenantInput
     invoices?: InvoiceUncheckedCreateNestedManyWithoutTenantInput
     discounts?: DiscountUncheckedCreateNestedManyWithoutTenantInput
+    notifications?: NotificationUncheckedCreateNestedManyWithoutTenantInput
     deviceTokens?: DeviceTokenUncheckedCreateNestedManyWithoutTenantInput
     kitchenQueues?: KitchenQueueUncheckedCreateNestedManyWithoutTenantInput
     sessionLogs?: SessionLogUncheckedCreateNestedManyWithoutTenantInput
@@ -55057,6 +55325,7 @@ export namespace Prisma {
     payments?: PaymentUpdateManyWithoutTenantNestedInput
     invoices?: InvoiceUpdateManyWithoutTenantNestedInput
     discounts?: DiscountUpdateManyWithoutTenantNestedInput
+    notifications?: NotificationUpdateManyWithoutTenantNestedInput
     deviceTokens?: DeviceTokenUpdateManyWithoutTenantNestedInput
     kitchenQueues?: KitchenQueueUpdateManyWithoutTenantNestedInput
     sessionLogs?: SessionLogUpdateManyWithoutTenantNestedInput
@@ -55097,6 +55366,7 @@ export namespace Prisma {
     payments?: PaymentUncheckedUpdateManyWithoutTenantNestedInput
     invoices?: InvoiceUncheckedUpdateManyWithoutTenantNestedInput
     discounts?: DiscountUncheckedUpdateManyWithoutTenantNestedInput
+    notifications?: NotificationUncheckedUpdateManyWithoutTenantNestedInput
     deviceTokens?: DeviceTokenUncheckedUpdateManyWithoutTenantNestedInput
     kitchenQueues?: KitchenQueueUncheckedUpdateManyWithoutTenantNestedInput
     sessionLogs?: SessionLogUncheckedUpdateManyWithoutTenantNestedInput
@@ -55202,6 +55472,7 @@ export namespace Prisma {
     payments?: PaymentCreateNestedManyWithoutTenantInput
     invoices?: InvoiceCreateNestedManyWithoutTenantInput
     discounts?: DiscountCreateNestedManyWithoutTenantInput
+    notifications?: NotificationCreateNestedManyWithoutTenantInput
     deviceTokens?: DeviceTokenCreateNestedManyWithoutTenantInput
     kitchenQueues?: KitchenQueueCreateNestedManyWithoutTenantInput
     sessionLogs?: SessionLogCreateNestedManyWithoutTenantInput
@@ -55242,6 +55513,7 @@ export namespace Prisma {
     payments?: PaymentUncheckedCreateNestedManyWithoutTenantInput
     invoices?: InvoiceUncheckedCreateNestedManyWithoutTenantInput
     discounts?: DiscountUncheckedCreateNestedManyWithoutTenantInput
+    notifications?: NotificationUncheckedCreateNestedManyWithoutTenantInput
     deviceTokens?: DeviceTokenUncheckedCreateNestedManyWithoutTenantInput
     kitchenQueues?: KitchenQueueUncheckedCreateNestedManyWithoutTenantInput
     sessionLogs?: SessionLogUncheckedCreateNestedManyWithoutTenantInput
@@ -55349,6 +55621,7 @@ export namespace Prisma {
     payments?: PaymentUpdateManyWithoutTenantNestedInput
     invoices?: InvoiceUpdateManyWithoutTenantNestedInput
     discounts?: DiscountUpdateManyWithoutTenantNestedInput
+    notifications?: NotificationUpdateManyWithoutTenantNestedInput
     deviceTokens?: DeviceTokenUpdateManyWithoutTenantNestedInput
     kitchenQueues?: KitchenQueueUpdateManyWithoutTenantNestedInput
     sessionLogs?: SessionLogUpdateManyWithoutTenantNestedInput
@@ -55389,6 +55662,7 @@ export namespace Prisma {
     payments?: PaymentUncheckedUpdateManyWithoutTenantNestedInput
     invoices?: InvoiceUncheckedUpdateManyWithoutTenantNestedInput
     discounts?: DiscountUncheckedUpdateManyWithoutTenantNestedInput
+    notifications?: NotificationUncheckedUpdateManyWithoutTenantNestedInput
     deviceTokens?: DeviceTokenUncheckedUpdateManyWithoutTenantNestedInput
     kitchenQueues?: KitchenQueueUncheckedUpdateManyWithoutTenantNestedInput
     sessionLogs?: SessionLogUncheckedUpdateManyWithoutTenantNestedInput
@@ -55478,6 +55752,7 @@ export namespace Prisma {
     customers?: CustomerCreateNestedManyWithoutTenantInput
     payments?: PaymentCreateNestedManyWithoutTenantInput
     invoices?: InvoiceCreateNestedManyWithoutTenantInput
+    notifications?: NotificationCreateNestedManyWithoutTenantInput
     deviceTokens?: DeviceTokenCreateNestedManyWithoutTenantInput
     kitchenQueues?: KitchenQueueCreateNestedManyWithoutTenantInput
     sessionLogs?: SessionLogCreateNestedManyWithoutTenantInput
@@ -55518,6 +55793,7 @@ export namespace Prisma {
     customers?: CustomerUncheckedCreateNestedManyWithoutTenantInput
     payments?: PaymentUncheckedCreateNestedManyWithoutTenantInput
     invoices?: InvoiceUncheckedCreateNestedManyWithoutTenantInput
+    notifications?: NotificationUncheckedCreateNestedManyWithoutTenantInput
     deviceTokens?: DeviceTokenUncheckedCreateNestedManyWithoutTenantInput
     kitchenQueues?: KitchenQueueUncheckedCreateNestedManyWithoutTenantInput
     sessionLogs?: SessionLogUncheckedCreateNestedManyWithoutTenantInput
@@ -55634,6 +55910,7 @@ export namespace Prisma {
     customers?: CustomerUpdateManyWithoutTenantNestedInput
     payments?: PaymentUpdateManyWithoutTenantNestedInput
     invoices?: InvoiceUpdateManyWithoutTenantNestedInput
+    notifications?: NotificationUpdateManyWithoutTenantNestedInput
     deviceTokens?: DeviceTokenUpdateManyWithoutTenantNestedInput
     kitchenQueues?: KitchenQueueUpdateManyWithoutTenantNestedInput
     sessionLogs?: SessionLogUpdateManyWithoutTenantNestedInput
@@ -55674,6 +55951,7 @@ export namespace Prisma {
     customers?: CustomerUncheckedUpdateManyWithoutTenantNestedInput
     payments?: PaymentUncheckedUpdateManyWithoutTenantNestedInput
     invoices?: InvoiceUncheckedUpdateManyWithoutTenantNestedInput
+    notifications?: NotificationUncheckedUpdateManyWithoutTenantNestedInput
     deviceTokens?: DeviceTokenUncheckedUpdateManyWithoutTenantNestedInput
     kitchenQueues?: KitchenQueueUncheckedUpdateManyWithoutTenantNestedInput
     sessionLogs?: SessionLogUncheckedUpdateManyWithoutTenantNestedInput
@@ -55730,6 +56008,7 @@ export namespace Prisma {
     payments?: PaymentCreateNestedManyWithoutTenantInput
     invoices?: InvoiceCreateNestedManyWithoutTenantInput
     discounts?: DiscountCreateNestedManyWithoutTenantInput
+    notifications?: NotificationCreateNestedManyWithoutTenantInput
     deviceTokens?: DeviceTokenCreateNestedManyWithoutTenantInput
     kitchenQueues?: KitchenQueueCreateNestedManyWithoutTenantInput
     sessionLogs?: SessionLogCreateNestedManyWithoutTenantInput
@@ -55770,6 +56049,7 @@ export namespace Prisma {
     payments?: PaymentUncheckedCreateNestedManyWithoutTenantInput
     invoices?: InvoiceUncheckedCreateNestedManyWithoutTenantInput
     discounts?: DiscountUncheckedCreateNestedManyWithoutTenantInput
+    notifications?: NotificationUncheckedCreateNestedManyWithoutTenantInput
     deviceTokens?: DeviceTokenUncheckedCreateNestedManyWithoutTenantInput
     kitchenQueues?: KitchenQueueUncheckedCreateNestedManyWithoutTenantInput
     sessionLogs?: SessionLogUncheckedCreateNestedManyWithoutTenantInput
@@ -56089,6 +56369,7 @@ export namespace Prisma {
     payments?: PaymentUpdateManyWithoutTenantNestedInput
     invoices?: InvoiceUpdateManyWithoutTenantNestedInput
     discounts?: DiscountUpdateManyWithoutTenantNestedInput
+    notifications?: NotificationUpdateManyWithoutTenantNestedInput
     deviceTokens?: DeviceTokenUpdateManyWithoutTenantNestedInput
     kitchenQueues?: KitchenQueueUpdateManyWithoutTenantNestedInput
     sessionLogs?: SessionLogUpdateManyWithoutTenantNestedInput
@@ -56129,6 +56410,7 @@ export namespace Prisma {
     payments?: PaymentUncheckedUpdateManyWithoutTenantNestedInput
     invoices?: InvoiceUncheckedUpdateManyWithoutTenantNestedInput
     discounts?: DiscountUncheckedUpdateManyWithoutTenantNestedInput
+    notifications?: NotificationUncheckedUpdateManyWithoutTenantNestedInput
     deviceTokens?: DeviceTokenUncheckedUpdateManyWithoutTenantNestedInput
     kitchenQueues?: KitchenQueueUncheckedUpdateManyWithoutTenantNestedInput
     sessionLogs?: SessionLogUncheckedUpdateManyWithoutTenantNestedInput
@@ -56410,6 +56692,7 @@ export namespace Prisma {
     payments?: PaymentCreateNestedManyWithoutTenantInput
     invoices?: InvoiceCreateNestedManyWithoutTenantInput
     discounts?: DiscountCreateNestedManyWithoutTenantInput
+    notifications?: NotificationCreateNestedManyWithoutTenantInput
     deviceTokens?: DeviceTokenCreateNestedManyWithoutTenantInput
     kitchenQueues?: KitchenQueueCreateNestedManyWithoutTenantInput
     sessionLogs?: SessionLogCreateNestedManyWithoutTenantInput
@@ -56450,6 +56733,7 @@ export namespace Prisma {
     payments?: PaymentUncheckedCreateNestedManyWithoutTenantInput
     invoices?: InvoiceUncheckedCreateNestedManyWithoutTenantInput
     discounts?: DiscountUncheckedCreateNestedManyWithoutTenantInput
+    notifications?: NotificationUncheckedCreateNestedManyWithoutTenantInput
     deviceTokens?: DeviceTokenUncheckedCreateNestedManyWithoutTenantInput
     kitchenQueues?: KitchenQueueUncheckedCreateNestedManyWithoutTenantInput
     sessionLogs?: SessionLogUncheckedCreateNestedManyWithoutTenantInput
@@ -56682,6 +56966,7 @@ export namespace Prisma {
     payments?: PaymentUpdateManyWithoutTenantNestedInput
     invoices?: InvoiceUpdateManyWithoutTenantNestedInput
     discounts?: DiscountUpdateManyWithoutTenantNestedInput
+    notifications?: NotificationUpdateManyWithoutTenantNestedInput
     deviceTokens?: DeviceTokenUpdateManyWithoutTenantNestedInput
     kitchenQueues?: KitchenQueueUpdateManyWithoutTenantNestedInput
     sessionLogs?: SessionLogUpdateManyWithoutTenantNestedInput
@@ -56722,6 +57007,7 @@ export namespace Prisma {
     payments?: PaymentUncheckedUpdateManyWithoutTenantNestedInput
     invoices?: InvoiceUncheckedUpdateManyWithoutTenantNestedInput
     discounts?: DiscountUncheckedUpdateManyWithoutTenantNestedInput
+    notifications?: NotificationUncheckedUpdateManyWithoutTenantNestedInput
     deviceTokens?: DeviceTokenUncheckedUpdateManyWithoutTenantNestedInput
     kitchenQueues?: KitchenQueueUncheckedUpdateManyWithoutTenantNestedInput
     sessionLogs?: SessionLogUncheckedUpdateManyWithoutTenantNestedInput
@@ -56954,6 +57240,7 @@ export namespace Prisma {
     payments?: PaymentCreateNestedManyWithoutTenantInput
     invoices?: InvoiceCreateNestedManyWithoutTenantInput
     discounts?: DiscountCreateNestedManyWithoutTenantInput
+    notifications?: NotificationCreateNestedManyWithoutTenantInput
     deviceTokens?: DeviceTokenCreateNestedManyWithoutTenantInput
     kitchenQueues?: KitchenQueueCreateNestedManyWithoutTenantInput
     sessionLogs?: SessionLogCreateNestedManyWithoutTenantInput
@@ -56994,6 +57281,7 @@ export namespace Prisma {
     payments?: PaymentUncheckedCreateNestedManyWithoutTenantInput
     invoices?: InvoiceUncheckedCreateNestedManyWithoutTenantInput
     discounts?: DiscountUncheckedCreateNestedManyWithoutTenantInput
+    notifications?: NotificationUncheckedCreateNestedManyWithoutTenantInput
     deviceTokens?: DeviceTokenUncheckedCreateNestedManyWithoutTenantInput
     kitchenQueues?: KitchenQueueUncheckedCreateNestedManyWithoutTenantInput
     sessionLogs?: SessionLogUncheckedCreateNestedManyWithoutTenantInput
@@ -57110,6 +57398,7 @@ export namespace Prisma {
     payments?: PaymentUpdateManyWithoutTenantNestedInput
     invoices?: InvoiceUpdateManyWithoutTenantNestedInput
     discounts?: DiscountUpdateManyWithoutTenantNestedInput
+    notifications?: NotificationUpdateManyWithoutTenantNestedInput
     deviceTokens?: DeviceTokenUpdateManyWithoutTenantNestedInput
     kitchenQueues?: KitchenQueueUpdateManyWithoutTenantNestedInput
     sessionLogs?: SessionLogUpdateManyWithoutTenantNestedInput
@@ -57150,6 +57439,7 @@ export namespace Prisma {
     payments?: PaymentUncheckedUpdateManyWithoutTenantNestedInput
     invoices?: InvoiceUncheckedUpdateManyWithoutTenantNestedInput
     discounts?: DiscountUncheckedUpdateManyWithoutTenantNestedInput
+    notifications?: NotificationUncheckedUpdateManyWithoutTenantNestedInput
     deviceTokens?: DeviceTokenUncheckedUpdateManyWithoutTenantNestedInput
     kitchenQueues?: KitchenQueueUncheckedUpdateManyWithoutTenantNestedInput
     sessionLogs?: SessionLogUncheckedUpdateManyWithoutTenantNestedInput
@@ -57262,6 +57552,7 @@ export namespace Prisma {
     payments?: PaymentCreateNestedManyWithoutTenantInput
     invoices?: InvoiceCreateNestedManyWithoutTenantInput
     discounts?: DiscountCreateNestedManyWithoutTenantInput
+    notifications?: NotificationCreateNestedManyWithoutTenantInput
     deviceTokens?: DeviceTokenCreateNestedManyWithoutTenantInput
     kitchenQueues?: KitchenQueueCreateNestedManyWithoutTenantInput
     sessionLogs?: SessionLogCreateNestedManyWithoutTenantInput
@@ -57302,6 +57593,7 @@ export namespace Prisma {
     payments?: PaymentUncheckedCreateNestedManyWithoutTenantInput
     invoices?: InvoiceUncheckedCreateNestedManyWithoutTenantInput
     discounts?: DiscountUncheckedCreateNestedManyWithoutTenantInput
+    notifications?: NotificationUncheckedCreateNestedManyWithoutTenantInput
     deviceTokens?: DeviceTokenUncheckedCreateNestedManyWithoutTenantInput
     kitchenQueues?: KitchenQueueUncheckedCreateNestedManyWithoutTenantInput
     sessionLogs?: SessionLogUncheckedCreateNestedManyWithoutTenantInput
@@ -57418,6 +57710,7 @@ export namespace Prisma {
     payments?: PaymentUpdateManyWithoutTenantNestedInput
     invoices?: InvoiceUpdateManyWithoutTenantNestedInput
     discounts?: DiscountUpdateManyWithoutTenantNestedInput
+    notifications?: NotificationUpdateManyWithoutTenantNestedInput
     deviceTokens?: DeviceTokenUpdateManyWithoutTenantNestedInput
     kitchenQueues?: KitchenQueueUpdateManyWithoutTenantNestedInput
     sessionLogs?: SessionLogUpdateManyWithoutTenantNestedInput
@@ -57458,6 +57751,7 @@ export namespace Prisma {
     payments?: PaymentUncheckedUpdateManyWithoutTenantNestedInput
     invoices?: InvoiceUncheckedUpdateManyWithoutTenantNestedInput
     discounts?: DiscountUncheckedUpdateManyWithoutTenantNestedInput
+    notifications?: NotificationUncheckedUpdateManyWithoutTenantNestedInput
     deviceTokens?: DeviceTokenUncheckedUpdateManyWithoutTenantNestedInput
     kitchenQueues?: KitchenQueueUncheckedUpdateManyWithoutTenantNestedInput
     sessionLogs?: SessionLogUncheckedUpdateManyWithoutTenantNestedInput
@@ -57514,6 +57808,7 @@ export namespace Prisma {
     customers?: CustomerCreateNestedManyWithoutTenantInput
     invoices?: InvoiceCreateNestedManyWithoutTenantInput
     discounts?: DiscountCreateNestedManyWithoutTenantInput
+    notifications?: NotificationCreateNestedManyWithoutTenantInput
     deviceTokens?: DeviceTokenCreateNestedManyWithoutTenantInput
     kitchenQueues?: KitchenQueueCreateNestedManyWithoutTenantInput
     sessionLogs?: SessionLogCreateNestedManyWithoutTenantInput
@@ -57554,6 +57849,7 @@ export namespace Prisma {
     customers?: CustomerUncheckedCreateNestedManyWithoutTenantInput
     invoices?: InvoiceUncheckedCreateNestedManyWithoutTenantInput
     discounts?: DiscountUncheckedCreateNestedManyWithoutTenantInput
+    notifications?: NotificationUncheckedCreateNestedManyWithoutTenantInput
     deviceTokens?: DeviceTokenUncheckedCreateNestedManyWithoutTenantInput
     kitchenQueues?: KitchenQueueUncheckedCreateNestedManyWithoutTenantInput
     sessionLogs?: SessionLogUncheckedCreateNestedManyWithoutTenantInput
@@ -57665,6 +57961,7 @@ export namespace Prisma {
     customers?: CustomerUpdateManyWithoutTenantNestedInput
     invoices?: InvoiceUpdateManyWithoutTenantNestedInput
     discounts?: DiscountUpdateManyWithoutTenantNestedInput
+    notifications?: NotificationUpdateManyWithoutTenantNestedInput
     deviceTokens?: DeviceTokenUpdateManyWithoutTenantNestedInput
     kitchenQueues?: KitchenQueueUpdateManyWithoutTenantNestedInput
     sessionLogs?: SessionLogUpdateManyWithoutTenantNestedInput
@@ -57705,6 +58002,7 @@ export namespace Prisma {
     customers?: CustomerUncheckedUpdateManyWithoutTenantNestedInput
     invoices?: InvoiceUncheckedUpdateManyWithoutTenantNestedInput
     discounts?: DiscountUncheckedUpdateManyWithoutTenantNestedInput
+    notifications?: NotificationUncheckedUpdateManyWithoutTenantNestedInput
     deviceTokens?: DeviceTokenUncheckedUpdateManyWithoutTenantNestedInput
     kitchenQueues?: KitchenQueueUncheckedUpdateManyWithoutTenantNestedInput
     sessionLogs?: SessionLogUncheckedUpdateManyWithoutTenantNestedInput
@@ -57806,6 +58104,7 @@ export namespace Prisma {
     customers?: CustomerCreateNestedManyWithoutTenantInput
     payments?: PaymentCreateNestedManyWithoutTenantInput
     discounts?: DiscountCreateNestedManyWithoutTenantInput
+    notifications?: NotificationCreateNestedManyWithoutTenantInput
     deviceTokens?: DeviceTokenCreateNestedManyWithoutTenantInput
     kitchenQueues?: KitchenQueueCreateNestedManyWithoutTenantInput
     sessionLogs?: SessionLogCreateNestedManyWithoutTenantInput
@@ -57846,6 +58145,7 @@ export namespace Prisma {
     customers?: CustomerUncheckedCreateNestedManyWithoutTenantInput
     payments?: PaymentUncheckedCreateNestedManyWithoutTenantInput
     discounts?: DiscountUncheckedCreateNestedManyWithoutTenantInput
+    notifications?: NotificationUncheckedCreateNestedManyWithoutTenantInput
     deviceTokens?: DeviceTokenUncheckedCreateNestedManyWithoutTenantInput
     kitchenQueues?: KitchenQueueUncheckedCreateNestedManyWithoutTenantInput
     sessionLogs?: SessionLogUncheckedCreateNestedManyWithoutTenantInput
@@ -57957,6 +58257,7 @@ export namespace Prisma {
     customers?: CustomerUpdateManyWithoutTenantNestedInput
     payments?: PaymentUpdateManyWithoutTenantNestedInput
     discounts?: DiscountUpdateManyWithoutTenantNestedInput
+    notifications?: NotificationUpdateManyWithoutTenantNestedInput
     deviceTokens?: DeviceTokenUpdateManyWithoutTenantNestedInput
     kitchenQueues?: KitchenQueueUpdateManyWithoutTenantNestedInput
     sessionLogs?: SessionLogUpdateManyWithoutTenantNestedInput
@@ -57997,6 +58298,7 @@ export namespace Prisma {
     customers?: CustomerUncheckedUpdateManyWithoutTenantNestedInput
     payments?: PaymentUncheckedUpdateManyWithoutTenantNestedInput
     discounts?: DiscountUncheckedUpdateManyWithoutTenantNestedInput
+    notifications?: NotificationUncheckedUpdateManyWithoutTenantNestedInput
     deviceTokens?: DeviceTokenUncheckedUpdateManyWithoutTenantNestedInput
     kitchenQueues?: KitchenQueueUncheckedUpdateManyWithoutTenantNestedInput
     sessionLogs?: SessionLogUncheckedUpdateManyWithoutTenantNestedInput
@@ -58099,6 +58401,7 @@ export namespace Prisma {
     payments?: PaymentCreateNestedManyWithoutTenantInput
     invoices?: InvoiceCreateNestedManyWithoutTenantInput
     discounts?: DiscountCreateNestedManyWithoutTenantInput
+    notifications?: NotificationCreateNestedManyWithoutTenantInput
     kitchenQueues?: KitchenQueueCreateNestedManyWithoutTenantInput
     sessionLogs?: SessionLogCreateNestedManyWithoutTenantInput
     webhooks?: WebhookCreateNestedManyWithoutTenantInput
@@ -58139,6 +58442,7 @@ export namespace Prisma {
     payments?: PaymentUncheckedCreateNestedManyWithoutTenantInput
     invoices?: InvoiceUncheckedCreateNestedManyWithoutTenantInput
     discounts?: DiscountUncheckedCreateNestedManyWithoutTenantInput
+    notifications?: NotificationUncheckedCreateNestedManyWithoutTenantInput
     kitchenQueues?: KitchenQueueUncheckedCreateNestedManyWithoutTenantInput
     sessionLogs?: SessionLogUncheckedCreateNestedManyWithoutTenantInput
     webhooks?: WebhookUncheckedCreateNestedManyWithoutTenantInput
@@ -58238,6 +58542,7 @@ export namespace Prisma {
     payments?: PaymentUpdateManyWithoutTenantNestedInput
     invoices?: InvoiceUpdateManyWithoutTenantNestedInput
     discounts?: DiscountUpdateManyWithoutTenantNestedInput
+    notifications?: NotificationUpdateManyWithoutTenantNestedInput
     kitchenQueues?: KitchenQueueUpdateManyWithoutTenantNestedInput
     sessionLogs?: SessionLogUpdateManyWithoutTenantNestedInput
     webhooks?: WebhookUpdateManyWithoutTenantNestedInput
@@ -58278,6 +58583,7 @@ export namespace Prisma {
     payments?: PaymentUncheckedUpdateManyWithoutTenantNestedInput
     invoices?: InvoiceUncheckedUpdateManyWithoutTenantNestedInput
     discounts?: DiscountUncheckedUpdateManyWithoutTenantNestedInput
+    notifications?: NotificationUncheckedUpdateManyWithoutTenantNestedInput
     kitchenQueues?: KitchenQueueUncheckedUpdateManyWithoutTenantNestedInput
     sessionLogs?: SessionLogUncheckedUpdateManyWithoutTenantNestedInput
     webhooks?: WebhookUncheckedUpdateManyWithoutTenantNestedInput
@@ -58367,6 +58673,7 @@ export namespace Prisma {
     payments?: PaymentCreateNestedManyWithoutTenantInput
     invoices?: InvoiceCreateNestedManyWithoutTenantInput
     discounts?: DiscountCreateNestedManyWithoutTenantInput
+    notifications?: NotificationCreateNestedManyWithoutTenantInput
     deviceTokens?: DeviceTokenCreateNestedManyWithoutTenantInput
     sessionLogs?: SessionLogCreateNestedManyWithoutTenantInput
     webhooks?: WebhookCreateNestedManyWithoutTenantInput
@@ -58407,6 +58714,7 @@ export namespace Prisma {
     payments?: PaymentUncheckedCreateNestedManyWithoutTenantInput
     invoices?: InvoiceUncheckedCreateNestedManyWithoutTenantInput
     discounts?: DiscountUncheckedCreateNestedManyWithoutTenantInput
+    notifications?: NotificationUncheckedCreateNestedManyWithoutTenantInput
     deviceTokens?: DeviceTokenUncheckedCreateNestedManyWithoutTenantInput
     sessionLogs?: SessionLogUncheckedCreateNestedManyWithoutTenantInput
     webhooks?: WebhookUncheckedCreateNestedManyWithoutTenantInput
@@ -58559,6 +58867,7 @@ export namespace Prisma {
     payments?: PaymentUpdateManyWithoutTenantNestedInput
     invoices?: InvoiceUpdateManyWithoutTenantNestedInput
     discounts?: DiscountUpdateManyWithoutTenantNestedInput
+    notifications?: NotificationUpdateManyWithoutTenantNestedInput
     deviceTokens?: DeviceTokenUpdateManyWithoutTenantNestedInput
     sessionLogs?: SessionLogUpdateManyWithoutTenantNestedInput
     webhooks?: WebhookUpdateManyWithoutTenantNestedInput
@@ -58599,6 +58908,7 @@ export namespace Prisma {
     payments?: PaymentUncheckedUpdateManyWithoutTenantNestedInput
     invoices?: InvoiceUncheckedUpdateManyWithoutTenantNestedInput
     discounts?: DiscountUncheckedUpdateManyWithoutTenantNestedInput
+    notifications?: NotificationUncheckedUpdateManyWithoutTenantNestedInput
     deviceTokens?: DeviceTokenUncheckedUpdateManyWithoutTenantNestedInput
     sessionLogs?: SessionLogUncheckedUpdateManyWithoutTenantNestedInput
     webhooks?: WebhookUncheckedUpdateManyWithoutTenantNestedInput
@@ -58747,6 +59057,7 @@ export namespace Prisma {
     payments?: PaymentCreateNestedManyWithoutTenantInput
     invoices?: InvoiceCreateNestedManyWithoutTenantInput
     discounts?: DiscountCreateNestedManyWithoutTenantInput
+    notifications?: NotificationCreateNestedManyWithoutTenantInput
     deviceTokens?: DeviceTokenCreateNestedManyWithoutTenantInput
     kitchenQueues?: KitchenQueueCreateNestedManyWithoutTenantInput
     webhooks?: WebhookCreateNestedManyWithoutTenantInput
@@ -58787,6 +59098,7 @@ export namespace Prisma {
     payments?: PaymentUncheckedCreateNestedManyWithoutTenantInput
     invoices?: InvoiceUncheckedCreateNestedManyWithoutTenantInput
     discounts?: DiscountUncheckedCreateNestedManyWithoutTenantInput
+    notifications?: NotificationUncheckedCreateNestedManyWithoutTenantInput
     deviceTokens?: DeviceTokenUncheckedCreateNestedManyWithoutTenantInput
     kitchenQueues?: KitchenQueueUncheckedCreateNestedManyWithoutTenantInput
     webhooks?: WebhookUncheckedCreateNestedManyWithoutTenantInput
@@ -58886,6 +59198,7 @@ export namespace Prisma {
     payments?: PaymentUpdateManyWithoutTenantNestedInput
     invoices?: InvoiceUpdateManyWithoutTenantNestedInput
     discounts?: DiscountUpdateManyWithoutTenantNestedInput
+    notifications?: NotificationUpdateManyWithoutTenantNestedInput
     deviceTokens?: DeviceTokenUpdateManyWithoutTenantNestedInput
     kitchenQueues?: KitchenQueueUpdateManyWithoutTenantNestedInput
     webhooks?: WebhookUpdateManyWithoutTenantNestedInput
@@ -58926,6 +59239,7 @@ export namespace Prisma {
     payments?: PaymentUncheckedUpdateManyWithoutTenantNestedInput
     invoices?: InvoiceUncheckedUpdateManyWithoutTenantNestedInput
     discounts?: DiscountUncheckedUpdateManyWithoutTenantNestedInput
+    notifications?: NotificationUncheckedUpdateManyWithoutTenantNestedInput
     deviceTokens?: DeviceTokenUncheckedUpdateManyWithoutTenantNestedInput
     kitchenQueues?: KitchenQueueUncheckedUpdateManyWithoutTenantNestedInput
     webhooks?: WebhookUncheckedUpdateManyWithoutTenantNestedInput
@@ -58981,6 +59295,186 @@ export namespace Prisma {
     deviceTokens?: DeviceTokenUncheckedUpdateManyWithoutUserNestedInput
   }
 
+  export type TenantCreateWithoutNotificationsInput = {
+    id?: string
+    name: string
+    subdomain: string
+    customDomain?: string | null
+    status?: $Enums.TenantStatus
+    logoUrl?: string | null
+    bannerUrl?: string | null
+    primaryColor?: string
+    secondaryColor?: string
+    branding?: NullableJsonNullValueInput | InputJsonValue
+    stripeCustomerId?: string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    deletedAt?: Date | string | null
+    subscriptions?: SubscriptionCreateNestedOneWithoutTenantInput
+    users?: UserCreateNestedManyWithoutTenantInput
+    roles?: RoleCreateNestedManyWithoutTenantInput
+    restaurants?: RestaurantCreateNestedManyWithoutTenantInput
+    branches?: BranchCreateNestedManyWithoutTenantInput
+    tables?: TableCreateNestedManyWithoutTenantInput
+    categories?: CategoryCreateNestedManyWithoutTenantInput
+    products?: ProductCreateNestedManyWithoutTenantInput
+    productSizes?: ProductSizeCreateNestedManyWithoutTenantInput
+    productVariants?: ProductVariantCreateNestedManyWithoutTenantInput
+    productAddons?: ProductAddonCreateNestedManyWithoutTenantInput
+    addonItems?: AddonItemCreateNestedManyWithoutTenantInput
+    orders?: OrderCreateNestedManyWithoutTenantInput
+    orderItems?: OrderItemCreateNestedManyWithoutTenantInput
+    orderItemAddons?: OrderItemAddonCreateNestedManyWithoutTenantInput
+    customers?: CustomerCreateNestedManyWithoutTenantInput
+    payments?: PaymentCreateNestedManyWithoutTenantInput
+    invoices?: InvoiceCreateNestedManyWithoutTenantInput
+    discounts?: DiscountCreateNestedManyWithoutTenantInput
+    deviceTokens?: DeviceTokenCreateNestedManyWithoutTenantInput
+    kitchenQueues?: KitchenQueueCreateNestedManyWithoutTenantInput
+    sessionLogs?: SessionLogCreateNestedManyWithoutTenantInput
+    webhooks?: WebhookCreateNestedManyWithoutTenantInput
+    media?: MediaCreateNestedManyWithoutTenantInput
+  }
+
+  export type TenantUncheckedCreateWithoutNotificationsInput = {
+    id?: string
+    name: string
+    subdomain: string
+    customDomain?: string | null
+    status?: $Enums.TenantStatus
+    logoUrl?: string | null
+    bannerUrl?: string | null
+    primaryColor?: string
+    secondaryColor?: string
+    branding?: NullableJsonNullValueInput | InputJsonValue
+    stripeCustomerId?: string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    deletedAt?: Date | string | null
+    subscriptions?: SubscriptionUncheckedCreateNestedOneWithoutTenantInput
+    users?: UserUncheckedCreateNestedManyWithoutTenantInput
+    roles?: RoleUncheckedCreateNestedManyWithoutTenantInput
+    restaurants?: RestaurantUncheckedCreateNestedManyWithoutTenantInput
+    branches?: BranchUncheckedCreateNestedManyWithoutTenantInput
+    tables?: TableUncheckedCreateNestedManyWithoutTenantInput
+    categories?: CategoryUncheckedCreateNestedManyWithoutTenantInput
+    products?: ProductUncheckedCreateNestedManyWithoutTenantInput
+    productSizes?: ProductSizeUncheckedCreateNestedManyWithoutTenantInput
+    productVariants?: ProductVariantUncheckedCreateNestedManyWithoutTenantInput
+    productAddons?: ProductAddonUncheckedCreateNestedManyWithoutTenantInput
+    addonItems?: AddonItemUncheckedCreateNestedManyWithoutTenantInput
+    orders?: OrderUncheckedCreateNestedManyWithoutTenantInput
+    orderItems?: OrderItemUncheckedCreateNestedManyWithoutTenantInput
+    orderItemAddons?: OrderItemAddonUncheckedCreateNestedManyWithoutTenantInput
+    customers?: CustomerUncheckedCreateNestedManyWithoutTenantInput
+    payments?: PaymentUncheckedCreateNestedManyWithoutTenantInput
+    invoices?: InvoiceUncheckedCreateNestedManyWithoutTenantInput
+    discounts?: DiscountUncheckedCreateNestedManyWithoutTenantInput
+    deviceTokens?: DeviceTokenUncheckedCreateNestedManyWithoutTenantInput
+    kitchenQueues?: KitchenQueueUncheckedCreateNestedManyWithoutTenantInput
+    sessionLogs?: SessionLogUncheckedCreateNestedManyWithoutTenantInput
+    webhooks?: WebhookUncheckedCreateNestedManyWithoutTenantInput
+    media?: MediaUncheckedCreateNestedManyWithoutTenantInput
+  }
+
+  export type TenantCreateOrConnectWithoutNotificationsInput = {
+    where: TenantWhereUniqueInput
+    create: XOR<TenantCreateWithoutNotificationsInput, TenantUncheckedCreateWithoutNotificationsInput>
+  }
+
+  export type TenantUpsertWithoutNotificationsInput = {
+    update: XOR<TenantUpdateWithoutNotificationsInput, TenantUncheckedUpdateWithoutNotificationsInput>
+    create: XOR<TenantCreateWithoutNotificationsInput, TenantUncheckedCreateWithoutNotificationsInput>
+    where?: TenantWhereInput
+  }
+
+  export type TenantUpdateToOneWithWhereWithoutNotificationsInput = {
+    where?: TenantWhereInput
+    data: XOR<TenantUpdateWithoutNotificationsInput, TenantUncheckedUpdateWithoutNotificationsInput>
+  }
+
+  export type TenantUpdateWithoutNotificationsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    subdomain?: StringFieldUpdateOperationsInput | string
+    customDomain?: NullableStringFieldUpdateOperationsInput | string | null
+    status?: EnumTenantStatusFieldUpdateOperationsInput | $Enums.TenantStatus
+    logoUrl?: NullableStringFieldUpdateOperationsInput | string | null
+    bannerUrl?: NullableStringFieldUpdateOperationsInput | string | null
+    primaryColor?: StringFieldUpdateOperationsInput | string
+    secondaryColor?: StringFieldUpdateOperationsInput | string
+    branding?: NullableJsonNullValueInput | InputJsonValue
+    stripeCustomerId?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    subscriptions?: SubscriptionUpdateOneWithoutTenantNestedInput
+    users?: UserUpdateManyWithoutTenantNestedInput
+    roles?: RoleUpdateManyWithoutTenantNestedInput
+    restaurants?: RestaurantUpdateManyWithoutTenantNestedInput
+    branches?: BranchUpdateManyWithoutTenantNestedInput
+    tables?: TableUpdateManyWithoutTenantNestedInput
+    categories?: CategoryUpdateManyWithoutTenantNestedInput
+    products?: ProductUpdateManyWithoutTenantNestedInput
+    productSizes?: ProductSizeUpdateManyWithoutTenantNestedInput
+    productVariants?: ProductVariantUpdateManyWithoutTenantNestedInput
+    productAddons?: ProductAddonUpdateManyWithoutTenantNestedInput
+    addonItems?: AddonItemUpdateManyWithoutTenantNestedInput
+    orders?: OrderUpdateManyWithoutTenantNestedInput
+    orderItems?: OrderItemUpdateManyWithoutTenantNestedInput
+    orderItemAddons?: OrderItemAddonUpdateManyWithoutTenantNestedInput
+    customers?: CustomerUpdateManyWithoutTenantNestedInput
+    payments?: PaymentUpdateManyWithoutTenantNestedInput
+    invoices?: InvoiceUpdateManyWithoutTenantNestedInput
+    discounts?: DiscountUpdateManyWithoutTenantNestedInput
+    deviceTokens?: DeviceTokenUpdateManyWithoutTenantNestedInput
+    kitchenQueues?: KitchenQueueUpdateManyWithoutTenantNestedInput
+    sessionLogs?: SessionLogUpdateManyWithoutTenantNestedInput
+    webhooks?: WebhookUpdateManyWithoutTenantNestedInput
+    media?: MediaUpdateManyWithoutTenantNestedInput
+  }
+
+  export type TenantUncheckedUpdateWithoutNotificationsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    subdomain?: StringFieldUpdateOperationsInput | string
+    customDomain?: NullableStringFieldUpdateOperationsInput | string | null
+    status?: EnumTenantStatusFieldUpdateOperationsInput | $Enums.TenantStatus
+    logoUrl?: NullableStringFieldUpdateOperationsInput | string | null
+    bannerUrl?: NullableStringFieldUpdateOperationsInput | string | null
+    primaryColor?: StringFieldUpdateOperationsInput | string
+    secondaryColor?: StringFieldUpdateOperationsInput | string
+    branding?: NullableJsonNullValueInput | InputJsonValue
+    stripeCustomerId?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    subscriptions?: SubscriptionUncheckedUpdateOneWithoutTenantNestedInput
+    users?: UserUncheckedUpdateManyWithoutTenantNestedInput
+    roles?: RoleUncheckedUpdateManyWithoutTenantNestedInput
+    restaurants?: RestaurantUncheckedUpdateManyWithoutTenantNestedInput
+    branches?: BranchUncheckedUpdateManyWithoutTenantNestedInput
+    tables?: TableUncheckedUpdateManyWithoutTenantNestedInput
+    categories?: CategoryUncheckedUpdateManyWithoutTenantNestedInput
+    products?: ProductUncheckedUpdateManyWithoutTenantNestedInput
+    productSizes?: ProductSizeUncheckedUpdateManyWithoutTenantNestedInput
+    productVariants?: ProductVariantUncheckedUpdateManyWithoutTenantNestedInput
+    productAddons?: ProductAddonUncheckedUpdateManyWithoutTenantNestedInput
+    addonItems?: AddonItemUncheckedUpdateManyWithoutTenantNestedInput
+    orders?: OrderUncheckedUpdateManyWithoutTenantNestedInput
+    orderItems?: OrderItemUncheckedUpdateManyWithoutTenantNestedInput
+    orderItemAddons?: OrderItemAddonUncheckedUpdateManyWithoutTenantNestedInput
+    customers?: CustomerUncheckedUpdateManyWithoutTenantNestedInput
+    payments?: PaymentUncheckedUpdateManyWithoutTenantNestedInput
+    invoices?: InvoiceUncheckedUpdateManyWithoutTenantNestedInput
+    discounts?: DiscountUncheckedUpdateManyWithoutTenantNestedInput
+    deviceTokens?: DeviceTokenUncheckedUpdateManyWithoutTenantNestedInput
+    kitchenQueues?: KitchenQueueUncheckedUpdateManyWithoutTenantNestedInput
+    sessionLogs?: SessionLogUncheckedUpdateManyWithoutTenantNestedInput
+    webhooks?: WebhookUncheckedUpdateManyWithoutTenantNestedInput
+    media?: MediaUncheckedUpdateManyWithoutTenantNestedInput
+  }
+
   export type TenantCreateWithoutWebhooksInput = {
     id?: string
     name: string
@@ -59015,6 +59509,7 @@ export namespace Prisma {
     payments?: PaymentCreateNestedManyWithoutTenantInput
     invoices?: InvoiceCreateNestedManyWithoutTenantInput
     discounts?: DiscountCreateNestedManyWithoutTenantInput
+    notifications?: NotificationCreateNestedManyWithoutTenantInput
     deviceTokens?: DeviceTokenCreateNestedManyWithoutTenantInput
     kitchenQueues?: KitchenQueueCreateNestedManyWithoutTenantInput
     sessionLogs?: SessionLogCreateNestedManyWithoutTenantInput
@@ -59055,6 +59550,7 @@ export namespace Prisma {
     payments?: PaymentUncheckedCreateNestedManyWithoutTenantInput
     invoices?: InvoiceUncheckedCreateNestedManyWithoutTenantInput
     discounts?: DiscountUncheckedCreateNestedManyWithoutTenantInput
+    notifications?: NotificationUncheckedCreateNestedManyWithoutTenantInput
     deviceTokens?: DeviceTokenUncheckedCreateNestedManyWithoutTenantInput
     kitchenQueues?: KitchenQueueUncheckedCreateNestedManyWithoutTenantInput
     sessionLogs?: SessionLogUncheckedCreateNestedManyWithoutTenantInput
@@ -59111,6 +59607,7 @@ export namespace Prisma {
     payments?: PaymentUpdateManyWithoutTenantNestedInput
     invoices?: InvoiceUpdateManyWithoutTenantNestedInput
     discounts?: DiscountUpdateManyWithoutTenantNestedInput
+    notifications?: NotificationUpdateManyWithoutTenantNestedInput
     deviceTokens?: DeviceTokenUpdateManyWithoutTenantNestedInput
     kitchenQueues?: KitchenQueueUpdateManyWithoutTenantNestedInput
     sessionLogs?: SessionLogUpdateManyWithoutTenantNestedInput
@@ -59151,6 +59648,7 @@ export namespace Prisma {
     payments?: PaymentUncheckedUpdateManyWithoutTenantNestedInput
     invoices?: InvoiceUncheckedUpdateManyWithoutTenantNestedInput
     discounts?: DiscountUncheckedUpdateManyWithoutTenantNestedInput
+    notifications?: NotificationUncheckedUpdateManyWithoutTenantNestedInput
     deviceTokens?: DeviceTokenUncheckedUpdateManyWithoutTenantNestedInput
     kitchenQueues?: KitchenQueueUncheckedUpdateManyWithoutTenantNestedInput
     sessionLogs?: SessionLogUncheckedUpdateManyWithoutTenantNestedInput
@@ -59191,6 +59689,7 @@ export namespace Prisma {
     payments?: PaymentCreateNestedManyWithoutTenantInput
     invoices?: InvoiceCreateNestedManyWithoutTenantInput
     discounts?: DiscountCreateNestedManyWithoutTenantInput
+    notifications?: NotificationCreateNestedManyWithoutTenantInput
     deviceTokens?: DeviceTokenCreateNestedManyWithoutTenantInput
     kitchenQueues?: KitchenQueueCreateNestedManyWithoutTenantInput
     sessionLogs?: SessionLogCreateNestedManyWithoutTenantInput
@@ -59231,6 +59730,7 @@ export namespace Prisma {
     payments?: PaymentUncheckedCreateNestedManyWithoutTenantInput
     invoices?: InvoiceUncheckedCreateNestedManyWithoutTenantInput
     discounts?: DiscountUncheckedCreateNestedManyWithoutTenantInput
+    notifications?: NotificationUncheckedCreateNestedManyWithoutTenantInput
     deviceTokens?: DeviceTokenUncheckedCreateNestedManyWithoutTenantInput
     kitchenQueues?: KitchenQueueUncheckedCreateNestedManyWithoutTenantInput
     sessionLogs?: SessionLogUncheckedCreateNestedManyWithoutTenantInput
@@ -59287,6 +59787,7 @@ export namespace Prisma {
     payments?: PaymentUpdateManyWithoutTenantNestedInput
     invoices?: InvoiceUpdateManyWithoutTenantNestedInput
     discounts?: DiscountUpdateManyWithoutTenantNestedInput
+    notifications?: NotificationUpdateManyWithoutTenantNestedInput
     deviceTokens?: DeviceTokenUpdateManyWithoutTenantNestedInput
     kitchenQueues?: KitchenQueueUpdateManyWithoutTenantNestedInput
     sessionLogs?: SessionLogUpdateManyWithoutTenantNestedInput
@@ -59327,6 +59828,7 @@ export namespace Prisma {
     payments?: PaymentUncheckedUpdateManyWithoutTenantNestedInput
     invoices?: InvoiceUncheckedUpdateManyWithoutTenantNestedInput
     discounts?: DiscountUncheckedUpdateManyWithoutTenantNestedInput
+    notifications?: NotificationUncheckedUpdateManyWithoutTenantNestedInput
     deviceTokens?: DeviceTokenUncheckedUpdateManyWithoutTenantNestedInput
     kitchenQueues?: KitchenQueueUncheckedUpdateManyWithoutTenantNestedInput
     sessionLogs?: SessionLogUncheckedUpdateManyWithoutTenantNestedInput
@@ -59548,6 +60050,17 @@ export namespace Prisma {
     usageCount?: number
     createdAt?: Date | string
     updatedAt?: Date | string
+  }
+
+  export type NotificationCreateManyTenantInput = {
+    id?: string
+    recipientType: string
+    recipientId: string
+    title: string
+    body: string
+    type: string
+    isRead?: boolean
+    createdAt?: Date | string
   }
 
   export type DeviceTokenCreateManyTenantInput = {
@@ -60313,6 +60826,39 @@ export namespace Prisma {
     usageCount?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type NotificationUpdateWithoutTenantInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    recipientType?: StringFieldUpdateOperationsInput | string
+    recipientId?: StringFieldUpdateOperationsInput | string
+    title?: StringFieldUpdateOperationsInput | string
+    body?: StringFieldUpdateOperationsInput | string
+    type?: StringFieldUpdateOperationsInput | string
+    isRead?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type NotificationUncheckedUpdateWithoutTenantInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    recipientType?: StringFieldUpdateOperationsInput | string
+    recipientId?: StringFieldUpdateOperationsInput | string
+    title?: StringFieldUpdateOperationsInput | string
+    body?: StringFieldUpdateOperationsInput | string
+    type?: StringFieldUpdateOperationsInput | string
+    isRead?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type NotificationUncheckedUpdateManyWithoutTenantInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    recipientType?: StringFieldUpdateOperationsInput | string
+    recipientId?: StringFieldUpdateOperationsInput | string
+    title?: StringFieldUpdateOperationsInput | string
+    body?: StringFieldUpdateOperationsInput | string
+    type?: StringFieldUpdateOperationsInput | string
+    isRead?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
   export type DeviceTokenUpdateWithoutTenantInput = {
