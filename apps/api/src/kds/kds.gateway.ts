@@ -6,10 +6,13 @@ import {
   ConnectedSocket,
   OnGatewayConnection,
   OnGatewayDisconnect,
+  OnGatewayInit,
 } from '@nestjs/websockets';
-import { Logger } from '@nestjs/common';
+import { Logger, OnModuleDestroy } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Server, Socket } from 'socket.io';
+import { createClient, RedisClientType } from 'redis';
+import { createAdapter } from '@socket.io/redis-adapter';
 import { JWT_CONFIG } from '../auth/config/jwt.config';
 import { AuthService } from '../auth/auth.service';
 import { TenantBranchRepository, dbTenantContext } from '@zayjar/db';
@@ -21,6 +24,9 @@ import { TenantBranchRepository, dbTenantContext } from '@zayjar/db';
  * - Scoped by tenantId and branchId
  * - Rooms: tenant:{tenantId}:branch:{branchId}
  * - JWT protected, tenant isolation
+ * - Redis adapter (SPEC_INDEX §7.6) so events broadcast across multiple API
+ *   pods (k8s HPA scales the API 2–10) — each pod shares the same Redis
+ *   pub/sub bus, so a room broadcast reaches clients connected to any pod.
  */
 
 interface AuthenticatedUser {
@@ -62,12 +68,75 @@ interface JwtPayload {
   },
   transports: ['websocket', 'polling'],
 })
-export class KdsGateway implements OnGatewayConnection, OnGatewayDisconnect {
+export class KdsGateway
+  implements OnGatewayConnection, OnGatewayDisconnect, OnGatewayInit, OnModuleDestroy
+{
   private readonly logger = new Logger(KdsGateway.name);
   @WebSocketServer()
   public server!: Server;
 
   private readonly branchRepository = new TenantBranchRepository();
+
+  private pubClient: RedisClientType | null = null;
+  private subClient: RedisClientType | null = null;
+  private redisAdapterAttached = false;
+
+  /**
+   * Attaches the Socket.io Redis adapter (SPEC_INDEX §7.6) so KDS room
+   * broadcasts are delivered across all API pods sharing Redis.
+   *
+   * Redis URL resolution: `SOCKET_IO_REDIS_URL` if set, else `REDIS_URL`.
+   * If Redis is not configured or unreachable, the gateway logs a warning and
+   * keeps the default in-memory adapter — single-pod/local behavior is
+   * unchanged (no hard failure, no crash loop).
+   */
+  async afterInit(_server: Server): Promise<void> {
+    const redisUrl = process.env.SOCKET_IO_REDIS_URL || process.env.REDIS_URL;
+    if (!redisUrl) {
+      this.logger.warn(
+        'Socket.io Redis adapter disabled (no SOCKET_IO_REDIS_URL/REDIS_URL set) — using the in-memory adapter. Cross-pod KDS broadcast requires Redis.',
+      );
+      return;
+    }
+    try {
+      const useTls = process.env.REDIS_TLS === 'true';
+      const clientOptions: Record<string, unknown> = { url: redisUrl };
+      if (useTls) {
+        clientOptions.socket = { tls: true, rejectUnauthorized: false };
+      }
+      const pubClient = createClient(clientOptions);
+      const subClient = pubClient.duplicate();
+      pubClient.on('error', (err) => this.logger.error(`[KDS Redis pub] ${err.message}`));
+      subClient.on('error', (err) => this.logger.error(`[KDS Redis sub] ${err.message}`));
+      await Promise.all([pubClient.connect(), subClient.connect()]);
+
+      this.pubClient = pubClient;
+      this.subClient = subClient;
+      this.server.adapter(createAdapter(pubClient, subClient));
+      this.redisAdapterAttached = true;
+      this.logger.log(`Socket.io Redis adapter attached (${redisUrl}) — cross-pod KDS broadcast enabled.`);
+    } catch (err) {
+      this.logger.warn(
+        `Socket.io Redis adapter failed to attach (falling back to in-memory adapter): ${(err as Error).message}`,
+      );
+      this.redisAdapterAttached = false;
+    }
+  }
+
+  /**
+   * Shuts down the Redis pub/sub clients on application shutdown to avoid
+   * dangling connections.
+   */
+  async onModuleDestroy(): Promise<void> {
+    if (this.subClient) {
+      await this.subClient.quit().catch(() => undefined);
+    }
+    if (this.pubClient) {
+      await this.pubClient.quit().catch(() => undefined);
+    }
+    this.pubClient = null;
+    this.subClient = null;
+  }
 
   constructor(
     private readonly jwtService: JwtService,

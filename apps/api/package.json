@@ -21,6 +21,7 @@
     "@nestjs/platform-express": "^10.4.22",
     "@nestjs/platform-socket.io": "^10.3.8",
     "@nestjs/websockets": "^10.3.8",
+    "@socket.io/redis-adapter": "^8.3.0",
     "@zayjar/db": "workspace:*",
     "@zayjar/types": "workspace:*",
     "argon2": "^0.45.0",
