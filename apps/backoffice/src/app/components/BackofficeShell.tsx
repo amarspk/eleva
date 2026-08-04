@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ProductsModule } from './modules/ProductsModule';
 import { CategoriesModule } from './modules/CategoriesModule';
+import { BranchesModule } from './modules/BranchesModule';
 import { clearSession, loadSession } from '../lib/auth';
 
 /**
@@ -84,7 +85,7 @@ function ShellContent(): React.ReactElement {
       <main className="p-6">
         {activeTab === 'products' ? <ProductsModule /> : null}
         {activeTab === 'categories' ? <CategoriesModule /> : null}
-        {activeTab === 'branches' ? <Placeholder label="Branches" /> : null}
+        {activeTab === 'branches' ? <BranchesModule /> : null}
         {activeTab === 'tables' ? <Placeholder label="Tables" /> : null}
         {activeTab === 'customers' ? <Placeholder label="Customers" /> : null}
         {activeTab === 'users' ? <Placeholder label="Staff" /> : null}

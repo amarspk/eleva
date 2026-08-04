@@ -1,6 +1,6 @@
 # Phase 2 — Frontend Completion (AUDIT-014) · Progress Log
 
-**Status:** Products + Categories COMPLETE. 4 modules remain.
+**Status:** Products + Categories + **Branches** COMPLETE. 3 modules remain (Tables, Customers, Staff).
 **Synchronized to GitHub:** commit `dee3527` on `main` (2026-08-04) — 140 files, +14,550/−880.
 **Note:** the earlier "no commits / no pushes" constraint was lifted by the CTO on 2026-08-04; the repository is now synchronized. `PROJECT_STATE.md` is updated as part of that sync (§29).
 
@@ -219,7 +219,7 @@ flaw, found by inspection while in the code path) — both now return a uniform
 
 | # | Module | Endpoints to wire | Notes |
 |---|---|---|---|
-| 3 | **Branches** | list / create / update / archive / restore | 409 when orders are in progress |
+| 3 | **Branches** | list / create / update / archive / restore | ✅ COMPLETE (full CRUD + 409 guard + cascade + validation + unit tests) |
 | 4 | **Tables** | list / create / update / archive / restore | `branchId` + `number` immutable (QR HMAC); show QR token |
 | 5 | **Customers** | list / create / update / archive / restore | endpoints built this session, UI pending |
 | 6 | **Staff users** | list / create / update / roles / branches / delete | AUDIT-004 endpoints already exist |

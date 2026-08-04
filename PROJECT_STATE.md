@@ -712,7 +712,8 @@ They are intentionally NOT created now. Until then, this PROJECT_STATE.md remain
 | API | **Restaurant read endpoints** (`GET /restaurants`, `/restaurants/:id`) | ✅ Complete (reads only; writes are AUDIT-008) |
 | Phase 2 | **Backoffice — Products UI** | ✅ Production-ready |
 | Phase 2 | **Backoffice — Categories UI** | ✅ Production-ready |
-| Phase 2 | Backoffice — Branches / Tables / Customers / Staff UI | ⬜ Not started |
+| Phase 2 | **Backoffice — Branches UI** | ✅ Production-ready (full CRUD, 409 guard, cascade to tables, validation + unit tests) |
+| Phase 2 | Backoffice — Tables / Customers / Staff UI | ⬜ Not started |
 
 **12 CRUD endpoints** added in P0 (4 update, 4 soft-delete, 4 restore) plus
 **6 customer endpoints** and **2 restaurant endpoints**. There is **no
