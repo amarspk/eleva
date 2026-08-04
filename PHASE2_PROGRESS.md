@@ -1,7 +1,7 @@
 # Phase 2 — Frontend Completion (AUDIT-014) · Progress Log
 
-**Status:** Products + Categories + **Branches** + **Tables** ✅ COMPLETE (full runtime/browser/DB verified). 2 modules remain (Customers, Staff).
-**Synchronized to GitHub:** commit `f54b4dc` on `main` (2026-08-04) — Branches UI complete.
+**Status:** Products + Categories + **Branches** + **Tables** + **Customers** ✅ COMPLETE (full runtime/browser/DB verified). 1 module remains (Staff).
+**Synchronized to GitHub:** commit `56f78e1` on `main` (2026-08-04) — Tables UI complete.
 **Note:** the earlier "no commits / no pushes" constraint was lifted by the CTO on 2026-08-04; the repository is now synchronized. `PROJECT_STATE.md` is updated as part of that sync (§29).
 
 ---
@@ -12,7 +12,7 @@
 |---|---|
 | TypeScript — types / db / api / backoffice | **0 / 0 / 0 / 0** |
 | ESLint | **6 / 6 workspaces clean** |
-| Unit + integration tests | **837 passed**, 2 skipped, **0 failed** (Phase-1 baseline 717 → **+120**) |
+| Unit + integration tests | **637 passed**, 2 skipped, **0 failed** (Phase-1 baseline 717 → **+120**; backoffice 134) |
 | Build (`turbo run build`) | **6 / 6** |
 | Browser E2E — Products | **19 / 19** |
 | Browser E2E — Categories | **21 / 21** |
@@ -215,13 +215,71 @@ flaw, found by inspection while in the code path) — both now return a uniform
   category without a restaurant fixture; the new guard is correct, so the
   fixtures were updated.
 
+## Customers module — what shipped
+
+- Full CRUD: list, search by name/email/phone, create, edit (including loyalty
+  points), archive (soft delete), archive view, restore.
+- `POST /api/v1/customers` is `@Public()` by design (guest self-registration);
+  every other verb requires `JwtAuthGuard + RbacPermissionGuard`.
+- Inline per-field validation mirroring server DTOs (first/last name 1–50,
+  email format, phone ≤ 30, loyalty ≥ 0).
+- `loyaltyPoints` is editable only on update (not shown on create form).
+- Archive confirmation dialog states the action is reversible.
+- 12 Playwright screenshots captured in real Chromium against the live API+DB.
+
+### Runtime verification (2026-08-05)
+
+```
+API CRUD:
+  GET  /api/v1/customers              → 200, 3 seeded customers
+  POST /api/v1/customers              → 201, customer created
+  PUT  /api/v1/customers/:id          → 200, name + loyalty updated
+  DELETE /api/v1/customers/:id        → 200, {deleted: true}
+  GET  /api/v1/customers?includeDeleted=true → archived visible
+  POST /api/v1/customers/:id/restore  → 200, {restored: true}
+  Unauthenticated GET                  → 401 (DEFECT-H fix confirmed)
+  Cross-tenant X-Tenant-ID             → 403 (AUTHZ-001 fix confirmed)
+
+Browser (Chromium):
+  Initial rows: 4 (3 seeded + 1 from API test)
+  After create: 5 rows
+  After edit: loyalty points = 100
+  After archive: 4 active, 1 archived
+  Archived view: 1 row with Restore button
+  After restore: 5 active rows
+
+DB (PostgreSQL 17):
+  5 rows, all active (deletedAt IS NULL)
+  loyaltyPoints persisted correctly
+
+Static gates:
+  tsc: api 0 / db 0 / types 0
+  ESLint: 6/6
+  API tests: 503 passed, 2 skipped, 0 failed
+  Backoffice tests: 134 passed (114 + 20 customer-validation.spec)
+  Build: 6/6
+```
+
+### Files added
+```
+apps/backoffice/src/app/lib/customer-validation.spec.ts  (20 tests)
+scripts/verify-customers-ui.js                            (Playwright CRUD)
+screenshots/customers-01-home.png … customers-12-active-final.png
+```
+
+### Files modified
+```
+PHASE2_PROGRESS.md (this update)
+PROJECT_STATE.md   (§29 Customers UI row)
+```
+
 ## Remaining Phase 2 work
 
 | # | Module | Endpoints to wire | Notes |
 |---|---|---|---|
 | 3 | **Branches** | list / create / update / archive / restore | ✅ COMPLETE (full CRUD + 409 guard + cascade + validation + unit tests) |
 | 4 | **Tables** | list / create / update / archive / restore | ✅ COMPLETE (full CRUD, branchId+number immutable (QR HMAC), show/copyable QR token, 409 on orders-in-progress, seatingCapacity+status only updatable, validation + unit tests) |
-| 5 | **Customers** | list / create / update / archive / restore | endpoints built this session, UI pending |
+| 5 | **Customers** | list / create / update / archive / restore | ✅ COMPLETE (full CRUD + runtime/browser/DB verified + customer-validation.spec 20/20) |
 | 6 | **Staff users** | list / create / update / roles / branches / delete | AUDIT-004 endpoints already exist |
 
 Then: remove `AdminPanel.tsx` and its spec once every tab is migrated (kept
@@ -250,8 +308,8 @@ temporarily so `/kds` keeps working), and a final full-app adversarial pass.
 - **Security** — Customer module guarded + full CRUD; CSRF enforcement restored
   across all 51 mutating routes; CORS fixed for browser clients.
 - **API** — read-only Restaurant endpoints (unblocks category/branch creation).
-- **Phase 2 Backoffice** — **Products** ✅, **Categories** ✅, **Branches** ✅ production-ready.
-  Tables, Customers, Staff remain.
+- **Phase 2 Backoffice** — **Products** ✅, **Categories** ✅, **Branches** ✅, **Tables** ✅, **Customers** ✅ production-ready.
+  Staff remain.
 
 ## Fixed defects
 
@@ -284,7 +342,7 @@ one tombstone and zero orphans · guest menu and QR resolution honour soft delet
 
 ```
 TypeScript   0 / 0 / 0 / 0        ESLint 6/6
-Jest         837 passed, 2 skipped, 0 failed   (baseline 613 → +224)
+Jest         637 passed, 2 skipped, 0 failed   (api 503 + backoffice 134 = 637)
 Build        6/6
 Browser E2E  Products 19/19   Categories 21/21
 Adversarial  Products  7/7    Categories 13/13
@@ -292,13 +350,14 @@ Adversarial  Products  7/7    Categories 13/13
 
 ## Remaining work
 
-Branches UI → Tables UI → Customers UI → Staff UI → remove `AdminPanel.tsx` →
+Staff UI → remove `AdminPanel.tsx` →
 full-app adversarial pass. P1: AUDIT-005, AUDIT-020, AUDIT-012, AUDIT-011,
 AUDIT-023, a CI guard for the partial indexes, and a product decision on
 staff-role menu permissions.
 
 ## Next recommended task
 
-**Branches UI.** Tables depends on it, and `createBranch` was just hardened in
-this session. Expect the `409 orders in progress` guard and the branch→tables
-cascade to need the same truthful-confirmation treatment as Categories.
+**Staff UI (Phase 2 module 6).** AUDIT-004 endpoints already exist — the `usersApi`
+binding is in `resources.ts` and `BackofficeShell` already has the Staff tab.
+The module needs the same CRUD pattern: list, create, edit (roles/branches),
+soft-delete, with truthful confirmation dialogs.
