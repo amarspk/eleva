@@ -2,6 +2,7 @@
 
 > Canonical engineering state document.
 > Generation date: 2026-07-29 (Asia/Dubai). Independent audit corrections applied 2026-07-30 (full repository verification + live re-run of every test/type/build count).
+> 2026-08-04 Sprint 3 Tasks 2–4 — **P0 COMPLETE** (AUDIT-001 CSS pipeline, AUDIT-002 real payments, AUDIT-006/007 menu+location CRUD) and **Phase 2 AUDIT-014** started (Backoffice Products + Categories). Eleven defects were reproduced at runtime before any fix and re-verified after. Highlights: **AUDIT-001** — 308 Tailwind class attributes with no CSS pipeline whatsoever (no dep/config/stylesheet/import); production emitted zero CSS. **AUDIT-002** — payment verification accepted any invented id (`I-JUST-MADE-THIS-UP` -> `verified:true`), the `payments` table was never written by app code, Tap returned fabricated charge ids even with a real key, and the charged amount came from client-supplied `dto.amount`; a 5th defect (malformed `orderId` -> HTTP 500) forced 15 `*Id` DTO fields to `@IsUUID('4')`. **AUDIT-006/007** — 12 endpoints (update/soft-delete/restore) for Products/Categories/Branches/Tables, no hard-delete anywhere; `idx_tables_qr_token` was a FULL unique index while the QR token is a deterministic HMAC of `tenantId:branchId:number`, so archiving table "12" permanently burned that number — 5 indexes rebuilt as PARTIAL per DOC-002 §234/§602. **Security found during frontend integration:** `CustomerController` had **no `@UseGuards`** and the app has no global auth guard, so `GET /api/v1/customers` returned **HTTP 200 with the entire customer PII table to unauthenticated callers**; and `CsrfGuard` (an `APP_GUARD`) ran **before** `JwtAuthGuard`, so `request.user` was always undefined and a forged token (`X-CSRF-Token: TOTALLY-BOGUS-VALUE-123`) was accepted on all **51** mutating routes — its unit tests passed only because they inject `user` by hand. A CORS wildcard (`origin:'*'` without credentials) also broke **every** browser call; invisible to curl, which does not enforce CORS. Verified: tsc 0/0/0/0, ESLint 6/6, **837 pass / 2 skip / 0 fail** (was 613; +224), build 6/6, browser E2E Products **19/19** + Categories **21/21** in real Chromium against the real API and PostgreSQL, adversarial **7/7** + **13/13**. Commit `dee3527` (§29 "Last Completed Work").
 > 2026-08-03 Sprint 3 Task 1 — **AUDIT-004 (Staff User Management)** FIXED+VERIFIED under CTO approval. The platform could not create a user: the only `user.create` in the entire codebase was the owner row inside tenant onboarding (`tenant.service.ts:127`), so the Cashier/Backoffice login screens delivered in Sprint 2 Task 1 had **no accounts to authenticate** — 51 route decorators existed and not one managed staff. New `apps/api/src/user/` module delivers full CRUD: `POST /api/v1/users`, `GET /api/v1/users` (filters `isActive`, `branchId`), `GET /api/v1/users/:id`, `PUT /api/v1/users/:id`, `PUT /api/v1/users/:id/roles`, `PUT /api/v1/users/:id/branches`, `DELETE /api/v1/users/:id` (soft delete + deactivate per DOC-002 deletion policy). **Branch isolation** required a schema addition — DOC-005 §4.2 mandates that a staff token carry assigned branches, but no User↔Branch link existed, so the `branches` claim consumed by `CaslAbilityFactory` (BRANCH_MANAGER `$nin` rules) had no persistent source and was permanently empty: new `UserBranch` model + migration `20260803000000_add_user_branches` (composite PK, tenant-owned rows, 3 FKs cascade). **RBAC**: 4 new seed permissions (`user:read/create/update/delete`) — the `User` CASL subject and its guard repository entry already existed but no permission row granted them; owner-only by construction (manager/cashier/kitchen seed filters are resource-allowlisted and exclude `user`, SQL-verified 4/4 owner vs 0 cashier). **Auth integration**: passwords hashed via the existing `AuthService.hashPassword` (Argon2id), so created credentials work with the unmodified login path. Verified: tsc 0/0/0, ESLint 6/6, suites **328/2/0** + root **565/2/0** (was 311/2/0 + 548/2/0; +17 new tests), build 6/6, migration chain 9/9 on fresh PG 17.10, and a full live matrix — create 201 → **new user logs in 200 with correct CASHIER claims** → RBAC 403 for cashier / 200 owner / 401 anon → cross-tenant GET/PUT/DELETE all **404** (no existence leak, foreign row untouched) → foreign branch assignment **400** (scope unchanged) → role swap CASHIER→MANAGER reflected in a fresh JWT → password rotation old **401** / new **200** → self-delete **400** → soft delete → deleted user 404, login 401, excluded from list (§5 Sprint 3 row, §19 row 37).
 > 2026-08-03 Sprint 2 Task 8 (ENV-TSK-0006 — install/provisioning toolchain): the last **High**-priority open defect is FIXED+VERIFIED. Three root causes, three minimal fixes: **(1)** `pnpm-workspace.yaml` `allowBuilds` now approves the four packages whose install scripts are genuinely required — `@prisma/engines` (postinstall downloads the query + schema engine binaries), `@prisma/client`, `prisma`, and `argon2` (its install script runs `node-gyp-build`, compiling a working native binding; the shipped `argon2.glibc.node` prebuild SIGSEGVs on modern glibc). Least privilege preserved: `sharp`, `@nestjs/core`, `protobufjs`, `unrs-resolver`, `@firebase/util` are deliberately NOT approved and were each verified to load correctly without their scripts (`sharp` resolves via the prebuilt `@img/sharp-linux-x64` package). **(2)** `packages/db/prisma/migrations/20250101000000_init/migration.sql` carried an upstream UTF-8 BOM (`EF BB BF`) that made `prisma migrate deploy` hard-fail at migration 1 with `P3018 / 42601 syntax error at or near "\ufeff"` — exactly 3 leading bytes removed, remainder byte-identical (26 794 → 26 791 B, `a[3:] == b` proven). This **disproves** the §19 row 23 parenthetical "Prisma engines unaffected" (that claim held only for the psql-with-strip-filter workaround; the CLI path was never exercised). **(3)** CI Job 3's "Validate Prisma schema" step could never pass — `prisma validate` resolves `url = env("DATABASE_URL")` before validating and no `DATABASE_URL` exists anywhere in `ci.yml` (grep = 0 hits) → unconditional `P1012`; the step now carries a connection-free placeholder URL (static schema check only, no database service added). Verified: clean-slate `rm -rf node_modules && pnpm install --frozen-lockfile` → engines present + argon2 compiled + `argon2.hash/verify` true/false correct, **with zero manual workarounds**; `prisma migrate deploy` applied the full documented chain **8/8 green** on fresh PostgreSQL 17.10 (M4 excluded per the standing R2 parking — it now fails on its own known layer-2 architecture defect, not on the BOM); canonical `pnpm --filter @zayjar/db run prisma:seed` 17/17 entity groups; live API boot on that CLI-provisioned DB with the full runtime matrix — `/health` 200, guest table 200, guest menu 200, **real argon2 login 200** (JWT issued) / wrong-password **401**, `/auth/me` 200, RBAC products 200, guest checkout **201** (`ORD-2026-15027`, paymentMethod CASH persisted), discount `SAVE10` → 2.40 off, `kitchen_queues` rows created. Static gates unchanged: tsc 0/0/0, ESLint 6/6, suites **311/2/0** + root **548/2/0**, build 6/6 (§5 Sprint 2 row, §19 row 36).
 > 2026-07-31 Sprint 2 Task 7 (Firebase Cloud Messaging — §15 item 8 / SPEC-DRIFT): the FCM log-only stub is replaced with a real provider — new `FcmService` (`firebase-admin` SDK, lazy init from `FIREBASE_SERVICE_ACCOUNT` JSON or `FIREBASE_SERVICE_ACCOUNT_PATH`, graceful unavailable state when unconfigured), `DeviceTokenService.sendPushNotification` now sends a real FCM multicast when available (prunes `messaging/registration-token-not-registered` tokens, persists an in-app Notification mirror) and keeps the log-only fallback otherwise (dev/test behavior preserved); the `notifications` table gained its missing tenant FK/relation + `TenantNotificationRepository` (migration `20260731000002_add_notifications_relations`). Verified: tsc 0/0/0, ESLint 6/6, suites **311/2/0** + root **548/2/0** (was 304/2/0 + 541/2/0; +7 new tests), build 6/6, runtime — migration M9 clean (FK+index), API boots with new wiring, live device-token registration (201), notification repository create/read against real PG (tenant-scoped), live push fallback `{sent:1,payloads:1}` with correct lazy-init warning (§5 Sprint 2 row, §19 row 35). Real FCM send covered by unit tests (mocked SDK; no real Firebase credentials in sandbox).
@@ -120,7 +121,11 @@ Verified from `package.json` files and build output:
 
 ## 4.5 Backoffice (`apps/backoffice`)
 
-- Next.js app; `AdminPanel.tsx` sends `X-Tenant-ID` (line 48); includes `RestaurantCreationWizard.tsx`, `KDSTerminal.tsx`.
+- Next.js app. **AUDIT-014 (2026-08-04):** `BackofficeShell.tsx` is the entry point — a six-tab CRUD shell (Products, Categories, Branches, Tables, Customers, Staff). **Products** and **Categories** are fully wired; the remaining four render a placeholder pending implementation.
+- Shared `lib/api-client.ts` centralises auth, tenant context and CSRF: it attaches `X-CSRF-Token` to every POST/PUT/DELETE/PATCH (required since the `CsrfGuard` fix — see §29) and preserves NestJS `message` arrays so validation detail reaches the operator instead of a bare "Bad Request".
+- Tenant id now comes from the verified session. The hardcoded `'tenant-uuid-1111'` / `'branch-uuid-1234'` literals are gone from `page.tsx`.
+- `AdminPanel.tsx` (read-only, zero `useMutation`) is retained **only** so `/kds` keeps working; it is scheduled for deletion once all six tabs are migrated.
+- Also present: `RestaurantCreationWizard.tsx`, `KDSTerminal.tsx`, `LoginForm.tsx`.
 
 ## 4.6 Billing
 
@@ -289,7 +294,10 @@ Post-Step-4 approved fixes (one isolated commit each): **R4 `c15843f`**, **R5 `0
 - Unchanged by Sprint 1. Terminal sends `X-Tenant-ID` (verified lines 104, 258); checkout call to staff endpoint at `CashierTerminal.tsx:253–258`; reads `localStorage.accessToken`. The only in-repo writer of that key is the backoffice onboarding wizard (`RestaurantCreationWizard.tsx:253`) — no standalone login screen exists in any frontend (auth-UI gap, see §15 item 5).
 
 ## 10.3 Backoffice (`apps/backoffice`)
-- Unchanged. Admin panel + RestaurantCreationWizard + KDSTerminal components present; sends `X-Tenant-ID` (AdminPanel.tsx:48).
+- **AUDIT-014 in progress (2026-08-04).** Products and Categories are production-ready: list, search, filter, create, edit, availability/visibility toggle, archive (soft delete), archive view and restore — all against real endpoints, verified in a real browser (19/19 and 21/21 checks).
+- Categories surfaces a **truthful cascade warning**: archiving a category archives its products in one transaction and the dialog names the exact count, stating that restoring the category does **not** bring them back. Confirmed against the database, not assumed.
+- Branches, Tables, Customers and Staff tabs are placeholders. Customer CRUD endpoints exist (built 2026-08-04) but have no UI yet.
+- CSS is real as of AUDIT-001 (Tailwind v3 + PostCSS; `globals.css` imported by `layout.tsx`).
 
 ## 10.4 KDS
 - Frontend component in backoffice (above); receives WS events in rooms `tenant:{tenantId}:branch:{branchId}` (kds.gateway.ts:82); `ticket.created` payload post-Step-2 contains resolved names (orderItemId, name, quantity, size, addons, cookingStatus).
@@ -683,3 +691,136 @@ They are intentionally NOT created now. Until then, this PROJECT_STATE.md remain
 - PROJECT_STATE.md is updated (per the §24 procedure, items 1–9), AND
 - a Commit is created, AND
 - a Push is performed if available — otherwise an explicit "**Push not performed.**" statement (§24 / §16).
+
+---
+
+# 29. Last Completed Work
+
+> Session of **2026-08-04** (Asia/Dubai). Commit `dee3527` on `main`.
+> Every defect below was **reproduced at runtime before any code was changed**
+> and re-verified after. Nothing here was fixed on suspicion.
+
+## 29.1 Completed modules
+
+| Area | Module | State |
+|---|---|---|
+| P0 | **AUDIT-001** — UI/CSS pipeline (qr-menu, backoffice, cashier) | ✅ Complete |
+| P0 | **AUDIT-002** — Real Tap/Stripe payment implementation | ✅ Complete |
+| P0 | **AUDIT-006/007** — Products/Categories/Branches/Tables CRUD (soft-delete only) | ✅ Complete |
+| Security | **Customer module** — guards + full CRUD + soft delete/restore | ✅ Complete |
+| Security | **CSRF enforcement** across all 51 mutating routes | ✅ Complete |
+| API | **Restaurant read endpoints** (`GET /restaurants`, `/restaurants/:id`) | ✅ Complete (reads only; writes are AUDIT-008) |
+| Phase 2 | **Backoffice — Products UI** | ✅ Production-ready |
+| Phase 2 | **Backoffice — Categories UI** | ✅ Production-ready |
+| Phase 2 | Backoffice — Branches / Tables / Customers / Staff UI | ⬜ Not started |
+
+**12 CRUD endpoints** added in P0 (4 update, 4 soft-delete, 4 restore) plus
+**6 customer endpoints** and **2 restaurant endpoints**. There is **no
+hard-delete endpoint anywhere** — order history is preserved per DOC-002 §638.
+
+## 29.2 Fixed defects
+
+| ID | Severity | Defect | Runtime proof (before → after) |
+|---|---|---|---|
+| **H** | 🔴 Critical | `CustomerController` had **no `@UseGuards`**; no global auth guard exists (only `CsrfGuard` is an `APP_GUARD`). The whole customer PII table was world-readable | `curl /api/v1/customers` with no `Authorization` → **200** with names/emails/loyalty → **401** |
+| **I** | 🔴 Critical | `CsrfGuard` is an `APP_GUARD`, so Nest ran it **before** `JwtAuthGuard`; `request.user` was always undefined → `if (!user?.id) return true` bypass on **all 51** mutating routes. Its unit tests passed only because they inject `user` by hand | `X-CSRF-Token: TOTALLY-BOGUS-VALUE-123` → **200** → **403** |
+| **K** | 🔴 Critical | CORS dev fallback was `origin:'*'` with no credentials → **every** browser call failed at preflight. Invisible to curl, which does not enforce CORS | all SPA fetches `net::ERR_FAILED` → **200**; production now **fails closed** if `CORS_ORIGIN` is unset |
+| **G** | 🟠 High | `createOrder` validated `branchId` and every `productId` but wrote client-supplied `tableId` with **no lookup** — defeating `DELETE /tables/:id` | checkout on a soft-deleted table → **201** → **404**; cross-branch table → **400**; cross-tenant → **404** |
+| **D** | 🟠 High | `idx_tables_qr_token` was a **full** unique index while the QR token is a deterministic HMAC of `tenantId:branchId:number`, so archiving table "12" permanently burned that number. DOC-002 §234/§602 mandate **partial** indexes | `duplicate key … idx_tables_qr_token` → number reusable; 5 indexes rebuilt `WHERE deleted_at IS NULL` |
+| **C** | 🟠 High | Owner JWT carried no `*:update` / `*:delete` and no `category:*` at all — the new routes would have 403'd for every caller including the owner | 17 permission rows granted; owner token verified |
+| **L** | 🟠 High | `POST /menu/categories` and `POST /branches` both require `restaurantId`, but **no endpoint exposed one** — neither form could ever be submitted | `GET /restaurants` **404** → **200** |
+| **M** | 🟡 Medium | 3 routes leaked `Inconsistent column data: Error creating UUID` as HTTP 500 | `/tenants/:id`, `/webhooks/:id`, `/device-tokens/:id` **500** → **400** |
+| **N** | 🟡 Medium | Foreign `restaurantId` leaked a raw FK violation | **500** → **404** (fixed in `createCategory` *and* `createBranch`) |
+| **J** | 🟡 Medium | The 5 restore endpoints were **unreachable from any client** — every list filters `deletedAt IS NULL`, so no UI could obtain an archived id | added opt-in `?includeDeleted=true` |
+| **J(b)** | 🟡 Medium | Declaring the flag `boolean` let the global `ValidationPipe` coerce it before the param pipe ran (`"1"`→false, `"yes"`→false, never 400) | declared `string` + `BooleanQueryPipe`; `1`→true, `yes`→**400** |
+
+**Self-inflicted, caught by my own verification (not shipped):**
+`DEFECT-E` — the RBAC guard resolves `:id` via `findById`, which filters exactly
+the rows a restore targets, so every restore endpoint 404'd (fixed with
+`@IncludeSoftDeleted()`). `DEFECT-F` — the cascade used `updateMany`, which the
+tenant-scoped Prisma extension blocks → HTTP 500 (rewritten as batched per-row
+updates in one transaction). Also a boot-time DI failure (`CustomerModule`
+missing `AuthModule`) and a wrong CASL subject choice for `/restaurants/:id`
+that made the guard search the **branches** table.
+
+## 29.3 Runtime verification
+
+All against a real API process, real PostgreSQL 17 and real Redis; browser
+checks in real Chromium against the live stack. **No mocks in any runtime test.**
+
+- **Tenant isolation** — cross-tenant `PUT`/`DELETE`/`RESTORE` on products,
+  categories, branches, tables, customers and restaurants: **404 on every
+  probe**, target rows verified unmodified (404 not 403 — no existence oracle).
+- **Order history preservation** — archiving a product with sales history keeps
+  `order_items` intact and the historical join still resolves the product name.
+- **Cascade truthfulness** — category with 2 products → archive → 0 live / 2
+  archived → restore category → still 0 live (as the dialog promises) → restore
+  each product → 2 live.
+- **Concurrency** — 5 simultaneous DELETEs → one 200 + four 404, **one
+  tombstone, zero orphans**; the tombstone is never rewritten by a retry.
+- **Guest surface** — soft-deleted products vanish from the public menu and
+  reappear on restore; a deleted table's QR stops resolving, as does every table
+  under a deleted branch.
+- **Migrations** — full chain applies cleanly on a fresh database (M4 excluded
+  per the standing R2/PREX-MIG-002 parking).
+
+## 29.4 Tests passed
+
+```
+TypeScript   types 0 / db 0 / api 0 / backoffice 0
+ESLint       6/6 workspaces clean
+Jest         837 passed, 2 skipped, 0 failed     (baseline 613 → +224)
+Build        turbo run build --concurrency=1 → 6/6
+Browser E2E  Products   19/19      Categories 21/21
+Adversarial  Products    7/7       Categories 13/13
+```
+
+Adversarial coverage: RBAC bypass, cross-tenant access, forged CSRF, stored XSS
+(neither executed nor stored — 0 raw payloads in the database), malformed and
+boundary input, field smuggling (`tenantId`/`deletedAt`/`id` all rejected by
+`forbidNonWhitelisted`), re-parenting, concurrency and expired tokens.
+
+## 29.5 Remaining work
+
+**Phase 2 (AUDIT-014) — in progress**
+
+| # | Module | Notes |
+|---|---|---|
+| 3 | **Branches** UI | 409 when orders are in progress; cascades to tables |
+| 4 | **Tables** UI | `branchId` + `number` immutable (QR HMAC); surface the QR token |
+| 5 | **Customers** UI | endpoints already built and verified; UI pending |
+| 6 | **Staff users** UI | AUDIT-004 endpoints already exist |
+| — | Remove `AdminPanel.tsx` | only after all six tabs are migrated (`/kds` still uses it) |
+| — | Full-app adversarial pass | once every module is wired |
+
+**P1 backlog** — AUDIT-005 (no password reset / email verification),
+AUDIT-020 (no Helmet), AUDIT-012 (E2E fully API-mocked and excluded from CI; no
+DB service in the `test` job — nothing would have caught DEFECT-G),
+AUDIT-011 (no OpenAPI; ~21+ routes undocumented), AUDIT-023 (no `/metrics`, no
+readiness/liveness split), plus two new items: a **CI guard asserting the 5
+partial indexes are not reverted** by a future `prisma migrate dev`, and a
+**product decision on staff-role menu permissions** (currently owner-only).
+
+**P2 backlog** — AUDIT-008 (no restaurant write module), AUDIT-009, AUDIT-010,
+AUDIT-013, AUDIT-015, AUDIT-017, AUDIT-021, AUDIT-022, AUDIT-024, AUDIT-025.
+
+### ⚠️ Deployment caution
+
+Migration `20260804000000` rebuilds 5 unique indexes as partial. Index rebuilds
+take a brief **exclusive lock** — run in a maintenance window, or convert to
+`CREATE INDEX CONCURRENTLY` in a transaction-less migration for large tables.
+Prisma cannot express partial indexes, so `schema.prisma` still shows plain
+`@@unique`; a future `prisma migrate dev` could try to revert this fix.
+
+## 29.6 Next recommended task
+
+**Backoffice — Branches UI (Phase 2 module 3)**, under the same strict cycle:
+prove defects → fix → runtime verify → adversarial review → regression tests →
+browser verification.
+
+Branches is the right next step because Tables depends on it (a table is created
+against a branch, and the branch selector is a prerequisite for that form), and
+because `createBranch` already received its `restaurantId` validation fix in this
+session — so the API side is warm. Expect the `409 orders in progress` guard and
+the branch→tables cascade to need the same truthful-confirmation treatment the
+Categories cascade received.

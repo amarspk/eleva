@@ -1,7 +1,8 @@
 # Phase 2 — Frontend Completion (AUDIT-014) · Progress Log
 
 **Status:** Products + Categories COMPLETE. 4 modules remain.
-**Constraints honoured:** `PROJECT_STATE.md` sha256 unchanged (`c2618f6d…d51a`) · no commits · no pushes.
+**Synchronized to GitHub:** commit `dee3527` on `main` (2026-08-04) — 140 files, +14,550/−880.
+**Note:** the earlier "no commits / no pushes" constraint was lifted by the CTO on 2026-08-04; the repository is now synchronized. `PROJECT_STATE.md` is updated as part of that sync (§29).
 
 ---
 
@@ -233,3 +234,71 @@ temporarily so `/kds` keeps working), and a final full-app adversarial pass.
 - Access tokens expire in 15 minutes; long runtime sequences must re-authenticate.
 - CSRF tokens are per-login. A stale token yields 403 on mutations — one of my
   early "soft delete is broken" readings was actually this.
+
+---
+
+# Last Completed Work
+
+> Session of **2026-08-04**. Synchronized to GitHub as commit `dee3527`.
+> Mirrors `PROJECT_STATE.md` §29. Every defect was reproduced at runtime before
+> any code was changed, and re-verified after.
+
+## Completed modules
+
+- **P0 — AUDIT-001** UI/CSS pipeline (3 apps) · **AUDIT-002** real Tap/Stripe
+  payments · **AUDIT-006/007** menu + location CRUD, soft-delete only.
+- **Security** — Customer module guarded + full CRUD; CSRF enforcement restored
+  across all 51 mutating routes; CORS fixed for browser clients.
+- **API** — read-only Restaurant endpoints (unblocks category/branch creation).
+- **Phase 2 Backoffice** — **Products** ✅ and **Categories** ✅ production-ready.
+  Branches, Tables, Customers, Staff remain.
+
+## Fixed defects
+
+| ID | Defect | Before → After |
+|---|---|---|
+| **H** | Customer PII readable with **zero authentication** (no `@UseGuards`, no global auth guard) | `200` full PII → **401** |
+| **I** | CSRF **globally inert** on 51 routes (`APP_GUARD` ran before `JwtAuthGuard`) | forged token `200` → **403** |
+| **K** | CORS wildcard broke **every** browser call (invisible to curl) | `net::ERR_FAILED` → **200** |
+| **G** | Soft-deleted tables still orderable — `tableId` written with no lookup | `201` → **404** |
+| **D** | Soft delete permanently burned a table number (full unique index vs deterministic QR HMAC) | duplicate-key → reusable; 5 partial indexes |
+| **C** | Owner JWT lacked `*:update`/`*:delete` and all `category:*` | 17 permission rows granted |
+| **L** | No endpoint exposed `restaurantId` → category/branch creation impossible | `404` → **200** |
+| **M** | 3 routes leaked UUID cast errors as HTTP 500 | **500** → **400** |
+| **N** | Foreign `restaurantId` leaked a raw FK violation | **500** → **404** |
+| **J / J(b)** | Restore endpoints unreachable; `ValidationPipe` mangled the new flag | `?includeDeleted=true` works; invalid → **400** |
+
+Self-caught before shipping: **E** (guard hid the very rows restore targets),
+**F** (`updateMany` blocked by the tenant extension → 500), a boot-time DI
+failure, and a wrong CASL subject that made `/restaurants/:id` search the
+branches table.
+
+## Runtime verification
+
+Real API + PostgreSQL 17 + Redis; browser checks in real Chromium. No mocks.
+Tenant isolation 404 on every cross-tenant probe · order history preserved ·
+cascade behaviour matches the dialog copy exactly · 5 concurrent deletes yield
+one tombstone and zero orphans · guest menu and QR resolution honour soft delete.
+
+## Tests passed
+
+```
+TypeScript   0 / 0 / 0 / 0        ESLint 6/6
+Jest         837 passed, 2 skipped, 0 failed   (baseline 613 → +224)
+Build        6/6
+Browser E2E  Products 19/19   Categories 21/21
+Adversarial  Products  7/7    Categories 13/13
+```
+
+## Remaining work
+
+Branches UI → Tables UI → Customers UI → Staff UI → remove `AdminPanel.tsx` →
+full-app adversarial pass. P1: AUDIT-005, AUDIT-020, AUDIT-012, AUDIT-011,
+AUDIT-023, a CI guard for the partial indexes, and a product decision on
+staff-role menu permissions.
+
+## Next recommended task
+
+**Branches UI.** Tables depends on it, and `createBranch` was just hardened in
+this session. Expect the `409 orders in progress` guard and the branch→tables
+cascade to need the same truthful-confirmation treatment as Categories.
