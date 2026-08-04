@@ -1,7 +1,7 @@
 # Phase 2 — Frontend Completion (AUDIT-014) · Progress Log
 
 **Status:** Products + Categories + **Branches** COMPLETE. 3 modules remain (Tables, Customers, Staff).
-**Synchronized to GitHub:** commit `dee3527` on `main` (2026-08-04) — 140 files, +14,550/−880.
+**Synchronized to GitHub:** commit `f54b4dc` on `main` (2026-08-04) — Branches UI complete.
 **Note:** the earlier "no commits / no pushes" constraint was lifted by the CTO on 2026-08-04; the repository is now synchronized. `PROJECT_STATE.md` is updated as part of that sync (§29).
 
 ---
@@ -250,8 +250,8 @@ temporarily so `/kds` keeps working), and a final full-app adversarial pass.
 - **Security** — Customer module guarded + full CRUD; CSRF enforcement restored
   across all 51 mutating routes; CORS fixed for browser clients.
 - **API** — read-only Restaurant endpoints (unblocks category/branch creation).
-- **Phase 2 Backoffice** — **Products** ✅ and **Categories** ✅ production-ready.
-  Branches, Tables, Customers, Staff remain.
+- **Phase 2 Backoffice** — **Products** ✅, **Categories** ✅, **Branches** ✅ production-ready.
+  Tables, Customers, Staff remain.
 
 ## Fixed defects
 
