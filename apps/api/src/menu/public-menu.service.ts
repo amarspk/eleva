@@ -124,6 +124,16 @@ export class PublicMenuService {
   private readonly logger = new Logger(PublicMenuService.name);
 
   /**
+   * Upper bound on categories returned by the public guest menu.
+   * Well above any realistic restaurant menu; exists to bound the worst case
+   * on an unauthenticated, high-traffic endpoint.
+   */
+  private static readonly MAX_CATEGORIES = 100;
+
+  /** Upper bound on products returned per category (same rationale). */
+  private static readonly MAX_PRODUCTS_PER_CATEGORY = 200;
+
+  /**
    * DOC-005 4.6 — Resolves seating table context for a guest scanning a QR code.
    * The qrCodeToken is the sole credential on this surface: it must match a
    * table row belonging to the tenant resolved by TenantContextMiddleware.
@@ -157,6 +167,21 @@ export class PublicMenuService {
       const tenant = await this.getTenantRecord(tenantId);
       this.assertGuestOrderingAllowed(tenant.status);
 
+      // Bounded fan-out (production-readiness audit).
+      //
+      // This is the busiest UNAUTHENTICATED endpoint on the platform: every QR
+      // scan hits it. It previously loaded every category, every product, and
+      // each product's sizes/variants/addons/addon-items with no limit, so the
+      // payload grew linearly with catalogue size — runtime-measured 5 KB at 13
+      // products vs 177 KB at 813 products (810 products serialized in one
+      // response). A tenant with a large catalogue therefore degrades API
+      // memory, bandwidth and mobile render time for every guest, and the cost
+      // is reachable without credentials.
+      //
+      // The caps below are far above any realistic single-restaurant menu
+      // (PublicMenuService.MAX_* ) and exist to bound the worst case rather
+      // than to paginate: a menu that exceeds them is a data-quality problem,
+      // not a browsing pattern.
       const categories = await prisma.category.findMany({
         where: {
           restaurantId: resolved.branch.restaurantId,
@@ -164,6 +189,7 @@ export class PublicMenuService {
           deletedAt: null,
         },
         orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
+        take: PublicMenuService.MAX_CATEGORIES,
         select: {
           id: true,
           name: true,
@@ -173,6 +199,7 @@ export class PublicMenuService {
               deletedAt: null,
             },
             orderBy: { name: 'asc' },
+            take: PublicMenuService.MAX_PRODUCTS_PER_CATEGORY,
             select: {
               id: true,
               name: true,

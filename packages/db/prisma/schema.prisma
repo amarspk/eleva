@@ -110,6 +110,7 @@ model Tenant {
   // Relations
   subscriptions   Subscription?
   users           User[]
+  userBranches    UserBranch[]
   roles           Role[]
   restaurants     Restaurant[]
   branches        Branch[]
@@ -202,12 +203,36 @@ model User {
 
   tenant       Tenant?       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   userRoles    UserRole[]
+  userBranches UserBranch[]
   deviceTokens DeviceToken[]
   sessionLogs  SessionLog[]
 
   @@unique([email, tenantId], map: "idx_users_email_tenant")
   @@index([tenantId], map: "idx_users_tenant_id")
   @@map("users")
+}
+
+/// Branch scoping for staff users (AUDIT-004 / DOC-005 §4.2).
+/// DOC-005 4.2 requires a staff member's access token to carry the list of
+/// branches they are assigned to, so the dynamic scoping interceptor can
+/// validate `X-Branch-ID` against real assignments. Before this model the
+/// `branches` claim consumed by `CaslAbilityFactory` (BRANCH_MANAGER `$nin`
+/// rules) had no persistent source and was always empty. Rows are tenant-owned
+/// so the assignment itself can never bridge two tenants.
+model UserBranch {
+  userId     String   @db.Uuid
+  branchId   String   @db.Uuid
+  tenantId   String   @db.Uuid
+  assignedAt DateTime @default(now()) @db.Timestamptz
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  branch Branch @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@id([userId, branchId])
+  @@index([branchId], map: "idx_user_branches_branch_id")
+  @@index([tenantId], map: "idx_user_branches_tenant_id")
+  @@map("user_branches")
 }
 
 model Role {
@@ -304,6 +329,7 @@ model Branch {
   tables        Table[]
   orders        Order[]
   kitchenQueues KitchenQueue[]
+  userBranches  UserBranch[]
 
   @@index([tenantId], map: "idx_branches_tenant")
   @@index([restaurantId], map: "idx_branches_restaurant")

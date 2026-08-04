@@ -7,6 +7,13 @@ export class CacheService implements OnModuleInit, OnModuleDestroy {
   private redisClient: RedisClientType | null = null;
   private isConnected = false;
 
+  /**
+   * Upper bound for a durable (security-control) write. Kept well under the
+   * default 5s Prisma interactive-transaction budget, because `setStrict` is
+   * called from inside a transaction that can hold a per-tenant advisory lock.
+   */
+  private static readonly STRICT_WRITE_TIMEOUT_MS = 1500;
+
   async onModuleInit(): Promise<void> {
     const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
     this.logger.log(`Initializing Redis client mapping to target: ${redisUrl}`);
@@ -104,6 +111,66 @@ export class CacheService implements OnModuleInit, OnModuleDestroy {
       this.logger.debug(`Cached key successfully: [${key}] with TTL: ${ttlSeconds}s`);
     } catch (err) {
       this.logger.error(`Failed to cache key [${key}]: ${(err as Error).message}`);
+    }
+  }
+
+  /**
+   * Durable write for values that are SECURITY CONTROLS rather than cache.
+   *
+   * `set()` above is intentionally best-effort: a cache miss is harmless, so it
+   * swallows an offline client and returns as if it succeeded. That contract is
+   * wrong for data whose absence means "no restriction" — for example the
+   * per-user token-revocation marker consumed by `JwtStrategy`. With `set()`,
+   * revoking a deleted user's sessions while Redis was down reported success
+   * but stored nothing, leaving the victim's JWT valid until expiry
+   * (fail-OPEN on a security control).
+   *
+   * This variant reports the truth: it returns `false` (and never throws) when
+   * the value could not be persisted, so callers can fail closed.
+   */
+  async setStrict(key: string, value: unknown, ttlSeconds = 7200): Promise<boolean> {
+    if (!this.redisClient || !this.isConnected) {
+      this.logger.error(
+        `Durable write REJECTED for key [${key}]: Redis is unavailable. Caller must fail closed.`,
+      );
+      return false;
+    }
+
+    try {
+      const serializedValue = JSON.stringify(value);
+      // Bounded wait. Callers invoke this from inside a database transaction
+      // that may hold a per-tenant advisory lock, so an unbounded Redis command
+      // could stall the lock and blow the interactive-transaction budget. A
+      // connected-but-slow store degrades to a clean "not persisted" result,
+      // which the caller turns into a retryable 503.
+      await this.withTimeout(
+        this.redisClient.set(key, serializedValue, { EX: ttlSeconds }),
+        CacheService.STRICT_WRITE_TIMEOUT_MS,
+      );
+      return true;
+    } catch (err) {
+      this.logger.error(`Durable write FAILED for key [${key}]: ${(err as Error).message}`);
+      return false;
+    }
+  }
+
+  /**
+   * Rejects if `promise` has not settled within `ms`. The underlying Redis
+   * command is not cancellable; this only bounds how long the caller waits.
+   */
+  private async withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+    let timer: NodeJS.Timeout | undefined;
+    try {
+      return await Promise.race([
+        promise,
+        new Promise<never>((_resolve, reject) => {
+          timer = setTimeout(() => reject(new Error(`Redis command timed out after ${ms}ms`)), ms);
+        }),
+      ]);
+    } finally {
+      if (timer) {
+        clearTimeout(timer);
+      }
     }
   }
 

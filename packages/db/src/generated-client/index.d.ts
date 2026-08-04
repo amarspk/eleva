@@ -34,6 +34,17 @@ export type Subscription = $Result.DefaultSelection<Prisma.$SubscriptionPayload>
  */
 export type User = $Result.DefaultSelection<Prisma.$UserPayload>
 /**
+ * Model UserBranch
+ * Branch scoping for staff users (AUDIT-004 / DOC-005 §4.2).
+ * DOC-005 4.2 requires a staff member's access token to carry the list of
+ * branches they are assigned to, so the dynamic scoping interceptor can
+ * validate `X-Branch-ID` against real assignments. Before this model the
+ * `branches` claim consumed by `CaslAbilityFactory` (BRANCH_MANAGER `$nin`
+ * rules) had no persistent source and was always empty. Rows are tenant-owned
+ * so the assignment itself can never bridge two tenants.
+ */
+export type UserBranch = $Result.DefaultSelection<Prisma.$UserBranchPayload>
+/**
  * Model Role
  * 
  */
@@ -480,6 +491,16 @@ export class PrismaClient<
     * ```
     */
   get user(): Prisma.UserDelegate<ExtArgs>;
+
+  /**
+   * `prisma.userBranch`: Exposes CRUD operations for the **UserBranch** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more UserBranches
+    * const userBranches = await prisma.userBranch.findMany()
+    * ```
+    */
+  get userBranch(): Prisma.UserBranchDelegate<ExtArgs>;
 
   /**
    * `prisma.role`: Exposes CRUD operations for the **Role** model.
@@ -1195,6 +1216,7 @@ export namespace Prisma {
     SubscriptionPlan: 'SubscriptionPlan',
     Subscription: 'Subscription',
     User: 'User',
+    UserBranch: 'UserBranch',
     Role: 'Role',
     Permission: 'Permission',
     UserRole: 'UserRole',
@@ -1237,7 +1259,7 @@ export namespace Prisma {
 
   export type TypeMap<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, ClientOptions = {}> = {
     meta: {
-      modelProps: "tenant" | "subscriptionPlan" | "subscription" | "user" | "role" | "permission" | "userRole" | "rolePermission" | "restaurant" | "branch" | "table" | "category" | "product" | "productSize" | "productVariant" | "productAddon" | "addonItem" | "discount" | "order" | "orderItem" | "orderItemAddon" | "customer" | "payment" | "invoice" | "auditLog" | "deviceToken" | "kitchenQueue" | "sessionLog" | "notification" | "webhook" | "media"
+      modelProps: "tenant" | "subscriptionPlan" | "subscription" | "user" | "userBranch" | "role" | "permission" | "userRole" | "rolePermission" | "restaurant" | "branch" | "table" | "category" | "product" | "productSize" | "productVariant" | "productAddon" | "addonItem" | "discount" | "order" | "orderItem" | "orderItemAddon" | "customer" | "payment" | "invoice" | "auditLog" | "deviceToken" | "kitchenQueue" | "sessionLog" | "notification" | "webhook" | "media"
       txIsolationLevel: Prisma.TransactionIsolationLevel
     }
     model: {
@@ -1518,6 +1540,76 @@ export namespace Prisma {
           count: {
             args: Prisma.UserCountArgs<ExtArgs>
             result: $Utils.Optional<UserCountAggregateOutputType> | number
+          }
+        }
+      }
+      UserBranch: {
+        payload: Prisma.$UserBranchPayload<ExtArgs>
+        fields: Prisma.UserBranchFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.UserBranchFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$UserBranchPayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.UserBranchFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$UserBranchPayload>
+          }
+          findFirst: {
+            args: Prisma.UserBranchFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$UserBranchPayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.UserBranchFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$UserBranchPayload>
+          }
+          findMany: {
+            args: Prisma.UserBranchFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$UserBranchPayload>[]
+          }
+          create: {
+            args: Prisma.UserBranchCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$UserBranchPayload>
+          }
+          createMany: {
+            args: Prisma.UserBranchCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.UserBranchCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$UserBranchPayload>[]
+          }
+          delete: {
+            args: Prisma.UserBranchDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$UserBranchPayload>
+          }
+          update: {
+            args: Prisma.UserBranchUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$UserBranchPayload>
+          }
+          deleteMany: {
+            args: Prisma.UserBranchDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.UserBranchUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          upsert: {
+            args: Prisma.UserBranchUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$UserBranchPayload>
+          }
+          aggregate: {
+            args: Prisma.UserBranchAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregateUserBranch>
+          }
+          groupBy: {
+            args: Prisma.UserBranchGroupByArgs<ExtArgs>
+            result: $Utils.Optional<UserBranchGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.UserBranchCountArgs<ExtArgs>
+            result: $Utils.Optional<UserBranchCountAggregateOutputType> | number
           }
         }
       }
@@ -3573,6 +3665,7 @@ export namespace Prisma {
 
   export type TenantCountOutputType = {
     users: number
+    userBranches: number
     roles: number
     restaurants: number
     branches: number
@@ -3600,6 +3693,7 @@ export namespace Prisma {
 
   export type TenantCountOutputTypeSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     users?: boolean | TenantCountOutputTypeCountUsersArgs
+    userBranches?: boolean | TenantCountOutputTypeCountUserBranchesArgs
     roles?: boolean | TenantCountOutputTypeCountRolesArgs
     restaurants?: boolean | TenantCountOutputTypeCountRestaurantsArgs
     branches?: boolean | TenantCountOutputTypeCountBranchesArgs
@@ -3641,6 +3735,13 @@ export namespace Prisma {
    */
   export type TenantCountOutputTypeCountUsersArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     where?: UserWhereInput
+  }
+
+  /**
+   * TenantCountOutputType without action
+   */
+  export type TenantCountOutputTypeCountUserBranchesArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: UserBranchWhereInput
   }
 
   /**
@@ -3842,12 +3943,14 @@ export namespace Prisma {
 
   export type UserCountOutputType = {
     userRoles: number
+    userBranches: number
     deviceTokens: number
     sessionLogs: number
   }
 
   export type UserCountOutputTypeSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     userRoles?: boolean | UserCountOutputTypeCountUserRolesArgs
+    userBranches?: boolean | UserCountOutputTypeCountUserBranchesArgs
     deviceTokens?: boolean | UserCountOutputTypeCountDeviceTokensArgs
     sessionLogs?: boolean | UserCountOutputTypeCountSessionLogsArgs
   }
@@ -3868,6 +3971,13 @@ export namespace Prisma {
    */
   export type UserCountOutputTypeCountUserRolesArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     where?: UserRoleWhereInput
+  }
+
+  /**
+   * UserCountOutputType without action
+   */
+  export type UserCountOutputTypeCountUserBranchesArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: UserBranchWhereInput
   }
 
   /**
@@ -4004,12 +4114,14 @@ export namespace Prisma {
     tables: number
     orders: number
     kitchenQueues: number
+    userBranches: number
   }
 
   export type BranchCountOutputTypeSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     tables?: boolean | BranchCountOutputTypeCountTablesArgs
     orders?: boolean | BranchCountOutputTypeCountOrdersArgs
     kitchenQueues?: boolean | BranchCountOutputTypeCountKitchenQueuesArgs
+    userBranches?: boolean | BranchCountOutputTypeCountUserBranchesArgs
   }
 
   // Custom InputTypes
@@ -4042,6 +4154,13 @@ export namespace Prisma {
    */
   export type BranchCountOutputTypeCountKitchenQueuesArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     where?: KitchenQueueWhereInput
+  }
+
+  /**
+   * BranchCountOutputType without action
+   */
+  export type BranchCountOutputTypeCountUserBranchesArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: UserBranchWhereInput
   }
 
 
@@ -4669,6 +4788,7 @@ export namespace Prisma {
     deletedAt?: boolean
     subscriptions?: boolean | Tenant$subscriptionsArgs<ExtArgs>
     users?: boolean | Tenant$usersArgs<ExtArgs>
+    userBranches?: boolean | Tenant$userBranchesArgs<ExtArgs>
     roles?: boolean | Tenant$rolesArgs<ExtArgs>
     restaurants?: boolean | Tenant$restaurantsArgs<ExtArgs>
     branches?: boolean | Tenant$branchesArgs<ExtArgs>
@@ -4732,6 +4852,7 @@ export namespace Prisma {
   export type TenantInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     subscriptions?: boolean | Tenant$subscriptionsArgs<ExtArgs>
     users?: boolean | Tenant$usersArgs<ExtArgs>
+    userBranches?: boolean | Tenant$userBranchesArgs<ExtArgs>
     roles?: boolean | Tenant$rolesArgs<ExtArgs>
     restaurants?: boolean | Tenant$restaurantsArgs<ExtArgs>
     branches?: boolean | Tenant$branchesArgs<ExtArgs>
@@ -4764,6 +4885,7 @@ export namespace Prisma {
     objects: {
       subscriptions: Prisma.$SubscriptionPayload<ExtArgs> | null
       users: Prisma.$UserPayload<ExtArgs>[]
+      userBranches: Prisma.$UserBranchPayload<ExtArgs>[]
       roles: Prisma.$RolePayload<ExtArgs>[]
       restaurants: Prisma.$RestaurantPayload<ExtArgs>[]
       branches: Prisma.$BranchPayload<ExtArgs>[]
@@ -5169,6 +5291,7 @@ export namespace Prisma {
     readonly [Symbol.toStringTag]: "PrismaPromise"
     subscriptions<T extends Tenant$subscriptionsArgs<ExtArgs> = {}>(args?: Subset<T, Tenant$subscriptionsArgs<ExtArgs>>): Prisma__SubscriptionClient<$Result.GetResult<Prisma.$SubscriptionPayload<ExtArgs>, T, "findUniqueOrThrow"> | null, null, ExtArgs>
     users<T extends Tenant$usersArgs<ExtArgs> = {}>(args?: Subset<T, Tenant$usersArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "findMany"> | Null>
+    userBranches<T extends Tenant$userBranchesArgs<ExtArgs> = {}>(args?: Subset<T, Tenant$userBranchesArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$UserBranchPayload<ExtArgs>, T, "findMany"> | Null>
     roles<T extends Tenant$rolesArgs<ExtArgs> = {}>(args?: Subset<T, Tenant$rolesArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$RolePayload<ExtArgs>, T, "findMany"> | Null>
     restaurants<T extends Tenant$restaurantsArgs<ExtArgs> = {}>(args?: Subset<T, Tenant$restaurantsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$RestaurantPayload<ExtArgs>, T, "findMany"> | Null>
     branches<T extends Tenant$branchesArgs<ExtArgs> = {}>(args?: Subset<T, Tenant$branchesArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$BranchPayload<ExtArgs>, T, "findMany"> | Null>
@@ -5581,6 +5704,26 @@ export namespace Prisma {
     take?: number
     skip?: number
     distinct?: UserScalarFieldEnum | UserScalarFieldEnum[]
+  }
+
+  /**
+   * Tenant.userBranches
+   */
+  export type Tenant$userBranchesArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the UserBranch
+     */
+    select?: UserBranchSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: UserBranchInclude<ExtArgs> | null
+    where?: UserBranchWhereInput
+    orderBy?: UserBranchOrderByWithRelationInput | UserBranchOrderByWithRelationInput[]
+    cursor?: UserBranchWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: UserBranchScalarFieldEnum | UserBranchScalarFieldEnum[]
   }
 
   /**
@@ -8437,6 +8580,7 @@ export namespace Prisma {
     deletedAt?: boolean
     tenant?: boolean | User$tenantArgs<ExtArgs>
     userRoles?: boolean | User$userRolesArgs<ExtArgs>
+    userBranches?: boolean | User$userBranchesArgs<ExtArgs>
     deviceTokens?: boolean | User$deviceTokensArgs<ExtArgs>
     sessionLogs?: boolean | User$sessionLogsArgs<ExtArgs>
     _count?: boolean | UserCountOutputTypeDefaultArgs<ExtArgs>
@@ -8480,6 +8624,7 @@ export namespace Prisma {
   export type UserInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     tenant?: boolean | User$tenantArgs<ExtArgs>
     userRoles?: boolean | User$userRolesArgs<ExtArgs>
+    userBranches?: boolean | User$userBranchesArgs<ExtArgs>
     deviceTokens?: boolean | User$deviceTokensArgs<ExtArgs>
     sessionLogs?: boolean | User$sessionLogsArgs<ExtArgs>
     _count?: boolean | UserCountOutputTypeDefaultArgs<ExtArgs>
@@ -8493,6 +8638,7 @@ export namespace Prisma {
     objects: {
       tenant: Prisma.$TenantPayload<ExtArgs> | null
       userRoles: Prisma.$UserRolePayload<ExtArgs>[]
+      userBranches: Prisma.$UserBranchPayload<ExtArgs>[]
       deviceTokens: Prisma.$DeviceTokenPayload<ExtArgs>[]
       sessionLogs: Prisma.$SessionLogPayload<ExtArgs>[]
     }
@@ -8877,6 +9023,7 @@ export namespace Prisma {
     readonly [Symbol.toStringTag]: "PrismaPromise"
     tenant<T extends User$tenantArgs<ExtArgs> = {}>(args?: Subset<T, User$tenantArgs<ExtArgs>>): Prisma__TenantClient<$Result.GetResult<Prisma.$TenantPayload<ExtArgs>, T, "findUniqueOrThrow"> | null, null, ExtArgs>
     userRoles<T extends User$userRolesArgs<ExtArgs> = {}>(args?: Subset<T, User$userRolesArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$UserRolePayload<ExtArgs>, T, "findMany"> | Null>
+    userBranches<T extends User$userBranchesArgs<ExtArgs> = {}>(args?: Subset<T, User$userBranchesArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$UserBranchPayload<ExtArgs>, T, "findMany"> | Null>
     deviceTokens<T extends User$deviceTokensArgs<ExtArgs> = {}>(args?: Subset<T, User$deviceTokensArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$DeviceTokenPayload<ExtArgs>, T, "findMany"> | Null>
     sessionLogs<T extends User$sessionLogsArgs<ExtArgs> = {}>(args?: Subset<T, User$sessionLogsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$SessionLogPayload<ExtArgs>, T, "findMany"> | Null>
     /**
@@ -9275,6 +9422,26 @@ export namespace Prisma {
   }
 
   /**
+   * User.userBranches
+   */
+  export type User$userBranchesArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the UserBranch
+     */
+    select?: UserBranchSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: UserBranchInclude<ExtArgs> | null
+    where?: UserBranchWhereInput
+    orderBy?: UserBranchOrderByWithRelationInput | UserBranchOrderByWithRelationInput[]
+    cursor?: UserBranchWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: UserBranchScalarFieldEnum | UserBranchScalarFieldEnum[]
+  }
+
+  /**
    * User.deviceTokens
    */
   export type User$deviceTokensArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
@@ -9326,6 +9493,939 @@ export namespace Prisma {
      * Choose, which related nodes to fetch as well
      */
     include?: UserInclude<ExtArgs> | null
+  }
+
+
+  /**
+   * Model UserBranch
+   */
+
+  export type AggregateUserBranch = {
+    _count: UserBranchCountAggregateOutputType | null
+    _min: UserBranchMinAggregateOutputType | null
+    _max: UserBranchMaxAggregateOutputType | null
+  }
+
+  export type UserBranchMinAggregateOutputType = {
+    userId: string | null
+    branchId: string | null
+    tenantId: string | null
+    assignedAt: Date | null
+  }
+
+  export type UserBranchMaxAggregateOutputType = {
+    userId: string | null
+    branchId: string | null
+    tenantId: string | null
+    assignedAt: Date | null
+  }
+
+  export type UserBranchCountAggregateOutputType = {
+    userId: number
+    branchId: number
+    tenantId: number
+    assignedAt: number
+    _all: number
+  }
+
+
+  export type UserBranchMinAggregateInputType = {
+    userId?: true
+    branchId?: true
+    tenantId?: true
+    assignedAt?: true
+  }
+
+  export type UserBranchMaxAggregateInputType = {
+    userId?: true
+    branchId?: true
+    tenantId?: true
+    assignedAt?: true
+  }
+
+  export type UserBranchCountAggregateInputType = {
+    userId?: true
+    branchId?: true
+    tenantId?: true
+    assignedAt?: true
+    _all?: true
+  }
+
+  export type UserBranchAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which UserBranch to aggregate.
+     */
+    where?: UserBranchWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of UserBranches to fetch.
+     */
+    orderBy?: UserBranchOrderByWithRelationInput | UserBranchOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: UserBranchWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` UserBranches from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` UserBranches.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned UserBranches
+    **/
+    _count?: true | UserBranchCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: UserBranchMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: UserBranchMaxAggregateInputType
+  }
+
+  export type GetUserBranchAggregateType<T extends UserBranchAggregateArgs> = {
+        [P in keyof T & keyof AggregateUserBranch]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateUserBranch[P]>
+      : GetScalarType<T[P], AggregateUserBranch[P]>
+  }
+
+
+
+
+  export type UserBranchGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: UserBranchWhereInput
+    orderBy?: UserBranchOrderByWithAggregationInput | UserBranchOrderByWithAggregationInput[]
+    by: UserBranchScalarFieldEnum[] | UserBranchScalarFieldEnum
+    having?: UserBranchScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: UserBranchCountAggregateInputType | true
+    _min?: UserBranchMinAggregateInputType
+    _max?: UserBranchMaxAggregateInputType
+  }
+
+  export type UserBranchGroupByOutputType = {
+    userId: string
+    branchId: string
+    tenantId: string
+    assignedAt: Date
+    _count: UserBranchCountAggregateOutputType | null
+    _min: UserBranchMinAggregateOutputType | null
+    _max: UserBranchMaxAggregateOutputType | null
+  }
+
+  type GetUserBranchGroupByPayload<T extends UserBranchGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<UserBranchGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof UserBranchGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], UserBranchGroupByOutputType[P]>
+            : GetScalarType<T[P], UserBranchGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type UserBranchSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    userId?: boolean
+    branchId?: boolean
+    tenantId?: boolean
+    assignedAt?: boolean
+    user?: boolean | UserDefaultArgs<ExtArgs>
+    branch?: boolean | BranchDefaultArgs<ExtArgs>
+    tenant?: boolean | TenantDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["userBranch"]>
+
+  export type UserBranchSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    userId?: boolean
+    branchId?: boolean
+    tenantId?: boolean
+    assignedAt?: boolean
+    user?: boolean | UserDefaultArgs<ExtArgs>
+    branch?: boolean | BranchDefaultArgs<ExtArgs>
+    tenant?: boolean | TenantDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["userBranch"]>
+
+  export type UserBranchSelectScalar = {
+    userId?: boolean
+    branchId?: boolean
+    tenantId?: boolean
+    assignedAt?: boolean
+  }
+
+  export type UserBranchInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    user?: boolean | UserDefaultArgs<ExtArgs>
+    branch?: boolean | BranchDefaultArgs<ExtArgs>
+    tenant?: boolean | TenantDefaultArgs<ExtArgs>
+  }
+  export type UserBranchIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    user?: boolean | UserDefaultArgs<ExtArgs>
+    branch?: boolean | BranchDefaultArgs<ExtArgs>
+    tenant?: boolean | TenantDefaultArgs<ExtArgs>
+  }
+
+  export type $UserBranchPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "UserBranch"
+    objects: {
+      user: Prisma.$UserPayload<ExtArgs>
+      branch: Prisma.$BranchPayload<ExtArgs>
+      tenant: Prisma.$TenantPayload<ExtArgs>
+    }
+    scalars: $Extensions.GetPayloadResult<{
+      userId: string
+      branchId: string
+      tenantId: string
+      assignedAt: Date
+    }, ExtArgs["result"]["userBranch"]>
+    composites: {}
+  }
+
+  type UserBranchGetPayload<S extends boolean | null | undefined | UserBranchDefaultArgs> = $Result.GetResult<Prisma.$UserBranchPayload, S>
+
+  type UserBranchCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = 
+    Omit<UserBranchFindManyArgs, 'select' | 'include' | 'distinct'> & {
+      select?: UserBranchCountAggregateInputType | true
+    }
+
+  export interface UserBranchDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['UserBranch'], meta: { name: 'UserBranch' } }
+    /**
+     * Find zero or one UserBranch that matches the filter.
+     * @param {UserBranchFindUniqueArgs} args - Arguments to find a UserBranch
+     * @example
+     * // Get one UserBranch
+     * const userBranch = await prisma.userBranch.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends UserBranchFindUniqueArgs>(args: SelectSubset<T, UserBranchFindUniqueArgs<ExtArgs>>): Prisma__UserBranchClient<$Result.GetResult<Prisma.$UserBranchPayload<ExtArgs>, T, "findUnique"> | null, null, ExtArgs>
+
+    /**
+     * Find one UserBranch that matches the filter or throw an error with `error.code='P2025'` 
+     * if no matches were found.
+     * @param {UserBranchFindUniqueOrThrowArgs} args - Arguments to find a UserBranch
+     * @example
+     * // Get one UserBranch
+     * const userBranch = await prisma.userBranch.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends UserBranchFindUniqueOrThrowArgs>(args: SelectSubset<T, UserBranchFindUniqueOrThrowArgs<ExtArgs>>): Prisma__UserBranchClient<$Result.GetResult<Prisma.$UserBranchPayload<ExtArgs>, T, "findUniqueOrThrow">, never, ExtArgs>
+
+    /**
+     * Find the first UserBranch that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {UserBranchFindFirstArgs} args - Arguments to find a UserBranch
+     * @example
+     * // Get one UserBranch
+     * const userBranch = await prisma.userBranch.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends UserBranchFindFirstArgs>(args?: SelectSubset<T, UserBranchFindFirstArgs<ExtArgs>>): Prisma__UserBranchClient<$Result.GetResult<Prisma.$UserBranchPayload<ExtArgs>, T, "findFirst"> | null, null, ExtArgs>
+
+    /**
+     * Find the first UserBranch that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {UserBranchFindFirstOrThrowArgs} args - Arguments to find a UserBranch
+     * @example
+     * // Get one UserBranch
+     * const userBranch = await prisma.userBranch.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends UserBranchFindFirstOrThrowArgs>(args?: SelectSubset<T, UserBranchFindFirstOrThrowArgs<ExtArgs>>): Prisma__UserBranchClient<$Result.GetResult<Prisma.$UserBranchPayload<ExtArgs>, T, "findFirstOrThrow">, never, ExtArgs>
+
+    /**
+     * Find zero or more UserBranches that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {UserBranchFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all UserBranches
+     * const userBranches = await prisma.userBranch.findMany()
+     * 
+     * // Get first 10 UserBranches
+     * const userBranches = await prisma.userBranch.findMany({ take: 10 })
+     * 
+     * // Only select the `userId`
+     * const userBranchWithUserIdOnly = await prisma.userBranch.findMany({ select: { userId: true } })
+     * 
+     */
+    findMany<T extends UserBranchFindManyArgs>(args?: SelectSubset<T, UserBranchFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$UserBranchPayload<ExtArgs>, T, "findMany">>
+
+    /**
+     * Create a UserBranch.
+     * @param {UserBranchCreateArgs} args - Arguments to create a UserBranch.
+     * @example
+     * // Create one UserBranch
+     * const UserBranch = await prisma.userBranch.create({
+     *   data: {
+     *     // ... data to create a UserBranch
+     *   }
+     * })
+     * 
+     */
+    create<T extends UserBranchCreateArgs>(args: SelectSubset<T, UserBranchCreateArgs<ExtArgs>>): Prisma__UserBranchClient<$Result.GetResult<Prisma.$UserBranchPayload<ExtArgs>, T, "create">, never, ExtArgs>
+
+    /**
+     * Create many UserBranches.
+     * @param {UserBranchCreateManyArgs} args - Arguments to create many UserBranches.
+     * @example
+     * // Create many UserBranches
+     * const userBranch = await prisma.userBranch.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends UserBranchCreateManyArgs>(args?: SelectSubset<T, UserBranchCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many UserBranches and returns the data saved in the database.
+     * @param {UserBranchCreateManyAndReturnArgs} args - Arguments to create many UserBranches.
+     * @example
+     * // Create many UserBranches
+     * const userBranch = await prisma.userBranch.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many UserBranches and only return the `userId`
+     * const userBranchWithUserIdOnly = await prisma.userBranch.createManyAndReturn({ 
+     *   select: { userId: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends UserBranchCreateManyAndReturnArgs>(args?: SelectSubset<T, UserBranchCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$UserBranchPayload<ExtArgs>, T, "createManyAndReturn">>
+
+    /**
+     * Delete a UserBranch.
+     * @param {UserBranchDeleteArgs} args - Arguments to delete one UserBranch.
+     * @example
+     * // Delete one UserBranch
+     * const UserBranch = await prisma.userBranch.delete({
+     *   where: {
+     *     // ... filter to delete one UserBranch
+     *   }
+     * })
+     * 
+     */
+    delete<T extends UserBranchDeleteArgs>(args: SelectSubset<T, UserBranchDeleteArgs<ExtArgs>>): Prisma__UserBranchClient<$Result.GetResult<Prisma.$UserBranchPayload<ExtArgs>, T, "delete">, never, ExtArgs>
+
+    /**
+     * Update one UserBranch.
+     * @param {UserBranchUpdateArgs} args - Arguments to update one UserBranch.
+     * @example
+     * // Update one UserBranch
+     * const userBranch = await prisma.userBranch.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends UserBranchUpdateArgs>(args: SelectSubset<T, UserBranchUpdateArgs<ExtArgs>>): Prisma__UserBranchClient<$Result.GetResult<Prisma.$UserBranchPayload<ExtArgs>, T, "update">, never, ExtArgs>
+
+    /**
+     * Delete zero or more UserBranches.
+     * @param {UserBranchDeleteManyArgs} args - Arguments to filter UserBranches to delete.
+     * @example
+     * // Delete a few UserBranches
+     * const { count } = await prisma.userBranch.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends UserBranchDeleteManyArgs>(args?: SelectSubset<T, UserBranchDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more UserBranches.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {UserBranchUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many UserBranches
+     * const userBranch = await prisma.userBranch.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends UserBranchUpdateManyArgs>(args: SelectSubset<T, UserBranchUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create or update one UserBranch.
+     * @param {UserBranchUpsertArgs} args - Arguments to update or create a UserBranch.
+     * @example
+     * // Update or create a UserBranch
+     * const userBranch = await prisma.userBranch.upsert({
+     *   create: {
+     *     // ... data to create a UserBranch
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the UserBranch we want to update
+     *   }
+     * })
+     */
+    upsert<T extends UserBranchUpsertArgs>(args: SelectSubset<T, UserBranchUpsertArgs<ExtArgs>>): Prisma__UserBranchClient<$Result.GetResult<Prisma.$UserBranchPayload<ExtArgs>, T, "upsert">, never, ExtArgs>
+
+
+    /**
+     * Count the number of UserBranches.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {UserBranchCountArgs} args - Arguments to filter UserBranches to count.
+     * @example
+     * // Count the number of UserBranches
+     * const count = await prisma.userBranch.count({
+     *   where: {
+     *     // ... the filter for the UserBranches we want to count
+     *   }
+     * })
+    **/
+    count<T extends UserBranchCountArgs>(
+      args?: Subset<T, UserBranchCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], UserBranchCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a UserBranch.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {UserBranchAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends UserBranchAggregateArgs>(args: Subset<T, UserBranchAggregateArgs>): Prisma.PrismaPromise<GetUserBranchAggregateType<T>>
+
+    /**
+     * Group by UserBranch.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {UserBranchGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends UserBranchGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: UserBranchGroupByArgs['orderBy'] }
+        : { orderBy?: UserBranchGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, UserBranchGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetUserBranchGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the UserBranch model
+   */
+  readonly fields: UserBranchFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for UserBranch.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__UserBranchClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    user<T extends UserDefaultArgs<ExtArgs> = {}>(args?: Subset<T, UserDefaultArgs<ExtArgs>>): Prisma__UserClient<$Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "findUniqueOrThrow"> | Null, Null, ExtArgs>
+    branch<T extends BranchDefaultArgs<ExtArgs> = {}>(args?: Subset<T, BranchDefaultArgs<ExtArgs>>): Prisma__BranchClient<$Result.GetResult<Prisma.$BranchPayload<ExtArgs>, T, "findUniqueOrThrow"> | Null, Null, ExtArgs>
+    tenant<T extends TenantDefaultArgs<ExtArgs> = {}>(args?: Subset<T, TenantDefaultArgs<ExtArgs>>): Prisma__TenantClient<$Result.GetResult<Prisma.$TenantPayload<ExtArgs>, T, "findUniqueOrThrow"> | Null, Null, ExtArgs>
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the UserBranch model
+   */ 
+  interface UserBranchFieldRefs {
+    readonly userId: FieldRef<"UserBranch", 'String'>
+    readonly branchId: FieldRef<"UserBranch", 'String'>
+    readonly tenantId: FieldRef<"UserBranch", 'String'>
+    readonly assignedAt: FieldRef<"UserBranch", 'DateTime'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * UserBranch findUnique
+   */
+  export type UserBranchFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the UserBranch
+     */
+    select?: UserBranchSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: UserBranchInclude<ExtArgs> | null
+    /**
+     * Filter, which UserBranch to fetch.
+     */
+    where: UserBranchWhereUniqueInput
+  }
+
+  /**
+   * UserBranch findUniqueOrThrow
+   */
+  export type UserBranchFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the UserBranch
+     */
+    select?: UserBranchSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: UserBranchInclude<ExtArgs> | null
+    /**
+     * Filter, which UserBranch to fetch.
+     */
+    where: UserBranchWhereUniqueInput
+  }
+
+  /**
+   * UserBranch findFirst
+   */
+  export type UserBranchFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the UserBranch
+     */
+    select?: UserBranchSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: UserBranchInclude<ExtArgs> | null
+    /**
+     * Filter, which UserBranch to fetch.
+     */
+    where?: UserBranchWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of UserBranches to fetch.
+     */
+    orderBy?: UserBranchOrderByWithRelationInput | UserBranchOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for UserBranches.
+     */
+    cursor?: UserBranchWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` UserBranches from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` UserBranches.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of UserBranches.
+     */
+    distinct?: UserBranchScalarFieldEnum | UserBranchScalarFieldEnum[]
+  }
+
+  /**
+   * UserBranch findFirstOrThrow
+   */
+  export type UserBranchFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the UserBranch
+     */
+    select?: UserBranchSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: UserBranchInclude<ExtArgs> | null
+    /**
+     * Filter, which UserBranch to fetch.
+     */
+    where?: UserBranchWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of UserBranches to fetch.
+     */
+    orderBy?: UserBranchOrderByWithRelationInput | UserBranchOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for UserBranches.
+     */
+    cursor?: UserBranchWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` UserBranches from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` UserBranches.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of UserBranches.
+     */
+    distinct?: UserBranchScalarFieldEnum | UserBranchScalarFieldEnum[]
+  }
+
+  /**
+   * UserBranch findMany
+   */
+  export type UserBranchFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the UserBranch
+     */
+    select?: UserBranchSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: UserBranchInclude<ExtArgs> | null
+    /**
+     * Filter, which UserBranches to fetch.
+     */
+    where?: UserBranchWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of UserBranches to fetch.
+     */
+    orderBy?: UserBranchOrderByWithRelationInput | UserBranchOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing UserBranches.
+     */
+    cursor?: UserBranchWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` UserBranches from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` UserBranches.
+     */
+    skip?: number
+    distinct?: UserBranchScalarFieldEnum | UserBranchScalarFieldEnum[]
+  }
+
+  /**
+   * UserBranch create
+   */
+  export type UserBranchCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the UserBranch
+     */
+    select?: UserBranchSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: UserBranchInclude<ExtArgs> | null
+    /**
+     * The data needed to create a UserBranch.
+     */
+    data: XOR<UserBranchCreateInput, UserBranchUncheckedCreateInput>
+  }
+
+  /**
+   * UserBranch createMany
+   */
+  export type UserBranchCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many UserBranches.
+     */
+    data: UserBranchCreateManyInput | UserBranchCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * UserBranch createManyAndReturn
+   */
+  export type UserBranchCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the UserBranch
+     */
+    select?: UserBranchSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * The data used to create many UserBranches.
+     */
+    data: UserBranchCreateManyInput | UserBranchCreateManyInput[]
+    skipDuplicates?: boolean
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: UserBranchIncludeCreateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * UserBranch update
+   */
+  export type UserBranchUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the UserBranch
+     */
+    select?: UserBranchSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: UserBranchInclude<ExtArgs> | null
+    /**
+     * The data needed to update a UserBranch.
+     */
+    data: XOR<UserBranchUpdateInput, UserBranchUncheckedUpdateInput>
+    /**
+     * Choose, which UserBranch to update.
+     */
+    where: UserBranchWhereUniqueInput
+  }
+
+  /**
+   * UserBranch updateMany
+   */
+  export type UserBranchUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update UserBranches.
+     */
+    data: XOR<UserBranchUpdateManyMutationInput, UserBranchUncheckedUpdateManyInput>
+    /**
+     * Filter which UserBranches to update
+     */
+    where?: UserBranchWhereInput
+  }
+
+  /**
+   * UserBranch upsert
+   */
+  export type UserBranchUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the UserBranch
+     */
+    select?: UserBranchSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: UserBranchInclude<ExtArgs> | null
+    /**
+     * The filter to search for the UserBranch to update in case it exists.
+     */
+    where: UserBranchWhereUniqueInput
+    /**
+     * In case the UserBranch found by the `where` argument doesn't exist, create a new UserBranch with this data.
+     */
+    create: XOR<UserBranchCreateInput, UserBranchUncheckedCreateInput>
+    /**
+     * In case the UserBranch was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<UserBranchUpdateInput, UserBranchUncheckedUpdateInput>
+  }
+
+  /**
+   * UserBranch delete
+   */
+  export type UserBranchDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the UserBranch
+     */
+    select?: UserBranchSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: UserBranchInclude<ExtArgs> | null
+    /**
+     * Filter which UserBranch to delete.
+     */
+    where: UserBranchWhereUniqueInput
+  }
+
+  /**
+   * UserBranch deleteMany
+   */
+  export type UserBranchDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which UserBranches to delete
+     */
+    where?: UserBranchWhereInput
+  }
+
+  /**
+   * UserBranch without action
+   */
+  export type UserBranchDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the UserBranch
+     */
+    select?: UserBranchSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: UserBranchInclude<ExtArgs> | null
   }
 
 
@@ -14461,6 +15561,7 @@ export namespace Prisma {
     tables?: boolean | Branch$tablesArgs<ExtArgs>
     orders?: boolean | Branch$ordersArgs<ExtArgs>
     kitchenQueues?: boolean | Branch$kitchenQueuesArgs<ExtArgs>
+    userBranches?: boolean | Branch$userBranchesArgs<ExtArgs>
     _count?: boolean | BranchCountOutputTypeDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["branch"]>
 
@@ -14504,6 +15605,7 @@ export namespace Prisma {
     tables?: boolean | Branch$tablesArgs<ExtArgs>
     orders?: boolean | Branch$ordersArgs<ExtArgs>
     kitchenQueues?: boolean | Branch$kitchenQueuesArgs<ExtArgs>
+    userBranches?: boolean | Branch$userBranchesArgs<ExtArgs>
     _count?: boolean | BranchCountOutputTypeDefaultArgs<ExtArgs>
   }
   export type BranchIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
@@ -14519,6 +15621,7 @@ export namespace Prisma {
       tables: Prisma.$TablePayload<ExtArgs>[]
       orders: Prisma.$OrderPayload<ExtArgs>[]
       kitchenQueues: Prisma.$KitchenQueuePayload<ExtArgs>[]
+      userBranches: Prisma.$UserBranchPayload<ExtArgs>[]
     }
     scalars: $Extensions.GetPayloadResult<{
       id: string
@@ -14903,6 +16006,7 @@ export namespace Prisma {
     tables<T extends Branch$tablesArgs<ExtArgs> = {}>(args?: Subset<T, Branch$tablesArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$TablePayload<ExtArgs>, T, "findMany"> | Null>
     orders<T extends Branch$ordersArgs<ExtArgs> = {}>(args?: Subset<T, Branch$ordersArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$OrderPayload<ExtArgs>, T, "findMany"> | Null>
     kitchenQueues<T extends Branch$kitchenQueuesArgs<ExtArgs> = {}>(args?: Subset<T, Branch$kitchenQueuesArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$KitchenQueuePayload<ExtArgs>, T, "findMany"> | Null>
+    userBranches<T extends Branch$userBranchesArgs<ExtArgs> = {}>(args?: Subset<T, Branch$userBranchesArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$UserBranchPayload<ExtArgs>, T, "findMany"> | Null>
     /**
      * Attaches callbacks for the resolution and/or rejection of the Promise.
      * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -15320,6 +16424,26 @@ export namespace Prisma {
     take?: number
     skip?: number
     distinct?: KitchenQueueScalarFieldEnum | KitchenQueueScalarFieldEnum[]
+  }
+
+  /**
+   * Branch.userBranches
+   */
+  export type Branch$userBranchesArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the UserBranch
+     */
+    select?: UserBranchSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: UserBranchInclude<ExtArgs> | null
+    where?: UserBranchWhereInput
+    orderBy?: UserBranchOrderByWithRelationInput | UserBranchOrderByWithRelationInput[]
+    cursor?: UserBranchWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: UserBranchScalarFieldEnum | UserBranchScalarFieldEnum[]
   }
 
   /**
@@ -37381,6 +38505,16 @@ export namespace Prisma {
   export type UserScalarFieldEnum = (typeof UserScalarFieldEnum)[keyof typeof UserScalarFieldEnum]
 
 
+  export const UserBranchScalarFieldEnum: {
+    userId: 'userId',
+    branchId: 'branchId',
+    tenantId: 'tenantId',
+    assignedAt: 'assignedAt'
+  };
+
+  export type UserBranchScalarFieldEnum = (typeof UserBranchScalarFieldEnum)[keyof typeof UserBranchScalarFieldEnum]
+
+
   export const RoleScalarFieldEnum: {
     id: 'id',
     tenantId: 'tenantId',
@@ -38091,6 +39225,7 @@ export namespace Prisma {
     deletedAt?: DateTimeNullableFilter<"Tenant"> | Date | string | null
     subscriptions?: XOR<SubscriptionNullableRelationFilter, SubscriptionWhereInput> | null
     users?: UserListRelationFilter
+    userBranches?: UserBranchListRelationFilter
     roles?: RoleListRelationFilter
     restaurants?: RestaurantListRelationFilter
     branches?: BranchListRelationFilter
@@ -38133,6 +39268,7 @@ export namespace Prisma {
     deletedAt?: SortOrderInput | SortOrder
     subscriptions?: SubscriptionOrderByWithRelationInput
     users?: UserOrderByRelationAggregateInput
+    userBranches?: UserBranchOrderByRelationAggregateInput
     roles?: RoleOrderByRelationAggregateInput
     restaurants?: RestaurantOrderByRelationAggregateInput
     branches?: BranchOrderByRelationAggregateInput
@@ -38178,6 +39314,7 @@ export namespace Prisma {
     deletedAt?: DateTimeNullableFilter<"Tenant"> | Date | string | null
     subscriptions?: XOR<SubscriptionNullableRelationFilter, SubscriptionWhereInput> | null
     users?: UserListRelationFilter
+    userBranches?: UserBranchListRelationFilter
     roles?: RoleListRelationFilter
     restaurants?: RestaurantListRelationFilter
     branches?: BranchListRelationFilter
@@ -38463,6 +39600,7 @@ export namespace Prisma {
     deletedAt?: DateTimeNullableFilter<"User"> | Date | string | null
     tenant?: XOR<TenantNullableRelationFilter, TenantWhereInput> | null
     userRoles?: UserRoleListRelationFilter
+    userBranches?: UserBranchListRelationFilter
     deviceTokens?: DeviceTokenListRelationFilter
     sessionLogs?: SessionLogListRelationFilter
   }
@@ -38484,6 +39622,7 @@ export namespace Prisma {
     deletedAt?: SortOrderInput | SortOrder
     tenant?: TenantOrderByWithRelationInput
     userRoles?: UserRoleOrderByRelationAggregateInput
+    userBranches?: UserBranchOrderByRelationAggregateInput
     deviceTokens?: DeviceTokenOrderByRelationAggregateInput
     sessionLogs?: SessionLogOrderByRelationAggregateInput
   }
@@ -38509,6 +39648,7 @@ export namespace Prisma {
     deletedAt?: DateTimeNullableFilter<"User"> | Date | string | null
     tenant?: XOR<TenantNullableRelationFilter, TenantWhereInput> | null
     userRoles?: UserRoleListRelationFilter
+    userBranches?: UserBranchListRelationFilter
     deviceTokens?: DeviceTokenListRelationFilter
     sessionLogs?: SessionLogListRelationFilter
   }, "id" | "email_tenantId">
@@ -38551,6 +39691,63 @@ export namespace Prisma {
     createdAt?: DateTimeWithAggregatesFilter<"User"> | Date | string
     updatedAt?: DateTimeWithAggregatesFilter<"User"> | Date | string
     deletedAt?: DateTimeNullableWithAggregatesFilter<"User"> | Date | string | null
+  }
+
+  export type UserBranchWhereInput = {
+    AND?: UserBranchWhereInput | UserBranchWhereInput[]
+    OR?: UserBranchWhereInput[]
+    NOT?: UserBranchWhereInput | UserBranchWhereInput[]
+    userId?: UuidFilter<"UserBranch"> | string
+    branchId?: UuidFilter<"UserBranch"> | string
+    tenantId?: UuidFilter<"UserBranch"> | string
+    assignedAt?: DateTimeFilter<"UserBranch"> | Date | string
+    user?: XOR<UserRelationFilter, UserWhereInput>
+    branch?: XOR<BranchRelationFilter, BranchWhereInput>
+    tenant?: XOR<TenantRelationFilter, TenantWhereInput>
+  }
+
+  export type UserBranchOrderByWithRelationInput = {
+    userId?: SortOrder
+    branchId?: SortOrder
+    tenantId?: SortOrder
+    assignedAt?: SortOrder
+    user?: UserOrderByWithRelationInput
+    branch?: BranchOrderByWithRelationInput
+    tenant?: TenantOrderByWithRelationInput
+  }
+
+  export type UserBranchWhereUniqueInput = Prisma.AtLeast<{
+    userId_branchId?: UserBranchUserIdBranchIdCompoundUniqueInput
+    AND?: UserBranchWhereInput | UserBranchWhereInput[]
+    OR?: UserBranchWhereInput[]
+    NOT?: UserBranchWhereInput | UserBranchWhereInput[]
+    userId?: UuidFilter<"UserBranch"> | string
+    branchId?: UuidFilter<"UserBranch"> | string
+    tenantId?: UuidFilter<"UserBranch"> | string
+    assignedAt?: DateTimeFilter<"UserBranch"> | Date | string
+    user?: XOR<UserRelationFilter, UserWhereInput>
+    branch?: XOR<BranchRelationFilter, BranchWhereInput>
+    tenant?: XOR<TenantRelationFilter, TenantWhereInput>
+  }, "userId_branchId">
+
+  export type UserBranchOrderByWithAggregationInput = {
+    userId?: SortOrder
+    branchId?: SortOrder
+    tenantId?: SortOrder
+    assignedAt?: SortOrder
+    _count?: UserBranchCountOrderByAggregateInput
+    _max?: UserBranchMaxOrderByAggregateInput
+    _min?: UserBranchMinOrderByAggregateInput
+  }
+
+  export type UserBranchScalarWhereWithAggregatesInput = {
+    AND?: UserBranchScalarWhereWithAggregatesInput | UserBranchScalarWhereWithAggregatesInput[]
+    OR?: UserBranchScalarWhereWithAggregatesInput[]
+    NOT?: UserBranchScalarWhereWithAggregatesInput | UserBranchScalarWhereWithAggregatesInput[]
+    userId?: UuidWithAggregatesFilter<"UserBranch"> | string
+    branchId?: UuidWithAggregatesFilter<"UserBranch"> | string
+    tenantId?: UuidWithAggregatesFilter<"UserBranch"> | string
+    assignedAt?: DateTimeWithAggregatesFilter<"UserBranch"> | Date | string
   }
 
   export type RoleWhereInput = {
@@ -38884,6 +40081,7 @@ export namespace Prisma {
     tables?: TableListRelationFilter
     orders?: OrderListRelationFilter
     kitchenQueues?: KitchenQueueListRelationFilter
+    userBranches?: UserBranchListRelationFilter
   }
 
   export type BranchOrderByWithRelationInput = {
@@ -38905,6 +40103,7 @@ export namespace Prisma {
     tables?: TableOrderByRelationAggregateInput
     orders?: OrderOrderByRelationAggregateInput
     kitchenQueues?: KitchenQueueOrderByRelationAggregateInput
+    userBranches?: UserBranchOrderByRelationAggregateInput
   }
 
   export type BranchWhereUniqueInput = Prisma.AtLeast<{
@@ -38929,6 +40128,7 @@ export namespace Prisma {
     tables?: TableListRelationFilter
     orders?: OrderListRelationFilter
     kitchenQueues?: KitchenQueueListRelationFilter
+    userBranches?: UserBranchListRelationFilter
   }, "id">
 
   export type BranchOrderByWithAggregationInput = {
@@ -40805,6 +42005,7 @@ export namespace Prisma {
     deletedAt?: Date | string | null
     subscriptions?: SubscriptionCreateNestedOneWithoutTenantInput
     users?: UserCreateNestedManyWithoutTenantInput
+    userBranches?: UserBranchCreateNestedManyWithoutTenantInput
     roles?: RoleCreateNestedManyWithoutTenantInput
     restaurants?: RestaurantCreateNestedManyWithoutTenantInput
     branches?: BranchCreateNestedManyWithoutTenantInput
@@ -40847,6 +42048,7 @@ export namespace Prisma {
     deletedAt?: Date | string | null
     subscriptions?: SubscriptionUncheckedCreateNestedOneWithoutTenantInput
     users?: UserUncheckedCreateNestedManyWithoutTenantInput
+    userBranches?: UserBranchUncheckedCreateNestedManyWithoutTenantInput
     roles?: RoleUncheckedCreateNestedManyWithoutTenantInput
     restaurants?: RestaurantUncheckedCreateNestedManyWithoutTenantInput
     branches?: BranchUncheckedCreateNestedManyWithoutTenantInput
@@ -40889,6 +42091,7 @@ export namespace Prisma {
     deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     subscriptions?: SubscriptionUpdateOneWithoutTenantNestedInput
     users?: UserUpdateManyWithoutTenantNestedInput
+    userBranches?: UserBranchUpdateManyWithoutTenantNestedInput
     roles?: RoleUpdateManyWithoutTenantNestedInput
     restaurants?: RestaurantUpdateManyWithoutTenantNestedInput
     branches?: BranchUpdateManyWithoutTenantNestedInput
@@ -40931,6 +42134,7 @@ export namespace Prisma {
     deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     subscriptions?: SubscriptionUncheckedUpdateOneWithoutTenantNestedInput
     users?: UserUncheckedUpdateManyWithoutTenantNestedInput
+    userBranches?: UserBranchUncheckedUpdateManyWithoutTenantNestedInput
     roles?: RoleUncheckedUpdateManyWithoutTenantNestedInput
     restaurants?: RestaurantUncheckedUpdateManyWithoutTenantNestedInput
     branches?: BranchUncheckedUpdateManyWithoutTenantNestedInput
@@ -41256,6 +42460,7 @@ export namespace Prisma {
     deletedAt?: Date | string | null
     tenant?: TenantCreateNestedOneWithoutUsersInput
     userRoles?: UserRoleCreateNestedManyWithoutUserInput
+    userBranches?: UserBranchCreateNestedManyWithoutUserInput
     deviceTokens?: DeviceTokenCreateNestedManyWithoutUserInput
     sessionLogs?: SessionLogCreateNestedManyWithoutUserInput
   }
@@ -41276,6 +42481,7 @@ export namespace Prisma {
     updatedAt?: Date | string
     deletedAt?: Date | string | null
     userRoles?: UserRoleUncheckedCreateNestedManyWithoutUserInput
+    userBranches?: UserBranchUncheckedCreateNestedManyWithoutUserInput
     deviceTokens?: DeviceTokenUncheckedCreateNestedManyWithoutUserInput
     sessionLogs?: SessionLogUncheckedCreateNestedManyWithoutUserInput
   }
@@ -41296,6 +42502,7 @@ export namespace Prisma {
     deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     tenant?: TenantUpdateOneWithoutUsersNestedInput
     userRoles?: UserRoleUpdateManyWithoutUserNestedInput
+    userBranches?: UserBranchUpdateManyWithoutUserNestedInput
     deviceTokens?: DeviceTokenUpdateManyWithoutUserNestedInput
     sessionLogs?: SessionLogUpdateManyWithoutUserNestedInput
   }
@@ -41316,6 +42523,7 @@ export namespace Prisma {
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     userRoles?: UserRoleUncheckedUpdateManyWithoutUserNestedInput
+    userBranches?: UserBranchUncheckedUpdateManyWithoutUserNestedInput
     deviceTokens?: DeviceTokenUncheckedUpdateManyWithoutUserNestedInput
     sessionLogs?: SessionLogUncheckedUpdateManyWithoutUserNestedInput
   }
@@ -41368,6 +42576,52 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  }
+
+  export type UserBranchCreateInput = {
+    assignedAt?: Date | string
+    user: UserCreateNestedOneWithoutUserBranchesInput
+    branch: BranchCreateNestedOneWithoutUserBranchesInput
+    tenant: TenantCreateNestedOneWithoutUserBranchesInput
+  }
+
+  export type UserBranchUncheckedCreateInput = {
+    userId: string
+    branchId: string
+    tenantId: string
+    assignedAt?: Date | string
+  }
+
+  export type UserBranchUpdateInput = {
+    assignedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    user?: UserUpdateOneRequiredWithoutUserBranchesNestedInput
+    branch?: BranchUpdateOneRequiredWithoutUserBranchesNestedInput
+    tenant?: TenantUpdateOneRequiredWithoutUserBranchesNestedInput
+  }
+
+  export type UserBranchUncheckedUpdateInput = {
+    userId?: StringFieldUpdateOperationsInput | string
+    branchId?: StringFieldUpdateOperationsInput | string
+    tenantId?: StringFieldUpdateOperationsInput | string
+    assignedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type UserBranchCreateManyInput = {
+    userId: string
+    branchId: string
+    tenantId: string
+    assignedAt?: Date | string
+  }
+
+  export type UserBranchUpdateManyMutationInput = {
+    assignedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type UserBranchUncheckedUpdateManyInput = {
+    userId?: StringFieldUpdateOperationsInput | string
+    branchId?: StringFieldUpdateOperationsInput | string
+    tenantId?: StringFieldUpdateOperationsInput | string
+    assignedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
   export type RoleCreateInput = {
@@ -41695,6 +42949,7 @@ export namespace Prisma {
     tables?: TableCreateNestedManyWithoutBranchInput
     orders?: OrderCreateNestedManyWithoutBranchInput
     kitchenQueues?: KitchenQueueCreateNestedManyWithoutBranchInput
+    userBranches?: UserBranchCreateNestedManyWithoutBranchInput
   }
 
   export type BranchUncheckedCreateInput = {
@@ -41714,6 +42969,7 @@ export namespace Prisma {
     tables?: TableUncheckedCreateNestedManyWithoutBranchInput
     orders?: OrderUncheckedCreateNestedManyWithoutBranchInput
     kitchenQueues?: KitchenQueueUncheckedCreateNestedManyWithoutBranchInput
+    userBranches?: UserBranchUncheckedCreateNestedManyWithoutBranchInput
   }
 
   export type BranchUpdateInput = {
@@ -41733,6 +42989,7 @@ export namespace Prisma {
     tables?: TableUpdateManyWithoutBranchNestedInput
     orders?: OrderUpdateManyWithoutBranchNestedInput
     kitchenQueues?: KitchenQueueUpdateManyWithoutBranchNestedInput
+    userBranches?: UserBranchUpdateManyWithoutBranchNestedInput
   }
 
   export type BranchUncheckedUpdateInput = {
@@ -41752,6 +43009,7 @@ export namespace Prisma {
     tables?: TableUncheckedUpdateManyWithoutBranchNestedInput
     orders?: OrderUncheckedUpdateManyWithoutBranchNestedInput
     kitchenQueues?: KitchenQueueUncheckedUpdateManyWithoutBranchNestedInput
+    userBranches?: UserBranchUncheckedUpdateManyWithoutBranchNestedInput
   }
 
   export type BranchCreateManyInput = {
@@ -43826,6 +45084,12 @@ export namespace Prisma {
     none?: UserWhereInput
   }
 
+  export type UserBranchListRelationFilter = {
+    every?: UserBranchWhereInput
+    some?: UserBranchWhereInput
+    none?: UserBranchWhereInput
+  }
+
   export type RoleListRelationFilter = {
     every?: RoleWhereInput
     some?: RoleWhereInput
@@ -43970,6 +45234,10 @@ export namespace Prisma {
   }
 
   export type UserOrderByRelationAggregateInput = {
+    _count?: SortOrder
+  }
+
+  export type UserBranchOrderByRelationAggregateInput = {
     _count?: SortOrder
   }
 
@@ -44545,6 +45813,42 @@ export namespace Prisma {
     _max?: NestedStringNullableFilter<$PrismaModel>
   }
 
+  export type UserRelationFilter = {
+    is?: UserWhereInput
+    isNot?: UserWhereInput
+  }
+
+  export type BranchRelationFilter = {
+    is?: BranchWhereInput
+    isNot?: BranchWhereInput
+  }
+
+  export type UserBranchUserIdBranchIdCompoundUniqueInput = {
+    userId: string
+    branchId: string
+  }
+
+  export type UserBranchCountOrderByAggregateInput = {
+    userId?: SortOrder
+    branchId?: SortOrder
+    tenantId?: SortOrder
+    assignedAt?: SortOrder
+  }
+
+  export type UserBranchMaxOrderByAggregateInput = {
+    userId?: SortOrder
+    branchId?: SortOrder
+    tenantId?: SortOrder
+    assignedAt?: SortOrder
+  }
+
+  export type UserBranchMinOrderByAggregateInput = {
+    userId?: SortOrder
+    branchId?: SortOrder
+    tenantId?: SortOrder
+    assignedAt?: SortOrder
+  }
+
   export type RolePermissionListRelationFilter = {
     every?: RolePermissionWhereInput
     some?: RolePermissionWhereInput
@@ -44617,11 +45921,6 @@ export namespace Prisma {
     resource?: SortOrder
     description?: SortOrder
     createdAt?: SortOrder
-  }
-
-  export type UserRelationFilter = {
-    is?: UserWhereInput
-    isNot?: UserWhereInput
   }
 
   export type RoleRelationFilter = {
@@ -44864,11 +46163,6 @@ export namespace Prisma {
     in?: $Enums.TableStatus[] | ListEnumTableStatusFieldRefInput<$PrismaModel>
     notIn?: $Enums.TableStatus[] | ListEnumTableStatusFieldRefInput<$PrismaModel>
     not?: NestedEnumTableStatusFilter<$PrismaModel> | $Enums.TableStatus
-  }
-
-  export type BranchRelationFilter = {
-    is?: BranchWhereInput
-    isNot?: BranchWhereInput
   }
 
   export type TableCountOrderByAggregateInput = {
@@ -46084,6 +47378,13 @@ export namespace Prisma {
     connect?: UserWhereUniqueInput | UserWhereUniqueInput[]
   }
 
+  export type UserBranchCreateNestedManyWithoutTenantInput = {
+    create?: XOR<UserBranchCreateWithoutTenantInput, UserBranchUncheckedCreateWithoutTenantInput> | UserBranchCreateWithoutTenantInput[] | UserBranchUncheckedCreateWithoutTenantInput[]
+    connectOrCreate?: UserBranchCreateOrConnectWithoutTenantInput | UserBranchCreateOrConnectWithoutTenantInput[]
+    createMany?: UserBranchCreateManyTenantInputEnvelope
+    connect?: UserBranchWhereUniqueInput | UserBranchWhereUniqueInput[]
+  }
+
   export type RoleCreateNestedManyWithoutTenantInput = {
     create?: XOR<RoleCreateWithoutTenantInput, RoleUncheckedCreateWithoutTenantInput> | RoleCreateWithoutTenantInput[] | RoleUncheckedCreateWithoutTenantInput[]
     connectOrCreate?: RoleCreateOrConnectWithoutTenantInput | RoleCreateOrConnectWithoutTenantInput[]
@@ -46256,6 +47557,13 @@ export namespace Prisma {
     connectOrCreate?: UserCreateOrConnectWithoutTenantInput | UserCreateOrConnectWithoutTenantInput[]
     createMany?: UserCreateManyTenantInputEnvelope
     connect?: UserWhereUniqueInput | UserWhereUniqueInput[]
+  }
+
+  export type UserBranchUncheckedCreateNestedManyWithoutTenantInput = {
+    create?: XOR<UserBranchCreateWithoutTenantInput, UserBranchUncheckedCreateWithoutTenantInput> | UserBranchCreateWithoutTenantInput[] | UserBranchUncheckedCreateWithoutTenantInput[]
+    connectOrCreate?: UserBranchCreateOrConnectWithoutTenantInput | UserBranchCreateOrConnectWithoutTenantInput[]
+    createMany?: UserBranchCreateManyTenantInputEnvelope
+    connect?: UserBranchWhereUniqueInput | UserBranchWhereUniqueInput[]
   }
 
   export type RoleUncheckedCreateNestedManyWithoutTenantInput = {
@@ -46461,6 +47769,20 @@ export namespace Prisma {
     update?: UserUpdateWithWhereUniqueWithoutTenantInput | UserUpdateWithWhereUniqueWithoutTenantInput[]
     updateMany?: UserUpdateManyWithWhereWithoutTenantInput | UserUpdateManyWithWhereWithoutTenantInput[]
     deleteMany?: UserScalarWhereInput | UserScalarWhereInput[]
+  }
+
+  export type UserBranchUpdateManyWithoutTenantNestedInput = {
+    create?: XOR<UserBranchCreateWithoutTenantInput, UserBranchUncheckedCreateWithoutTenantInput> | UserBranchCreateWithoutTenantInput[] | UserBranchUncheckedCreateWithoutTenantInput[]
+    connectOrCreate?: UserBranchCreateOrConnectWithoutTenantInput | UserBranchCreateOrConnectWithoutTenantInput[]
+    upsert?: UserBranchUpsertWithWhereUniqueWithoutTenantInput | UserBranchUpsertWithWhereUniqueWithoutTenantInput[]
+    createMany?: UserBranchCreateManyTenantInputEnvelope
+    set?: UserBranchWhereUniqueInput | UserBranchWhereUniqueInput[]
+    disconnect?: UserBranchWhereUniqueInput | UserBranchWhereUniqueInput[]
+    delete?: UserBranchWhereUniqueInput | UserBranchWhereUniqueInput[]
+    connect?: UserBranchWhereUniqueInput | UserBranchWhereUniqueInput[]
+    update?: UserBranchUpdateWithWhereUniqueWithoutTenantInput | UserBranchUpdateWithWhereUniqueWithoutTenantInput[]
+    updateMany?: UserBranchUpdateManyWithWhereWithoutTenantInput | UserBranchUpdateManyWithWhereWithoutTenantInput[]
+    deleteMany?: UserBranchScalarWhereInput | UserBranchScalarWhereInput[]
   }
 
   export type RoleUpdateManyWithoutTenantNestedInput = {
@@ -46807,6 +48129,20 @@ export namespace Prisma {
     update?: UserUpdateWithWhereUniqueWithoutTenantInput | UserUpdateWithWhereUniqueWithoutTenantInput[]
     updateMany?: UserUpdateManyWithWhereWithoutTenantInput | UserUpdateManyWithWhereWithoutTenantInput[]
     deleteMany?: UserScalarWhereInput | UserScalarWhereInput[]
+  }
+
+  export type UserBranchUncheckedUpdateManyWithoutTenantNestedInput = {
+    create?: XOR<UserBranchCreateWithoutTenantInput, UserBranchUncheckedCreateWithoutTenantInput> | UserBranchCreateWithoutTenantInput[] | UserBranchUncheckedCreateWithoutTenantInput[]
+    connectOrCreate?: UserBranchCreateOrConnectWithoutTenantInput | UserBranchCreateOrConnectWithoutTenantInput[]
+    upsert?: UserBranchUpsertWithWhereUniqueWithoutTenantInput | UserBranchUpsertWithWhereUniqueWithoutTenantInput[]
+    createMany?: UserBranchCreateManyTenantInputEnvelope
+    set?: UserBranchWhereUniqueInput | UserBranchWhereUniqueInput[]
+    disconnect?: UserBranchWhereUniqueInput | UserBranchWhereUniqueInput[]
+    delete?: UserBranchWhereUniqueInput | UserBranchWhereUniqueInput[]
+    connect?: UserBranchWhereUniqueInput | UserBranchWhereUniqueInput[]
+    update?: UserBranchUpdateWithWhereUniqueWithoutTenantInput | UserBranchUpdateWithWhereUniqueWithoutTenantInput[]
+    updateMany?: UserBranchUpdateManyWithWhereWithoutTenantInput | UserBranchUpdateManyWithWhereWithoutTenantInput[]
+    deleteMany?: UserBranchScalarWhereInput | UserBranchScalarWhereInput[]
   }
 
   export type RoleUncheckedUpdateManyWithoutTenantNestedInput = {
@@ -47238,6 +48574,13 @@ export namespace Prisma {
     connect?: UserRoleWhereUniqueInput | UserRoleWhereUniqueInput[]
   }
 
+  export type UserBranchCreateNestedManyWithoutUserInput = {
+    create?: XOR<UserBranchCreateWithoutUserInput, UserBranchUncheckedCreateWithoutUserInput> | UserBranchCreateWithoutUserInput[] | UserBranchUncheckedCreateWithoutUserInput[]
+    connectOrCreate?: UserBranchCreateOrConnectWithoutUserInput | UserBranchCreateOrConnectWithoutUserInput[]
+    createMany?: UserBranchCreateManyUserInputEnvelope
+    connect?: UserBranchWhereUniqueInput | UserBranchWhereUniqueInput[]
+  }
+
   export type DeviceTokenCreateNestedManyWithoutUserInput = {
     create?: XOR<DeviceTokenCreateWithoutUserInput, DeviceTokenUncheckedCreateWithoutUserInput> | DeviceTokenCreateWithoutUserInput[] | DeviceTokenUncheckedCreateWithoutUserInput[]
     connectOrCreate?: DeviceTokenCreateOrConnectWithoutUserInput | DeviceTokenCreateOrConnectWithoutUserInput[]
@@ -47257,6 +48600,13 @@ export namespace Prisma {
     connectOrCreate?: UserRoleCreateOrConnectWithoutUserInput | UserRoleCreateOrConnectWithoutUserInput[]
     createMany?: UserRoleCreateManyUserInputEnvelope
     connect?: UserRoleWhereUniqueInput | UserRoleWhereUniqueInput[]
+  }
+
+  export type UserBranchUncheckedCreateNestedManyWithoutUserInput = {
+    create?: XOR<UserBranchCreateWithoutUserInput, UserBranchUncheckedCreateWithoutUserInput> | UserBranchCreateWithoutUserInput[] | UserBranchUncheckedCreateWithoutUserInput[]
+    connectOrCreate?: UserBranchCreateOrConnectWithoutUserInput | UserBranchCreateOrConnectWithoutUserInput[]
+    createMany?: UserBranchCreateManyUserInputEnvelope
+    connect?: UserBranchWhereUniqueInput | UserBranchWhereUniqueInput[]
   }
 
   export type DeviceTokenUncheckedCreateNestedManyWithoutUserInput = {
@@ -47295,6 +48645,20 @@ export namespace Prisma {
     update?: UserRoleUpdateWithWhereUniqueWithoutUserInput | UserRoleUpdateWithWhereUniqueWithoutUserInput[]
     updateMany?: UserRoleUpdateManyWithWhereWithoutUserInput | UserRoleUpdateManyWithWhereWithoutUserInput[]
     deleteMany?: UserRoleScalarWhereInput | UserRoleScalarWhereInput[]
+  }
+
+  export type UserBranchUpdateManyWithoutUserNestedInput = {
+    create?: XOR<UserBranchCreateWithoutUserInput, UserBranchUncheckedCreateWithoutUserInput> | UserBranchCreateWithoutUserInput[] | UserBranchUncheckedCreateWithoutUserInput[]
+    connectOrCreate?: UserBranchCreateOrConnectWithoutUserInput | UserBranchCreateOrConnectWithoutUserInput[]
+    upsert?: UserBranchUpsertWithWhereUniqueWithoutUserInput | UserBranchUpsertWithWhereUniqueWithoutUserInput[]
+    createMany?: UserBranchCreateManyUserInputEnvelope
+    set?: UserBranchWhereUniqueInput | UserBranchWhereUniqueInput[]
+    disconnect?: UserBranchWhereUniqueInput | UserBranchWhereUniqueInput[]
+    delete?: UserBranchWhereUniqueInput | UserBranchWhereUniqueInput[]
+    connect?: UserBranchWhereUniqueInput | UserBranchWhereUniqueInput[]
+    update?: UserBranchUpdateWithWhereUniqueWithoutUserInput | UserBranchUpdateWithWhereUniqueWithoutUserInput[]
+    updateMany?: UserBranchUpdateManyWithWhereWithoutUserInput | UserBranchUpdateManyWithWhereWithoutUserInput[]
+    deleteMany?: UserBranchScalarWhereInput | UserBranchScalarWhereInput[]
   }
 
   export type DeviceTokenUpdateManyWithoutUserNestedInput = {
@@ -47339,6 +48703,20 @@ export namespace Prisma {
     deleteMany?: UserRoleScalarWhereInput | UserRoleScalarWhereInput[]
   }
 
+  export type UserBranchUncheckedUpdateManyWithoutUserNestedInput = {
+    create?: XOR<UserBranchCreateWithoutUserInput, UserBranchUncheckedCreateWithoutUserInput> | UserBranchCreateWithoutUserInput[] | UserBranchUncheckedCreateWithoutUserInput[]
+    connectOrCreate?: UserBranchCreateOrConnectWithoutUserInput | UserBranchCreateOrConnectWithoutUserInput[]
+    upsert?: UserBranchUpsertWithWhereUniqueWithoutUserInput | UserBranchUpsertWithWhereUniqueWithoutUserInput[]
+    createMany?: UserBranchCreateManyUserInputEnvelope
+    set?: UserBranchWhereUniqueInput | UserBranchWhereUniqueInput[]
+    disconnect?: UserBranchWhereUniqueInput | UserBranchWhereUniqueInput[]
+    delete?: UserBranchWhereUniqueInput | UserBranchWhereUniqueInput[]
+    connect?: UserBranchWhereUniqueInput | UserBranchWhereUniqueInput[]
+    update?: UserBranchUpdateWithWhereUniqueWithoutUserInput | UserBranchUpdateWithWhereUniqueWithoutUserInput[]
+    updateMany?: UserBranchUpdateManyWithWhereWithoutUserInput | UserBranchUpdateManyWithWhereWithoutUserInput[]
+    deleteMany?: UserBranchScalarWhereInput | UserBranchScalarWhereInput[]
+  }
+
   export type DeviceTokenUncheckedUpdateManyWithoutUserNestedInput = {
     create?: XOR<DeviceTokenCreateWithoutUserInput, DeviceTokenUncheckedCreateWithoutUserInput> | DeviceTokenCreateWithoutUserInput[] | DeviceTokenUncheckedCreateWithoutUserInput[]
     connectOrCreate?: DeviceTokenCreateOrConnectWithoutUserInput | DeviceTokenCreateOrConnectWithoutUserInput[]
@@ -47365,6 +48743,48 @@ export namespace Prisma {
     update?: SessionLogUpdateWithWhereUniqueWithoutUserInput | SessionLogUpdateWithWhereUniqueWithoutUserInput[]
     updateMany?: SessionLogUpdateManyWithWhereWithoutUserInput | SessionLogUpdateManyWithWhereWithoutUserInput[]
     deleteMany?: SessionLogScalarWhereInput | SessionLogScalarWhereInput[]
+  }
+
+  export type UserCreateNestedOneWithoutUserBranchesInput = {
+    create?: XOR<UserCreateWithoutUserBranchesInput, UserUncheckedCreateWithoutUserBranchesInput>
+    connectOrCreate?: UserCreateOrConnectWithoutUserBranchesInput
+    connect?: UserWhereUniqueInput
+  }
+
+  export type BranchCreateNestedOneWithoutUserBranchesInput = {
+    create?: XOR<BranchCreateWithoutUserBranchesInput, BranchUncheckedCreateWithoutUserBranchesInput>
+    connectOrCreate?: BranchCreateOrConnectWithoutUserBranchesInput
+    connect?: BranchWhereUniqueInput
+  }
+
+  export type TenantCreateNestedOneWithoutUserBranchesInput = {
+    create?: XOR<TenantCreateWithoutUserBranchesInput, TenantUncheckedCreateWithoutUserBranchesInput>
+    connectOrCreate?: TenantCreateOrConnectWithoutUserBranchesInput
+    connect?: TenantWhereUniqueInput
+  }
+
+  export type UserUpdateOneRequiredWithoutUserBranchesNestedInput = {
+    create?: XOR<UserCreateWithoutUserBranchesInput, UserUncheckedCreateWithoutUserBranchesInput>
+    connectOrCreate?: UserCreateOrConnectWithoutUserBranchesInput
+    upsert?: UserUpsertWithoutUserBranchesInput
+    connect?: UserWhereUniqueInput
+    update?: XOR<XOR<UserUpdateToOneWithWhereWithoutUserBranchesInput, UserUpdateWithoutUserBranchesInput>, UserUncheckedUpdateWithoutUserBranchesInput>
+  }
+
+  export type BranchUpdateOneRequiredWithoutUserBranchesNestedInput = {
+    create?: XOR<BranchCreateWithoutUserBranchesInput, BranchUncheckedCreateWithoutUserBranchesInput>
+    connectOrCreate?: BranchCreateOrConnectWithoutUserBranchesInput
+    upsert?: BranchUpsertWithoutUserBranchesInput
+    connect?: BranchWhereUniqueInput
+    update?: XOR<XOR<BranchUpdateToOneWithWhereWithoutUserBranchesInput, BranchUpdateWithoutUserBranchesInput>, BranchUncheckedUpdateWithoutUserBranchesInput>
+  }
+
+  export type TenantUpdateOneRequiredWithoutUserBranchesNestedInput = {
+    create?: XOR<TenantCreateWithoutUserBranchesInput, TenantUncheckedCreateWithoutUserBranchesInput>
+    connectOrCreate?: TenantCreateOrConnectWithoutUserBranchesInput
+    upsert?: TenantUpsertWithoutUserBranchesInput
+    connect?: TenantWhereUniqueInput
+    update?: XOR<XOR<TenantUpdateToOneWithWhereWithoutUserBranchesInput, TenantUpdateWithoutUserBranchesInput>, TenantUncheckedUpdateWithoutUserBranchesInput>
   }
 
   export type TenantCreateNestedOneWithoutRolesInput = {
@@ -47696,6 +49116,13 @@ export namespace Prisma {
     connect?: KitchenQueueWhereUniqueInput | KitchenQueueWhereUniqueInput[]
   }
 
+  export type UserBranchCreateNestedManyWithoutBranchInput = {
+    create?: XOR<UserBranchCreateWithoutBranchInput, UserBranchUncheckedCreateWithoutBranchInput> | UserBranchCreateWithoutBranchInput[] | UserBranchUncheckedCreateWithoutBranchInput[]
+    connectOrCreate?: UserBranchCreateOrConnectWithoutBranchInput | UserBranchCreateOrConnectWithoutBranchInput[]
+    createMany?: UserBranchCreateManyBranchInputEnvelope
+    connect?: UserBranchWhereUniqueInput | UserBranchWhereUniqueInput[]
+  }
+
   export type TableUncheckedCreateNestedManyWithoutBranchInput = {
     create?: XOR<TableCreateWithoutBranchInput, TableUncheckedCreateWithoutBranchInput> | TableCreateWithoutBranchInput[] | TableUncheckedCreateWithoutBranchInput[]
     connectOrCreate?: TableCreateOrConnectWithoutBranchInput | TableCreateOrConnectWithoutBranchInput[]
@@ -47715,6 +49142,13 @@ export namespace Prisma {
     connectOrCreate?: KitchenQueueCreateOrConnectWithoutBranchInput | KitchenQueueCreateOrConnectWithoutBranchInput[]
     createMany?: KitchenQueueCreateManyBranchInputEnvelope
     connect?: KitchenQueueWhereUniqueInput | KitchenQueueWhereUniqueInput[]
+  }
+
+  export type UserBranchUncheckedCreateNestedManyWithoutBranchInput = {
+    create?: XOR<UserBranchCreateWithoutBranchInput, UserBranchUncheckedCreateWithoutBranchInput> | UserBranchCreateWithoutBranchInput[] | UserBranchUncheckedCreateWithoutBranchInput[]
+    connectOrCreate?: UserBranchCreateOrConnectWithoutBranchInput | UserBranchCreateOrConnectWithoutBranchInput[]
+    createMany?: UserBranchCreateManyBranchInputEnvelope
+    connect?: UserBranchWhereUniqueInput | UserBranchWhereUniqueInput[]
   }
 
   export type NullableDecimalFieldUpdateOperationsInput = {
@@ -47783,6 +49217,20 @@ export namespace Prisma {
     deleteMany?: KitchenQueueScalarWhereInput | KitchenQueueScalarWhereInput[]
   }
 
+  export type UserBranchUpdateManyWithoutBranchNestedInput = {
+    create?: XOR<UserBranchCreateWithoutBranchInput, UserBranchUncheckedCreateWithoutBranchInput> | UserBranchCreateWithoutBranchInput[] | UserBranchUncheckedCreateWithoutBranchInput[]
+    connectOrCreate?: UserBranchCreateOrConnectWithoutBranchInput | UserBranchCreateOrConnectWithoutBranchInput[]
+    upsert?: UserBranchUpsertWithWhereUniqueWithoutBranchInput | UserBranchUpsertWithWhereUniqueWithoutBranchInput[]
+    createMany?: UserBranchCreateManyBranchInputEnvelope
+    set?: UserBranchWhereUniqueInput | UserBranchWhereUniqueInput[]
+    disconnect?: UserBranchWhereUniqueInput | UserBranchWhereUniqueInput[]
+    delete?: UserBranchWhereUniqueInput | UserBranchWhereUniqueInput[]
+    connect?: UserBranchWhereUniqueInput | UserBranchWhereUniqueInput[]
+    update?: UserBranchUpdateWithWhereUniqueWithoutBranchInput | UserBranchUpdateWithWhereUniqueWithoutBranchInput[]
+    updateMany?: UserBranchUpdateManyWithWhereWithoutBranchInput | UserBranchUpdateManyWithWhereWithoutBranchInput[]
+    deleteMany?: UserBranchScalarWhereInput | UserBranchScalarWhereInput[]
+  }
+
   export type TableUncheckedUpdateManyWithoutBranchNestedInput = {
     create?: XOR<TableCreateWithoutBranchInput, TableUncheckedCreateWithoutBranchInput> | TableCreateWithoutBranchInput[] | TableUncheckedCreateWithoutBranchInput[]
     connectOrCreate?: TableCreateOrConnectWithoutBranchInput | TableCreateOrConnectWithoutBranchInput[]
@@ -47823,6 +49271,20 @@ export namespace Prisma {
     update?: KitchenQueueUpdateWithWhereUniqueWithoutBranchInput | KitchenQueueUpdateWithWhereUniqueWithoutBranchInput[]
     updateMany?: KitchenQueueUpdateManyWithWhereWithoutBranchInput | KitchenQueueUpdateManyWithWhereWithoutBranchInput[]
     deleteMany?: KitchenQueueScalarWhereInput | KitchenQueueScalarWhereInput[]
+  }
+
+  export type UserBranchUncheckedUpdateManyWithoutBranchNestedInput = {
+    create?: XOR<UserBranchCreateWithoutBranchInput, UserBranchUncheckedCreateWithoutBranchInput> | UserBranchCreateWithoutBranchInput[] | UserBranchUncheckedCreateWithoutBranchInput[]
+    connectOrCreate?: UserBranchCreateOrConnectWithoutBranchInput | UserBranchCreateOrConnectWithoutBranchInput[]
+    upsert?: UserBranchUpsertWithWhereUniqueWithoutBranchInput | UserBranchUpsertWithWhereUniqueWithoutBranchInput[]
+    createMany?: UserBranchCreateManyBranchInputEnvelope
+    set?: UserBranchWhereUniqueInput | UserBranchWhereUniqueInput[]
+    disconnect?: UserBranchWhereUniqueInput | UserBranchWhereUniqueInput[]
+    delete?: UserBranchWhereUniqueInput | UserBranchWhereUniqueInput[]
+    connect?: UserBranchWhereUniqueInput | UserBranchWhereUniqueInput[]
+    update?: UserBranchUpdateWithWhereUniqueWithoutBranchInput | UserBranchUpdateWithWhereUniqueWithoutBranchInput[]
+    updateMany?: UserBranchUpdateManyWithWhereWithoutBranchInput | UserBranchUpdateManyWithWhereWithoutBranchInput[]
+    deleteMany?: UserBranchScalarWhereInput | UserBranchScalarWhereInput[]
   }
 
   export type TenantCreateNestedOneWithoutTablesInput = {
@@ -49782,6 +51244,7 @@ export namespace Prisma {
     updatedAt?: Date | string
     deletedAt?: Date | string | null
     userRoles?: UserRoleCreateNestedManyWithoutUserInput
+    userBranches?: UserBranchCreateNestedManyWithoutUserInput
     deviceTokens?: DeviceTokenCreateNestedManyWithoutUserInput
     sessionLogs?: SessionLogCreateNestedManyWithoutUserInput
   }
@@ -49801,6 +51264,7 @@ export namespace Prisma {
     updatedAt?: Date | string
     deletedAt?: Date | string | null
     userRoles?: UserRoleUncheckedCreateNestedManyWithoutUserInput
+    userBranches?: UserBranchUncheckedCreateNestedManyWithoutUserInput
     deviceTokens?: DeviceTokenUncheckedCreateNestedManyWithoutUserInput
     sessionLogs?: SessionLogUncheckedCreateNestedManyWithoutUserInput
   }
@@ -49812,6 +51276,28 @@ export namespace Prisma {
 
   export type UserCreateManyTenantInputEnvelope = {
     data: UserCreateManyTenantInput | UserCreateManyTenantInput[]
+    skipDuplicates?: boolean
+  }
+
+  export type UserBranchCreateWithoutTenantInput = {
+    assignedAt?: Date | string
+    user: UserCreateNestedOneWithoutUserBranchesInput
+    branch: BranchCreateNestedOneWithoutUserBranchesInput
+  }
+
+  export type UserBranchUncheckedCreateWithoutTenantInput = {
+    userId: string
+    branchId: string
+    assignedAt?: Date | string
+  }
+
+  export type UserBranchCreateOrConnectWithoutTenantInput = {
+    where: UserBranchWhereUniqueInput
+    create: XOR<UserBranchCreateWithoutTenantInput, UserBranchUncheckedCreateWithoutTenantInput>
+  }
+
+  export type UserBranchCreateManyTenantInputEnvelope = {
+    data: UserBranchCreateManyTenantInput | UserBranchCreateManyTenantInput[]
     skipDuplicates?: boolean
   }
 
@@ -49899,6 +51385,7 @@ export namespace Prisma {
     tables?: TableCreateNestedManyWithoutBranchInput
     orders?: OrderCreateNestedManyWithoutBranchInput
     kitchenQueues?: KitchenQueueCreateNestedManyWithoutBranchInput
+    userBranches?: UserBranchCreateNestedManyWithoutBranchInput
   }
 
   export type BranchUncheckedCreateWithoutTenantInput = {
@@ -49917,6 +51404,7 @@ export namespace Prisma {
     tables?: TableUncheckedCreateNestedManyWithoutBranchInput
     orders?: OrderUncheckedCreateNestedManyWithoutBranchInput
     kitchenQueues?: KitchenQueueUncheckedCreateNestedManyWithoutBranchInput
+    userBranches?: UserBranchUncheckedCreateNestedManyWithoutBranchInput
   }
 
   export type BranchCreateOrConnectWithoutTenantInput = {
@@ -50712,6 +52200,32 @@ export namespace Prisma {
     createdAt?: DateTimeFilter<"User"> | Date | string
     updatedAt?: DateTimeFilter<"User"> | Date | string
     deletedAt?: DateTimeNullableFilter<"User"> | Date | string | null
+  }
+
+  export type UserBranchUpsertWithWhereUniqueWithoutTenantInput = {
+    where: UserBranchWhereUniqueInput
+    update: XOR<UserBranchUpdateWithoutTenantInput, UserBranchUncheckedUpdateWithoutTenantInput>
+    create: XOR<UserBranchCreateWithoutTenantInput, UserBranchUncheckedCreateWithoutTenantInput>
+  }
+
+  export type UserBranchUpdateWithWhereUniqueWithoutTenantInput = {
+    where: UserBranchWhereUniqueInput
+    data: XOR<UserBranchUpdateWithoutTenantInput, UserBranchUncheckedUpdateWithoutTenantInput>
+  }
+
+  export type UserBranchUpdateManyWithWhereWithoutTenantInput = {
+    where: UserBranchScalarWhereInput
+    data: XOR<UserBranchUpdateManyMutationInput, UserBranchUncheckedUpdateManyWithoutTenantInput>
+  }
+
+  export type UserBranchScalarWhereInput = {
+    AND?: UserBranchScalarWhereInput | UserBranchScalarWhereInput[]
+    OR?: UserBranchScalarWhereInput[]
+    NOT?: UserBranchScalarWhereInput | UserBranchScalarWhereInput[]
+    userId?: UuidFilter<"UserBranch"> | string
+    branchId?: UuidFilter<"UserBranch"> | string
+    tenantId?: UuidFilter<"UserBranch"> | string
+    assignedAt?: DateTimeFilter<"UserBranch"> | Date | string
   }
 
   export type RoleUpsertWithWhereUniqueWithoutTenantInput = {
@@ -51537,6 +53051,7 @@ export namespace Prisma {
     updatedAt?: Date | string
     deletedAt?: Date | string | null
     users?: UserCreateNestedManyWithoutTenantInput
+    userBranches?: UserBranchCreateNestedManyWithoutTenantInput
     roles?: RoleCreateNestedManyWithoutTenantInput
     restaurants?: RestaurantCreateNestedManyWithoutTenantInput
     branches?: BranchCreateNestedManyWithoutTenantInput
@@ -51578,6 +53093,7 @@ export namespace Prisma {
     updatedAt?: Date | string
     deletedAt?: Date | string | null
     users?: UserUncheckedCreateNestedManyWithoutTenantInput
+    userBranches?: UserBranchUncheckedCreateNestedManyWithoutTenantInput
     roles?: RoleUncheckedCreateNestedManyWithoutTenantInput
     restaurants?: RestaurantUncheckedCreateNestedManyWithoutTenantInput
     branches?: BranchUncheckedCreateNestedManyWithoutTenantInput
@@ -51674,6 +53190,7 @@ export namespace Prisma {
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     users?: UserUpdateManyWithoutTenantNestedInput
+    userBranches?: UserBranchUpdateManyWithoutTenantNestedInput
     roles?: RoleUpdateManyWithoutTenantNestedInput
     restaurants?: RestaurantUpdateManyWithoutTenantNestedInput
     branches?: BranchUpdateManyWithoutTenantNestedInput
@@ -51715,6 +53232,7 @@ export namespace Prisma {
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     users?: UserUncheckedUpdateManyWithoutTenantNestedInput
+    userBranches?: UserBranchUncheckedUpdateManyWithoutTenantNestedInput
     roles?: RoleUncheckedUpdateManyWithoutTenantNestedInput
     restaurants?: RestaurantUncheckedUpdateManyWithoutTenantNestedInput
     branches?: BranchUncheckedUpdateManyWithoutTenantNestedInput
@@ -51801,6 +53319,7 @@ export namespace Prisma {
     updatedAt?: Date | string
     deletedAt?: Date | string | null
     subscriptions?: SubscriptionCreateNestedOneWithoutTenantInput
+    userBranches?: UserBranchCreateNestedManyWithoutTenantInput
     roles?: RoleCreateNestedManyWithoutTenantInput
     restaurants?: RestaurantCreateNestedManyWithoutTenantInput
     branches?: BranchCreateNestedManyWithoutTenantInput
@@ -51842,6 +53361,7 @@ export namespace Prisma {
     updatedAt?: Date | string
     deletedAt?: Date | string | null
     subscriptions?: SubscriptionUncheckedCreateNestedOneWithoutTenantInput
+    userBranches?: UserBranchUncheckedCreateNestedManyWithoutTenantInput
     roles?: RoleUncheckedCreateNestedManyWithoutTenantInput
     restaurants?: RestaurantUncheckedCreateNestedManyWithoutTenantInput
     branches?: BranchUncheckedCreateNestedManyWithoutTenantInput
@@ -51889,6 +53409,28 @@ export namespace Prisma {
 
   export type UserRoleCreateManyUserInputEnvelope = {
     data: UserRoleCreateManyUserInput | UserRoleCreateManyUserInput[]
+    skipDuplicates?: boolean
+  }
+
+  export type UserBranchCreateWithoutUserInput = {
+    assignedAt?: Date | string
+    branch: BranchCreateNestedOneWithoutUserBranchesInput
+    tenant: TenantCreateNestedOneWithoutUserBranchesInput
+  }
+
+  export type UserBranchUncheckedCreateWithoutUserInput = {
+    branchId: string
+    tenantId: string
+    assignedAt?: Date | string
+  }
+
+  export type UserBranchCreateOrConnectWithoutUserInput = {
+    where: UserBranchWhereUniqueInput
+    create: XOR<UserBranchCreateWithoutUserInput, UserBranchUncheckedCreateWithoutUserInput>
+  }
+
+  export type UserBranchCreateManyUserInputEnvelope = {
+    data: UserBranchCreateManyUserInput | UserBranchCreateManyUserInput[]
     skipDuplicates?: boolean
   }
 
@@ -51975,6 +53517,7 @@ export namespace Prisma {
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     subscriptions?: SubscriptionUpdateOneWithoutTenantNestedInput
+    userBranches?: UserBranchUpdateManyWithoutTenantNestedInput
     roles?: RoleUpdateManyWithoutTenantNestedInput
     restaurants?: RestaurantUpdateManyWithoutTenantNestedInput
     branches?: BranchUpdateManyWithoutTenantNestedInput
@@ -52016,6 +53559,7 @@ export namespace Prisma {
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     subscriptions?: SubscriptionUncheckedUpdateOneWithoutTenantNestedInput
+    userBranches?: UserBranchUncheckedUpdateManyWithoutTenantNestedInput
     roles?: RoleUncheckedUpdateManyWithoutTenantNestedInput
     restaurants?: RestaurantUncheckedUpdateManyWithoutTenantNestedInput
     branches?: BranchUncheckedUpdateManyWithoutTenantNestedInput
@@ -52066,6 +53610,22 @@ export namespace Prisma {
     assignedAt?: DateTimeFilter<"UserRole"> | Date | string
   }
 
+  export type UserBranchUpsertWithWhereUniqueWithoutUserInput = {
+    where: UserBranchWhereUniqueInput
+    update: XOR<UserBranchUpdateWithoutUserInput, UserBranchUncheckedUpdateWithoutUserInput>
+    create: XOR<UserBranchCreateWithoutUserInput, UserBranchUncheckedCreateWithoutUserInput>
+  }
+
+  export type UserBranchUpdateWithWhereUniqueWithoutUserInput = {
+    where: UserBranchWhereUniqueInput
+    data: XOR<UserBranchUpdateWithoutUserInput, UserBranchUncheckedUpdateWithoutUserInput>
+  }
+
+  export type UserBranchUpdateManyWithWhereWithoutUserInput = {
+    where: UserBranchScalarWhereInput
+    data: XOR<UserBranchUpdateManyMutationInput, UserBranchUncheckedUpdateManyWithoutUserInput>
+  }
+
   export type DeviceTokenUpsertWithWhereUniqueWithoutUserInput = {
     where: DeviceTokenWhereUniqueInput
     update: XOR<DeviceTokenUpdateWithoutUserInput, DeviceTokenUncheckedUpdateWithoutUserInput>
@@ -52098,6 +53658,378 @@ export namespace Prisma {
     data: XOR<SessionLogUpdateManyMutationInput, SessionLogUncheckedUpdateManyWithoutUserInput>
   }
 
+  export type UserCreateWithoutUserBranchesInput = {
+    id?: string
+    firstName: string
+    lastName: string
+    email: string
+    passwordHash: string
+    phoneNumber?: string | null
+    isActive?: boolean
+    mfaSecret?: string | null
+    mfaEnabled?: boolean
+    lastLoginAt?: Date | string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    deletedAt?: Date | string | null
+    tenant?: TenantCreateNestedOneWithoutUsersInput
+    userRoles?: UserRoleCreateNestedManyWithoutUserInput
+    deviceTokens?: DeviceTokenCreateNestedManyWithoutUserInput
+    sessionLogs?: SessionLogCreateNestedManyWithoutUserInput
+  }
+
+  export type UserUncheckedCreateWithoutUserBranchesInput = {
+    id?: string
+    tenantId?: string | null
+    firstName: string
+    lastName: string
+    email: string
+    passwordHash: string
+    phoneNumber?: string | null
+    isActive?: boolean
+    mfaSecret?: string | null
+    mfaEnabled?: boolean
+    lastLoginAt?: Date | string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    deletedAt?: Date | string | null
+    userRoles?: UserRoleUncheckedCreateNestedManyWithoutUserInput
+    deviceTokens?: DeviceTokenUncheckedCreateNestedManyWithoutUserInput
+    sessionLogs?: SessionLogUncheckedCreateNestedManyWithoutUserInput
+  }
+
+  export type UserCreateOrConnectWithoutUserBranchesInput = {
+    where: UserWhereUniqueInput
+    create: XOR<UserCreateWithoutUserBranchesInput, UserUncheckedCreateWithoutUserBranchesInput>
+  }
+
+  export type BranchCreateWithoutUserBranchesInput = {
+    id?: string
+    name: string
+    address: string
+    latitude?: Decimal | DecimalJsLike | number | string | null
+    longitude?: Decimal | DecimalJsLike | number | string | null
+    phoneNumber: string
+    operatingHours: JsonNullValueInput | InputJsonValue
+    isActive?: boolean
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    deletedAt?: Date | string | null
+    tenant: TenantCreateNestedOneWithoutBranchesInput
+    restaurant: RestaurantCreateNestedOneWithoutBranchesInput
+    tables?: TableCreateNestedManyWithoutBranchInput
+    orders?: OrderCreateNestedManyWithoutBranchInput
+    kitchenQueues?: KitchenQueueCreateNestedManyWithoutBranchInput
+  }
+
+  export type BranchUncheckedCreateWithoutUserBranchesInput = {
+    id?: string
+    tenantId: string
+    restaurantId: string
+    name: string
+    address: string
+    latitude?: Decimal | DecimalJsLike | number | string | null
+    longitude?: Decimal | DecimalJsLike | number | string | null
+    phoneNumber: string
+    operatingHours: JsonNullValueInput | InputJsonValue
+    isActive?: boolean
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    deletedAt?: Date | string | null
+    tables?: TableUncheckedCreateNestedManyWithoutBranchInput
+    orders?: OrderUncheckedCreateNestedManyWithoutBranchInput
+    kitchenQueues?: KitchenQueueUncheckedCreateNestedManyWithoutBranchInput
+  }
+
+  export type BranchCreateOrConnectWithoutUserBranchesInput = {
+    where: BranchWhereUniqueInput
+    create: XOR<BranchCreateWithoutUserBranchesInput, BranchUncheckedCreateWithoutUserBranchesInput>
+  }
+
+  export type TenantCreateWithoutUserBranchesInput = {
+    id?: string
+    name: string
+    subdomain: string
+    customDomain?: string | null
+    status?: $Enums.TenantStatus
+    logoUrl?: string | null
+    bannerUrl?: string | null
+    primaryColor?: string
+    secondaryColor?: string
+    branding?: NullableJsonNullValueInput | InputJsonValue
+    stripeCustomerId?: string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    deletedAt?: Date | string | null
+    subscriptions?: SubscriptionCreateNestedOneWithoutTenantInput
+    users?: UserCreateNestedManyWithoutTenantInput
+    roles?: RoleCreateNestedManyWithoutTenantInput
+    restaurants?: RestaurantCreateNestedManyWithoutTenantInput
+    branches?: BranchCreateNestedManyWithoutTenantInput
+    tables?: TableCreateNestedManyWithoutTenantInput
+    categories?: CategoryCreateNestedManyWithoutTenantInput
+    products?: ProductCreateNestedManyWithoutTenantInput
+    productSizes?: ProductSizeCreateNestedManyWithoutTenantInput
+    productVariants?: ProductVariantCreateNestedManyWithoutTenantInput
+    productAddons?: ProductAddonCreateNestedManyWithoutTenantInput
+    addonItems?: AddonItemCreateNestedManyWithoutTenantInput
+    orders?: OrderCreateNestedManyWithoutTenantInput
+    orderItems?: OrderItemCreateNestedManyWithoutTenantInput
+    orderItemAddons?: OrderItemAddonCreateNestedManyWithoutTenantInput
+    customers?: CustomerCreateNestedManyWithoutTenantInput
+    payments?: PaymentCreateNestedManyWithoutTenantInput
+    invoices?: InvoiceCreateNestedManyWithoutTenantInput
+    discounts?: DiscountCreateNestedManyWithoutTenantInput
+    notifications?: NotificationCreateNestedManyWithoutTenantInput
+    deviceTokens?: DeviceTokenCreateNestedManyWithoutTenantInput
+    kitchenQueues?: KitchenQueueCreateNestedManyWithoutTenantInput
+    sessionLogs?: SessionLogCreateNestedManyWithoutTenantInput
+    webhooks?: WebhookCreateNestedManyWithoutTenantInput
+    media?: MediaCreateNestedManyWithoutTenantInput
+  }
+
+  export type TenantUncheckedCreateWithoutUserBranchesInput = {
+    id?: string
+    name: string
+    subdomain: string
+    customDomain?: string | null
+    status?: $Enums.TenantStatus
+    logoUrl?: string | null
+    bannerUrl?: string | null
+    primaryColor?: string
+    secondaryColor?: string
+    branding?: NullableJsonNullValueInput | InputJsonValue
+    stripeCustomerId?: string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    deletedAt?: Date | string | null
+    subscriptions?: SubscriptionUncheckedCreateNestedOneWithoutTenantInput
+    users?: UserUncheckedCreateNestedManyWithoutTenantInput
+    roles?: RoleUncheckedCreateNestedManyWithoutTenantInput
+    restaurants?: RestaurantUncheckedCreateNestedManyWithoutTenantInput
+    branches?: BranchUncheckedCreateNestedManyWithoutTenantInput
+    tables?: TableUncheckedCreateNestedManyWithoutTenantInput
+    categories?: CategoryUncheckedCreateNestedManyWithoutTenantInput
+    products?: ProductUncheckedCreateNestedManyWithoutTenantInput
+    productSizes?: ProductSizeUncheckedCreateNestedManyWithoutTenantInput
+    productVariants?: ProductVariantUncheckedCreateNestedManyWithoutTenantInput
+    productAddons?: ProductAddonUncheckedCreateNestedManyWithoutTenantInput
+    addonItems?: AddonItemUncheckedCreateNestedManyWithoutTenantInput
+    orders?: OrderUncheckedCreateNestedManyWithoutTenantInput
+    orderItems?: OrderItemUncheckedCreateNestedManyWithoutTenantInput
+    orderItemAddons?: OrderItemAddonUncheckedCreateNestedManyWithoutTenantInput
+    customers?: CustomerUncheckedCreateNestedManyWithoutTenantInput
+    payments?: PaymentUncheckedCreateNestedManyWithoutTenantInput
+    invoices?: InvoiceUncheckedCreateNestedManyWithoutTenantInput
+    discounts?: DiscountUncheckedCreateNestedManyWithoutTenantInput
+    notifications?: NotificationUncheckedCreateNestedManyWithoutTenantInput
+    deviceTokens?: DeviceTokenUncheckedCreateNestedManyWithoutTenantInput
+    kitchenQueues?: KitchenQueueUncheckedCreateNestedManyWithoutTenantInput
+    sessionLogs?: SessionLogUncheckedCreateNestedManyWithoutTenantInput
+    webhooks?: WebhookUncheckedCreateNestedManyWithoutTenantInput
+    media?: MediaUncheckedCreateNestedManyWithoutTenantInput
+  }
+
+  export type TenantCreateOrConnectWithoutUserBranchesInput = {
+    where: TenantWhereUniqueInput
+    create: XOR<TenantCreateWithoutUserBranchesInput, TenantUncheckedCreateWithoutUserBranchesInput>
+  }
+
+  export type UserUpsertWithoutUserBranchesInput = {
+    update: XOR<UserUpdateWithoutUserBranchesInput, UserUncheckedUpdateWithoutUserBranchesInput>
+    create: XOR<UserCreateWithoutUserBranchesInput, UserUncheckedCreateWithoutUserBranchesInput>
+    where?: UserWhereInput
+  }
+
+  export type UserUpdateToOneWithWhereWithoutUserBranchesInput = {
+    where?: UserWhereInput
+    data: XOR<UserUpdateWithoutUserBranchesInput, UserUncheckedUpdateWithoutUserBranchesInput>
+  }
+
+  export type UserUpdateWithoutUserBranchesInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    firstName?: StringFieldUpdateOperationsInput | string
+    lastName?: StringFieldUpdateOperationsInput | string
+    email?: StringFieldUpdateOperationsInput | string
+    passwordHash?: StringFieldUpdateOperationsInput | string
+    phoneNumber?: NullableStringFieldUpdateOperationsInput | string | null
+    isActive?: BoolFieldUpdateOperationsInput | boolean
+    mfaSecret?: NullableStringFieldUpdateOperationsInput | string | null
+    mfaEnabled?: BoolFieldUpdateOperationsInput | boolean
+    lastLoginAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    tenant?: TenantUpdateOneWithoutUsersNestedInput
+    userRoles?: UserRoleUpdateManyWithoutUserNestedInput
+    deviceTokens?: DeviceTokenUpdateManyWithoutUserNestedInput
+    sessionLogs?: SessionLogUpdateManyWithoutUserNestedInput
+  }
+
+  export type UserUncheckedUpdateWithoutUserBranchesInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    tenantId?: NullableStringFieldUpdateOperationsInput | string | null
+    firstName?: StringFieldUpdateOperationsInput | string
+    lastName?: StringFieldUpdateOperationsInput | string
+    email?: StringFieldUpdateOperationsInput | string
+    passwordHash?: StringFieldUpdateOperationsInput | string
+    phoneNumber?: NullableStringFieldUpdateOperationsInput | string | null
+    isActive?: BoolFieldUpdateOperationsInput | boolean
+    mfaSecret?: NullableStringFieldUpdateOperationsInput | string | null
+    mfaEnabled?: BoolFieldUpdateOperationsInput | boolean
+    lastLoginAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    userRoles?: UserRoleUncheckedUpdateManyWithoutUserNestedInput
+    deviceTokens?: DeviceTokenUncheckedUpdateManyWithoutUserNestedInput
+    sessionLogs?: SessionLogUncheckedUpdateManyWithoutUserNestedInput
+  }
+
+  export type BranchUpsertWithoutUserBranchesInput = {
+    update: XOR<BranchUpdateWithoutUserBranchesInput, BranchUncheckedUpdateWithoutUserBranchesInput>
+    create: XOR<BranchCreateWithoutUserBranchesInput, BranchUncheckedCreateWithoutUserBranchesInput>
+    where?: BranchWhereInput
+  }
+
+  export type BranchUpdateToOneWithWhereWithoutUserBranchesInput = {
+    where?: BranchWhereInput
+    data: XOR<BranchUpdateWithoutUserBranchesInput, BranchUncheckedUpdateWithoutUserBranchesInput>
+  }
+
+  export type BranchUpdateWithoutUserBranchesInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    address?: StringFieldUpdateOperationsInput | string
+    latitude?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    longitude?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    phoneNumber?: StringFieldUpdateOperationsInput | string
+    operatingHours?: JsonNullValueInput | InputJsonValue
+    isActive?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    tenant?: TenantUpdateOneRequiredWithoutBranchesNestedInput
+    restaurant?: RestaurantUpdateOneRequiredWithoutBranchesNestedInput
+    tables?: TableUpdateManyWithoutBranchNestedInput
+    orders?: OrderUpdateManyWithoutBranchNestedInput
+    kitchenQueues?: KitchenQueueUpdateManyWithoutBranchNestedInput
+  }
+
+  export type BranchUncheckedUpdateWithoutUserBranchesInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    tenantId?: StringFieldUpdateOperationsInput | string
+    restaurantId?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    address?: StringFieldUpdateOperationsInput | string
+    latitude?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    longitude?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    phoneNumber?: StringFieldUpdateOperationsInput | string
+    operatingHours?: JsonNullValueInput | InputJsonValue
+    isActive?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    tables?: TableUncheckedUpdateManyWithoutBranchNestedInput
+    orders?: OrderUncheckedUpdateManyWithoutBranchNestedInput
+    kitchenQueues?: KitchenQueueUncheckedUpdateManyWithoutBranchNestedInput
+  }
+
+  export type TenantUpsertWithoutUserBranchesInput = {
+    update: XOR<TenantUpdateWithoutUserBranchesInput, TenantUncheckedUpdateWithoutUserBranchesInput>
+    create: XOR<TenantCreateWithoutUserBranchesInput, TenantUncheckedCreateWithoutUserBranchesInput>
+    where?: TenantWhereInput
+  }
+
+  export type TenantUpdateToOneWithWhereWithoutUserBranchesInput = {
+    where?: TenantWhereInput
+    data: XOR<TenantUpdateWithoutUserBranchesInput, TenantUncheckedUpdateWithoutUserBranchesInput>
+  }
+
+  export type TenantUpdateWithoutUserBranchesInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    subdomain?: StringFieldUpdateOperationsInput | string
+    customDomain?: NullableStringFieldUpdateOperationsInput | string | null
+    status?: EnumTenantStatusFieldUpdateOperationsInput | $Enums.TenantStatus
+    logoUrl?: NullableStringFieldUpdateOperationsInput | string | null
+    bannerUrl?: NullableStringFieldUpdateOperationsInput | string | null
+    primaryColor?: StringFieldUpdateOperationsInput | string
+    secondaryColor?: StringFieldUpdateOperationsInput | string
+    branding?: NullableJsonNullValueInput | InputJsonValue
+    stripeCustomerId?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    subscriptions?: SubscriptionUpdateOneWithoutTenantNestedInput
+    users?: UserUpdateManyWithoutTenantNestedInput
+    roles?: RoleUpdateManyWithoutTenantNestedInput
+    restaurants?: RestaurantUpdateManyWithoutTenantNestedInput
+    branches?: BranchUpdateManyWithoutTenantNestedInput
+    tables?: TableUpdateManyWithoutTenantNestedInput
+    categories?: CategoryUpdateManyWithoutTenantNestedInput
+    products?: ProductUpdateManyWithoutTenantNestedInput
+    productSizes?: ProductSizeUpdateManyWithoutTenantNestedInput
+    productVariants?: ProductVariantUpdateManyWithoutTenantNestedInput
+    productAddons?: ProductAddonUpdateManyWithoutTenantNestedInput
+    addonItems?: AddonItemUpdateManyWithoutTenantNestedInput
+    orders?: OrderUpdateManyWithoutTenantNestedInput
+    orderItems?: OrderItemUpdateManyWithoutTenantNestedInput
+    orderItemAddons?: OrderItemAddonUpdateManyWithoutTenantNestedInput
+    customers?: CustomerUpdateManyWithoutTenantNestedInput
+    payments?: PaymentUpdateManyWithoutTenantNestedInput
+    invoices?: InvoiceUpdateManyWithoutTenantNestedInput
+    discounts?: DiscountUpdateManyWithoutTenantNestedInput
+    notifications?: NotificationUpdateManyWithoutTenantNestedInput
+    deviceTokens?: DeviceTokenUpdateManyWithoutTenantNestedInput
+    kitchenQueues?: KitchenQueueUpdateManyWithoutTenantNestedInput
+    sessionLogs?: SessionLogUpdateManyWithoutTenantNestedInput
+    webhooks?: WebhookUpdateManyWithoutTenantNestedInput
+    media?: MediaUpdateManyWithoutTenantNestedInput
+  }
+
+  export type TenantUncheckedUpdateWithoutUserBranchesInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    subdomain?: StringFieldUpdateOperationsInput | string
+    customDomain?: NullableStringFieldUpdateOperationsInput | string | null
+    status?: EnumTenantStatusFieldUpdateOperationsInput | $Enums.TenantStatus
+    logoUrl?: NullableStringFieldUpdateOperationsInput | string | null
+    bannerUrl?: NullableStringFieldUpdateOperationsInput | string | null
+    primaryColor?: StringFieldUpdateOperationsInput | string
+    secondaryColor?: StringFieldUpdateOperationsInput | string
+    branding?: NullableJsonNullValueInput | InputJsonValue
+    stripeCustomerId?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    subscriptions?: SubscriptionUncheckedUpdateOneWithoutTenantNestedInput
+    users?: UserUncheckedUpdateManyWithoutTenantNestedInput
+    roles?: RoleUncheckedUpdateManyWithoutTenantNestedInput
+    restaurants?: RestaurantUncheckedUpdateManyWithoutTenantNestedInput
+    branches?: BranchUncheckedUpdateManyWithoutTenantNestedInput
+    tables?: TableUncheckedUpdateManyWithoutTenantNestedInput
+    categories?: CategoryUncheckedUpdateManyWithoutTenantNestedInput
+    products?: ProductUncheckedUpdateManyWithoutTenantNestedInput
+    productSizes?: ProductSizeUncheckedUpdateManyWithoutTenantNestedInput
+    productVariants?: ProductVariantUncheckedUpdateManyWithoutTenantNestedInput
+    productAddons?: ProductAddonUncheckedUpdateManyWithoutTenantNestedInput
+    addonItems?: AddonItemUncheckedUpdateManyWithoutTenantNestedInput
+    orders?: OrderUncheckedUpdateManyWithoutTenantNestedInput
+    orderItems?: OrderItemUncheckedUpdateManyWithoutTenantNestedInput
+    orderItemAddons?: OrderItemAddonUncheckedUpdateManyWithoutTenantNestedInput
+    customers?: CustomerUncheckedUpdateManyWithoutTenantNestedInput
+    payments?: PaymentUncheckedUpdateManyWithoutTenantNestedInput
+    invoices?: InvoiceUncheckedUpdateManyWithoutTenantNestedInput
+    discounts?: DiscountUncheckedUpdateManyWithoutTenantNestedInput
+    notifications?: NotificationUncheckedUpdateManyWithoutTenantNestedInput
+    deviceTokens?: DeviceTokenUncheckedUpdateManyWithoutTenantNestedInput
+    kitchenQueues?: KitchenQueueUncheckedUpdateManyWithoutTenantNestedInput
+    sessionLogs?: SessionLogUncheckedUpdateManyWithoutTenantNestedInput
+    webhooks?: WebhookUncheckedUpdateManyWithoutTenantNestedInput
+    media?: MediaUncheckedUpdateManyWithoutTenantNestedInput
+  }
+
   export type TenantCreateWithoutRolesInput = {
     id?: string
     name: string
@@ -52115,6 +54047,7 @@ export namespace Prisma {
     deletedAt?: Date | string | null
     subscriptions?: SubscriptionCreateNestedOneWithoutTenantInput
     users?: UserCreateNestedManyWithoutTenantInput
+    userBranches?: UserBranchCreateNestedManyWithoutTenantInput
     restaurants?: RestaurantCreateNestedManyWithoutTenantInput
     branches?: BranchCreateNestedManyWithoutTenantInput
     tables?: TableCreateNestedManyWithoutTenantInput
@@ -52156,6 +54089,7 @@ export namespace Prisma {
     deletedAt?: Date | string | null
     subscriptions?: SubscriptionUncheckedCreateNestedOneWithoutTenantInput
     users?: UserUncheckedCreateNestedManyWithoutTenantInput
+    userBranches?: UserBranchUncheckedCreateNestedManyWithoutTenantInput
     restaurants?: RestaurantUncheckedCreateNestedManyWithoutTenantInput
     branches?: BranchUncheckedCreateNestedManyWithoutTenantInput
     tables?: TableUncheckedCreateNestedManyWithoutTenantInput
@@ -52253,6 +54187,7 @@ export namespace Prisma {
     deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     subscriptions?: SubscriptionUpdateOneWithoutTenantNestedInput
     users?: UserUpdateManyWithoutTenantNestedInput
+    userBranches?: UserBranchUpdateManyWithoutTenantNestedInput
     restaurants?: RestaurantUpdateManyWithoutTenantNestedInput
     branches?: BranchUpdateManyWithoutTenantNestedInput
     tables?: TableUpdateManyWithoutTenantNestedInput
@@ -52294,6 +54229,7 @@ export namespace Prisma {
     deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     subscriptions?: SubscriptionUncheckedUpdateOneWithoutTenantNestedInput
     users?: UserUncheckedUpdateManyWithoutTenantNestedInput
+    userBranches?: UserBranchUncheckedUpdateManyWithoutTenantNestedInput
     restaurants?: RestaurantUncheckedUpdateManyWithoutTenantNestedInput
     branches?: BranchUncheckedUpdateManyWithoutTenantNestedInput
     tables?: TableUncheckedUpdateManyWithoutTenantNestedInput
@@ -52410,6 +54346,7 @@ export namespace Prisma {
     updatedAt?: Date | string
     deletedAt?: Date | string | null
     tenant?: TenantCreateNestedOneWithoutUsersInput
+    userBranches?: UserBranchCreateNestedManyWithoutUserInput
     deviceTokens?: DeviceTokenCreateNestedManyWithoutUserInput
     sessionLogs?: SessionLogCreateNestedManyWithoutUserInput
   }
@@ -52429,6 +54366,7 @@ export namespace Prisma {
     createdAt?: Date | string
     updatedAt?: Date | string
     deletedAt?: Date | string | null
+    userBranches?: UserBranchUncheckedCreateNestedManyWithoutUserInput
     deviceTokens?: DeviceTokenUncheckedCreateNestedManyWithoutUserInput
     sessionLogs?: SessionLogUncheckedCreateNestedManyWithoutUserInput
   }
@@ -52491,6 +54429,7 @@ export namespace Prisma {
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     tenant?: TenantUpdateOneWithoutUsersNestedInput
+    userBranches?: UserBranchUpdateManyWithoutUserNestedInput
     deviceTokens?: DeviceTokenUpdateManyWithoutUserNestedInput
     sessionLogs?: SessionLogUpdateManyWithoutUserNestedInput
   }
@@ -52510,6 +54449,7 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    userBranches?: UserBranchUncheckedUpdateManyWithoutUserNestedInput
     deviceTokens?: DeviceTokenUncheckedUpdateManyWithoutUserNestedInput
     sessionLogs?: SessionLogUncheckedUpdateManyWithoutUserNestedInput
   }
@@ -52672,6 +54612,7 @@ export namespace Prisma {
     deletedAt?: Date | string | null
     subscriptions?: SubscriptionCreateNestedOneWithoutTenantInput
     users?: UserCreateNestedManyWithoutTenantInput
+    userBranches?: UserBranchCreateNestedManyWithoutTenantInput
     roles?: RoleCreateNestedManyWithoutTenantInput
     branches?: BranchCreateNestedManyWithoutTenantInput
     tables?: TableCreateNestedManyWithoutTenantInput
@@ -52713,6 +54654,7 @@ export namespace Prisma {
     deletedAt?: Date | string | null
     subscriptions?: SubscriptionUncheckedCreateNestedOneWithoutTenantInput
     users?: UserUncheckedCreateNestedManyWithoutTenantInput
+    userBranches?: UserBranchUncheckedCreateNestedManyWithoutTenantInput
     roles?: RoleUncheckedCreateNestedManyWithoutTenantInput
     branches?: BranchUncheckedCreateNestedManyWithoutTenantInput
     tables?: TableUncheckedCreateNestedManyWithoutTenantInput
@@ -52758,6 +54700,7 @@ export namespace Prisma {
     tables?: TableCreateNestedManyWithoutBranchInput
     orders?: OrderCreateNestedManyWithoutBranchInput
     kitchenQueues?: KitchenQueueCreateNestedManyWithoutBranchInput
+    userBranches?: UserBranchCreateNestedManyWithoutBranchInput
   }
 
   export type BranchUncheckedCreateWithoutRestaurantInput = {
@@ -52776,6 +54719,7 @@ export namespace Prisma {
     tables?: TableUncheckedCreateNestedManyWithoutBranchInput
     orders?: OrderUncheckedCreateNestedManyWithoutBranchInput
     kitchenQueues?: KitchenQueueUncheckedCreateNestedManyWithoutBranchInput
+    userBranches?: UserBranchUncheckedCreateNestedManyWithoutBranchInput
   }
 
   export type BranchCreateOrConnectWithoutRestaurantInput = {
@@ -52850,6 +54794,7 @@ export namespace Prisma {
     deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     subscriptions?: SubscriptionUpdateOneWithoutTenantNestedInput
     users?: UserUpdateManyWithoutTenantNestedInput
+    userBranches?: UserBranchUpdateManyWithoutTenantNestedInput
     roles?: RoleUpdateManyWithoutTenantNestedInput
     branches?: BranchUpdateManyWithoutTenantNestedInput
     tables?: TableUpdateManyWithoutTenantNestedInput
@@ -52891,6 +54836,7 @@ export namespace Prisma {
     deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     subscriptions?: SubscriptionUncheckedUpdateOneWithoutTenantNestedInput
     users?: UserUncheckedUpdateManyWithoutTenantNestedInput
+    userBranches?: UserBranchUncheckedUpdateManyWithoutTenantNestedInput
     roles?: RoleUncheckedUpdateManyWithoutTenantNestedInput
     branches?: BranchUncheckedUpdateManyWithoutTenantNestedInput
     tables?: TableUncheckedUpdateManyWithoutTenantNestedInput
@@ -52964,6 +54910,7 @@ export namespace Prisma {
     deletedAt?: Date | string | null
     subscriptions?: SubscriptionCreateNestedOneWithoutTenantInput
     users?: UserCreateNestedManyWithoutTenantInput
+    userBranches?: UserBranchCreateNestedManyWithoutTenantInput
     roles?: RoleCreateNestedManyWithoutTenantInput
     restaurants?: RestaurantCreateNestedManyWithoutTenantInput
     tables?: TableCreateNestedManyWithoutTenantInput
@@ -53005,6 +54952,7 @@ export namespace Prisma {
     deletedAt?: Date | string | null
     subscriptions?: SubscriptionUncheckedCreateNestedOneWithoutTenantInput
     users?: UserUncheckedCreateNestedManyWithoutTenantInput
+    userBranches?: UserBranchUncheckedCreateNestedManyWithoutTenantInput
     roles?: RoleUncheckedCreateNestedManyWithoutTenantInput
     restaurants?: RestaurantUncheckedCreateNestedManyWithoutTenantInput
     tables?: TableUncheckedCreateNestedManyWithoutTenantInput
@@ -53191,6 +55139,28 @@ export namespace Prisma {
     skipDuplicates?: boolean
   }
 
+  export type UserBranchCreateWithoutBranchInput = {
+    assignedAt?: Date | string
+    user: UserCreateNestedOneWithoutUserBranchesInput
+    tenant: TenantCreateNestedOneWithoutUserBranchesInput
+  }
+
+  export type UserBranchUncheckedCreateWithoutBranchInput = {
+    userId: string
+    tenantId: string
+    assignedAt?: Date | string
+  }
+
+  export type UserBranchCreateOrConnectWithoutBranchInput = {
+    where: UserBranchWhereUniqueInput
+    create: XOR<UserBranchCreateWithoutBranchInput, UserBranchUncheckedCreateWithoutBranchInput>
+  }
+
+  export type UserBranchCreateManyBranchInputEnvelope = {
+    data: UserBranchCreateManyBranchInput | UserBranchCreateManyBranchInput[]
+    skipDuplicates?: boolean
+  }
+
   export type TenantUpsertWithoutBranchesInput = {
     update: XOR<TenantUpdateWithoutBranchesInput, TenantUncheckedUpdateWithoutBranchesInput>
     create: XOR<TenantCreateWithoutBranchesInput, TenantUncheckedCreateWithoutBranchesInput>
@@ -53219,6 +55189,7 @@ export namespace Prisma {
     deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     subscriptions?: SubscriptionUpdateOneWithoutTenantNestedInput
     users?: UserUpdateManyWithoutTenantNestedInput
+    userBranches?: UserBranchUpdateManyWithoutTenantNestedInput
     roles?: RoleUpdateManyWithoutTenantNestedInput
     restaurants?: RestaurantUpdateManyWithoutTenantNestedInput
     tables?: TableUpdateManyWithoutTenantNestedInput
@@ -53260,6 +55231,7 @@ export namespace Prisma {
     deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     subscriptions?: SubscriptionUncheckedUpdateOneWithoutTenantNestedInput
     users?: UserUncheckedUpdateManyWithoutTenantNestedInput
+    userBranches?: UserBranchUncheckedUpdateManyWithoutTenantNestedInput
     roles?: RoleUncheckedUpdateManyWithoutTenantNestedInput
     restaurants?: RestaurantUncheckedUpdateManyWithoutTenantNestedInput
     tables?: TableUncheckedUpdateManyWithoutTenantNestedInput
@@ -53369,6 +55341,22 @@ export namespace Prisma {
     data: XOR<KitchenQueueUpdateManyMutationInput, KitchenQueueUncheckedUpdateManyWithoutBranchInput>
   }
 
+  export type UserBranchUpsertWithWhereUniqueWithoutBranchInput = {
+    where: UserBranchWhereUniqueInput
+    update: XOR<UserBranchUpdateWithoutBranchInput, UserBranchUncheckedUpdateWithoutBranchInput>
+    create: XOR<UserBranchCreateWithoutBranchInput, UserBranchUncheckedCreateWithoutBranchInput>
+  }
+
+  export type UserBranchUpdateWithWhereUniqueWithoutBranchInput = {
+    where: UserBranchWhereUniqueInput
+    data: XOR<UserBranchUpdateWithoutBranchInput, UserBranchUncheckedUpdateWithoutBranchInput>
+  }
+
+  export type UserBranchUpdateManyWithWhereWithoutBranchInput = {
+    where: UserBranchScalarWhereInput
+    data: XOR<UserBranchUpdateManyMutationInput, UserBranchUncheckedUpdateManyWithoutBranchInput>
+  }
+
   export type TenantCreateWithoutTablesInput = {
     id?: string
     name: string
@@ -53386,6 +55374,7 @@ export namespace Prisma {
     deletedAt?: Date | string | null
     subscriptions?: SubscriptionCreateNestedOneWithoutTenantInput
     users?: UserCreateNestedManyWithoutTenantInput
+    userBranches?: UserBranchCreateNestedManyWithoutTenantInput
     roles?: RoleCreateNestedManyWithoutTenantInput
     restaurants?: RestaurantCreateNestedManyWithoutTenantInput
     branches?: BranchCreateNestedManyWithoutTenantInput
@@ -53427,6 +55416,7 @@ export namespace Prisma {
     deletedAt?: Date | string | null
     subscriptions?: SubscriptionUncheckedCreateNestedOneWithoutTenantInput
     users?: UserUncheckedCreateNestedManyWithoutTenantInput
+    userBranches?: UserBranchUncheckedCreateNestedManyWithoutTenantInput
     roles?: RoleUncheckedCreateNestedManyWithoutTenantInput
     restaurants?: RestaurantUncheckedCreateNestedManyWithoutTenantInput
     branches?: BranchUncheckedCreateNestedManyWithoutTenantInput
@@ -53472,6 +55462,7 @@ export namespace Prisma {
     restaurant: RestaurantCreateNestedOneWithoutBranchesInput
     orders?: OrderCreateNestedManyWithoutBranchInput
     kitchenQueues?: KitchenQueueCreateNestedManyWithoutBranchInput
+    userBranches?: UserBranchCreateNestedManyWithoutBranchInput
   }
 
   export type BranchUncheckedCreateWithoutTablesInput = {
@@ -53490,6 +55481,7 @@ export namespace Prisma {
     deletedAt?: Date | string | null
     orders?: OrderUncheckedCreateNestedManyWithoutBranchInput
     kitchenQueues?: KitchenQueueUncheckedCreateNestedManyWithoutBranchInput
+    userBranches?: UserBranchUncheckedCreateNestedManyWithoutBranchInput
   }
 
   export type BranchCreateOrConnectWithoutTablesInput = {
@@ -53585,6 +55577,7 @@ export namespace Prisma {
     deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     subscriptions?: SubscriptionUpdateOneWithoutTenantNestedInput
     users?: UserUpdateManyWithoutTenantNestedInput
+    userBranches?: UserBranchUpdateManyWithoutTenantNestedInput
     roles?: RoleUpdateManyWithoutTenantNestedInput
     restaurants?: RestaurantUpdateManyWithoutTenantNestedInput
     branches?: BranchUpdateManyWithoutTenantNestedInput
@@ -53626,6 +55619,7 @@ export namespace Prisma {
     deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     subscriptions?: SubscriptionUncheckedUpdateOneWithoutTenantNestedInput
     users?: UserUncheckedUpdateManyWithoutTenantNestedInput
+    userBranches?: UserBranchUncheckedUpdateManyWithoutTenantNestedInput
     roles?: RoleUncheckedUpdateManyWithoutTenantNestedInput
     restaurants?: RestaurantUncheckedUpdateManyWithoutTenantNestedInput
     branches?: BranchUncheckedUpdateManyWithoutTenantNestedInput
@@ -53677,6 +55671,7 @@ export namespace Prisma {
     restaurant?: RestaurantUpdateOneRequiredWithoutBranchesNestedInput
     orders?: OrderUpdateManyWithoutBranchNestedInput
     kitchenQueues?: KitchenQueueUpdateManyWithoutBranchNestedInput
+    userBranches?: UserBranchUpdateManyWithoutBranchNestedInput
   }
 
   export type BranchUncheckedUpdateWithoutTablesInput = {
@@ -53695,6 +55690,7 @@ export namespace Prisma {
     deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     orders?: OrderUncheckedUpdateManyWithoutBranchNestedInput
     kitchenQueues?: KitchenQueueUncheckedUpdateManyWithoutBranchNestedInput
+    userBranches?: UserBranchUncheckedUpdateManyWithoutBranchNestedInput
   }
 
   export type OrderUpsertWithWhereUniqueWithoutTableInput = {
@@ -53730,6 +55726,7 @@ export namespace Prisma {
     deletedAt?: Date | string | null
     subscriptions?: SubscriptionCreateNestedOneWithoutTenantInput
     users?: UserCreateNestedManyWithoutTenantInput
+    userBranches?: UserBranchCreateNestedManyWithoutTenantInput
     roles?: RoleCreateNestedManyWithoutTenantInput
     restaurants?: RestaurantCreateNestedManyWithoutTenantInput
     branches?: BranchCreateNestedManyWithoutTenantInput
@@ -53771,6 +55768,7 @@ export namespace Prisma {
     deletedAt?: Date | string | null
     subscriptions?: SubscriptionUncheckedCreateNestedOneWithoutTenantInput
     users?: UserUncheckedCreateNestedManyWithoutTenantInput
+    userBranches?: UserBranchUncheckedCreateNestedManyWithoutTenantInput
     roles?: RoleUncheckedCreateNestedManyWithoutTenantInput
     restaurants?: RestaurantUncheckedCreateNestedManyWithoutTenantInput
     branches?: BranchUncheckedCreateNestedManyWithoutTenantInput
@@ -53907,6 +55905,7 @@ export namespace Prisma {
     deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     subscriptions?: SubscriptionUpdateOneWithoutTenantNestedInput
     users?: UserUpdateManyWithoutTenantNestedInput
+    userBranches?: UserBranchUpdateManyWithoutTenantNestedInput
     roles?: RoleUpdateManyWithoutTenantNestedInput
     restaurants?: RestaurantUpdateManyWithoutTenantNestedInput
     branches?: BranchUpdateManyWithoutTenantNestedInput
@@ -53948,6 +55947,7 @@ export namespace Prisma {
     deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     subscriptions?: SubscriptionUncheckedUpdateOneWithoutTenantNestedInput
     users?: UserUncheckedUpdateManyWithoutTenantNestedInput
+    userBranches?: UserBranchUncheckedUpdateManyWithoutTenantNestedInput
     roles?: RoleUncheckedUpdateManyWithoutTenantNestedInput
     restaurants?: RestaurantUncheckedUpdateManyWithoutTenantNestedInput
     branches?: BranchUncheckedUpdateManyWithoutTenantNestedInput
@@ -54042,6 +56042,7 @@ export namespace Prisma {
     deletedAt?: Date | string | null
     subscriptions?: SubscriptionCreateNestedOneWithoutTenantInput
     users?: UserCreateNestedManyWithoutTenantInput
+    userBranches?: UserBranchCreateNestedManyWithoutTenantInput
     roles?: RoleCreateNestedManyWithoutTenantInput
     restaurants?: RestaurantCreateNestedManyWithoutTenantInput
     branches?: BranchCreateNestedManyWithoutTenantInput
@@ -54083,6 +56084,7 @@ export namespace Prisma {
     deletedAt?: Date | string | null
     subscriptions?: SubscriptionUncheckedCreateNestedOneWithoutTenantInput
     users?: UserUncheckedCreateNestedManyWithoutTenantInput
+    userBranches?: UserBranchUncheckedCreateNestedManyWithoutTenantInput
     roles?: RoleUncheckedCreateNestedManyWithoutTenantInput
     restaurants?: RestaurantUncheckedCreateNestedManyWithoutTenantInput
     branches?: BranchUncheckedCreateNestedManyWithoutTenantInput
@@ -54303,6 +56305,7 @@ export namespace Prisma {
     deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     subscriptions?: SubscriptionUpdateOneWithoutTenantNestedInput
     users?: UserUpdateManyWithoutTenantNestedInput
+    userBranches?: UserBranchUpdateManyWithoutTenantNestedInput
     roles?: RoleUpdateManyWithoutTenantNestedInput
     restaurants?: RestaurantUpdateManyWithoutTenantNestedInput
     branches?: BranchUpdateManyWithoutTenantNestedInput
@@ -54344,6 +56347,7 @@ export namespace Prisma {
     deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     subscriptions?: SubscriptionUncheckedUpdateOneWithoutTenantNestedInput
     users?: UserUncheckedUpdateManyWithoutTenantNestedInput
+    userBranches?: UserBranchUncheckedUpdateManyWithoutTenantNestedInput
     roles?: RoleUncheckedUpdateManyWithoutTenantNestedInput
     restaurants?: RestaurantUncheckedUpdateManyWithoutTenantNestedInput
     branches?: BranchUncheckedUpdateManyWithoutTenantNestedInput
@@ -54484,6 +56488,7 @@ export namespace Prisma {
     deletedAt?: Date | string | null
     subscriptions?: SubscriptionCreateNestedOneWithoutTenantInput
     users?: UserCreateNestedManyWithoutTenantInput
+    userBranches?: UserBranchCreateNestedManyWithoutTenantInput
     roles?: RoleCreateNestedManyWithoutTenantInput
     restaurants?: RestaurantCreateNestedManyWithoutTenantInput
     branches?: BranchCreateNestedManyWithoutTenantInput
@@ -54525,6 +56530,7 @@ export namespace Prisma {
     deletedAt?: Date | string | null
     subscriptions?: SubscriptionUncheckedCreateNestedOneWithoutTenantInput
     users?: UserUncheckedCreateNestedManyWithoutTenantInput
+    userBranches?: UserBranchUncheckedCreateNestedManyWithoutTenantInput
     roles?: RoleUncheckedCreateNestedManyWithoutTenantInput
     restaurants?: RestaurantUncheckedCreateNestedManyWithoutTenantInput
     branches?: BranchUncheckedCreateNestedManyWithoutTenantInput
@@ -54663,6 +56669,7 @@ export namespace Prisma {
     deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     subscriptions?: SubscriptionUpdateOneWithoutTenantNestedInput
     users?: UserUpdateManyWithoutTenantNestedInput
+    userBranches?: UserBranchUpdateManyWithoutTenantNestedInput
     roles?: RoleUpdateManyWithoutTenantNestedInput
     restaurants?: RestaurantUpdateManyWithoutTenantNestedInput
     branches?: BranchUpdateManyWithoutTenantNestedInput
@@ -54704,6 +56711,7 @@ export namespace Prisma {
     deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     subscriptions?: SubscriptionUncheckedUpdateOneWithoutTenantNestedInput
     users?: UserUncheckedUpdateManyWithoutTenantNestedInput
+    userBranches?: UserBranchUncheckedUpdateManyWithoutTenantNestedInput
     roles?: RoleUncheckedUpdateManyWithoutTenantNestedInput
     restaurants?: RestaurantUncheckedUpdateManyWithoutTenantNestedInput
     branches?: BranchUncheckedUpdateManyWithoutTenantNestedInput
@@ -54810,6 +56818,7 @@ export namespace Prisma {
     deletedAt?: Date | string | null
     subscriptions?: SubscriptionCreateNestedOneWithoutTenantInput
     users?: UserCreateNestedManyWithoutTenantInput
+    userBranches?: UserBranchCreateNestedManyWithoutTenantInput
     roles?: RoleCreateNestedManyWithoutTenantInput
     restaurants?: RestaurantCreateNestedManyWithoutTenantInput
     branches?: BranchCreateNestedManyWithoutTenantInput
@@ -54851,6 +56860,7 @@ export namespace Prisma {
     deletedAt?: Date | string | null
     subscriptions?: SubscriptionUncheckedCreateNestedOneWithoutTenantInput
     users?: UserUncheckedCreateNestedManyWithoutTenantInput
+    userBranches?: UserBranchUncheckedCreateNestedManyWithoutTenantInput
     roles?: RoleUncheckedCreateNestedManyWithoutTenantInput
     restaurants?: RestaurantUncheckedCreateNestedManyWithoutTenantInput
     branches?: BranchUncheckedCreateNestedManyWithoutTenantInput
@@ -54989,6 +56999,7 @@ export namespace Prisma {
     deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     subscriptions?: SubscriptionUpdateOneWithoutTenantNestedInput
     users?: UserUpdateManyWithoutTenantNestedInput
+    userBranches?: UserBranchUpdateManyWithoutTenantNestedInput
     roles?: RoleUpdateManyWithoutTenantNestedInput
     restaurants?: RestaurantUpdateManyWithoutTenantNestedInput
     branches?: BranchUpdateManyWithoutTenantNestedInput
@@ -55030,6 +57041,7 @@ export namespace Prisma {
     deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     subscriptions?: SubscriptionUncheckedUpdateOneWithoutTenantNestedInput
     users?: UserUncheckedUpdateManyWithoutTenantNestedInput
+    userBranches?: UserBranchUncheckedUpdateManyWithoutTenantNestedInput
     roles?: RoleUncheckedUpdateManyWithoutTenantNestedInput
     restaurants?: RestaurantUncheckedUpdateManyWithoutTenantNestedInput
     branches?: BranchUncheckedUpdateManyWithoutTenantNestedInput
@@ -55136,6 +57148,7 @@ export namespace Prisma {
     deletedAt?: Date | string | null
     subscriptions?: SubscriptionCreateNestedOneWithoutTenantInput
     users?: UserCreateNestedManyWithoutTenantInput
+    userBranches?: UserBranchCreateNestedManyWithoutTenantInput
     roles?: RoleCreateNestedManyWithoutTenantInput
     restaurants?: RestaurantCreateNestedManyWithoutTenantInput
     branches?: BranchCreateNestedManyWithoutTenantInput
@@ -55177,6 +57190,7 @@ export namespace Prisma {
     deletedAt?: Date | string | null
     subscriptions?: SubscriptionUncheckedCreateNestedOneWithoutTenantInput
     users?: UserUncheckedCreateNestedManyWithoutTenantInput
+    userBranches?: UserBranchUncheckedCreateNestedManyWithoutTenantInput
     roles?: RoleUncheckedCreateNestedManyWithoutTenantInput
     restaurants?: RestaurantUncheckedCreateNestedManyWithoutTenantInput
     branches?: BranchUncheckedCreateNestedManyWithoutTenantInput
@@ -55309,6 +57323,7 @@ export namespace Prisma {
     deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     subscriptions?: SubscriptionUpdateOneWithoutTenantNestedInput
     users?: UserUpdateManyWithoutTenantNestedInput
+    userBranches?: UserBranchUpdateManyWithoutTenantNestedInput
     roles?: RoleUpdateManyWithoutTenantNestedInput
     restaurants?: RestaurantUpdateManyWithoutTenantNestedInput
     branches?: BranchUpdateManyWithoutTenantNestedInput
@@ -55350,6 +57365,7 @@ export namespace Prisma {
     deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     subscriptions?: SubscriptionUncheckedUpdateOneWithoutTenantNestedInput
     users?: UserUncheckedUpdateManyWithoutTenantNestedInput
+    userBranches?: UserBranchUncheckedUpdateManyWithoutTenantNestedInput
     roles?: RoleUncheckedUpdateManyWithoutTenantNestedInput
     restaurants?: RestaurantUncheckedUpdateManyWithoutTenantNestedInput
     branches?: BranchUncheckedUpdateManyWithoutTenantNestedInput
@@ -55456,6 +57472,7 @@ export namespace Prisma {
     deletedAt?: Date | string | null
     subscriptions?: SubscriptionCreateNestedOneWithoutTenantInput
     users?: UserCreateNestedManyWithoutTenantInput
+    userBranches?: UserBranchCreateNestedManyWithoutTenantInput
     roles?: RoleCreateNestedManyWithoutTenantInput
     restaurants?: RestaurantCreateNestedManyWithoutTenantInput
     branches?: BranchCreateNestedManyWithoutTenantInput
@@ -55497,6 +57514,7 @@ export namespace Prisma {
     deletedAt?: Date | string | null
     subscriptions?: SubscriptionUncheckedCreateNestedOneWithoutTenantInput
     users?: UserUncheckedCreateNestedManyWithoutTenantInput
+    userBranches?: UserBranchUncheckedCreateNestedManyWithoutTenantInput
     roles?: RoleUncheckedCreateNestedManyWithoutTenantInput
     restaurants?: RestaurantUncheckedCreateNestedManyWithoutTenantInput
     branches?: BranchUncheckedCreateNestedManyWithoutTenantInput
@@ -55605,6 +57623,7 @@ export namespace Prisma {
     deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     subscriptions?: SubscriptionUpdateOneWithoutTenantNestedInput
     users?: UserUpdateManyWithoutTenantNestedInput
+    userBranches?: UserBranchUpdateManyWithoutTenantNestedInput
     roles?: RoleUpdateManyWithoutTenantNestedInput
     restaurants?: RestaurantUpdateManyWithoutTenantNestedInput
     branches?: BranchUpdateManyWithoutTenantNestedInput
@@ -55646,6 +57665,7 @@ export namespace Prisma {
     deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     subscriptions?: SubscriptionUncheckedUpdateOneWithoutTenantNestedInput
     users?: UserUncheckedUpdateManyWithoutTenantNestedInput
+    userBranches?: UserBranchUncheckedUpdateManyWithoutTenantNestedInput
     roles?: RoleUncheckedUpdateManyWithoutTenantNestedInput
     restaurants?: RestaurantUncheckedUpdateManyWithoutTenantNestedInput
     branches?: BranchUncheckedUpdateManyWithoutTenantNestedInput
@@ -55736,6 +57756,7 @@ export namespace Prisma {
     deletedAt?: Date | string | null
     subscriptions?: SubscriptionCreateNestedOneWithoutTenantInput
     users?: UserCreateNestedManyWithoutTenantInput
+    userBranches?: UserBranchCreateNestedManyWithoutTenantInput
     roles?: RoleCreateNestedManyWithoutTenantInput
     restaurants?: RestaurantCreateNestedManyWithoutTenantInput
     branches?: BranchCreateNestedManyWithoutTenantInput
@@ -55777,6 +57798,7 @@ export namespace Prisma {
     deletedAt?: Date | string | null
     subscriptions?: SubscriptionUncheckedCreateNestedOneWithoutTenantInput
     users?: UserUncheckedCreateNestedManyWithoutTenantInput
+    userBranches?: UserBranchUncheckedCreateNestedManyWithoutTenantInput
     roles?: RoleUncheckedCreateNestedManyWithoutTenantInput
     restaurants?: RestaurantUncheckedCreateNestedManyWithoutTenantInput
     branches?: BranchUncheckedCreateNestedManyWithoutTenantInput
@@ -55894,6 +57916,7 @@ export namespace Prisma {
     deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     subscriptions?: SubscriptionUpdateOneWithoutTenantNestedInput
     users?: UserUpdateManyWithoutTenantNestedInput
+    userBranches?: UserBranchUpdateManyWithoutTenantNestedInput
     roles?: RoleUpdateManyWithoutTenantNestedInput
     restaurants?: RestaurantUpdateManyWithoutTenantNestedInput
     branches?: BranchUpdateManyWithoutTenantNestedInput
@@ -55935,6 +57958,7 @@ export namespace Prisma {
     deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     subscriptions?: SubscriptionUncheckedUpdateOneWithoutTenantNestedInput
     users?: UserUncheckedUpdateManyWithoutTenantNestedInput
+    userBranches?: UserBranchUncheckedUpdateManyWithoutTenantNestedInput
     roles?: RoleUncheckedUpdateManyWithoutTenantNestedInput
     restaurants?: RestaurantUncheckedUpdateManyWithoutTenantNestedInput
     branches?: BranchUncheckedUpdateManyWithoutTenantNestedInput
@@ -55992,6 +58016,7 @@ export namespace Prisma {
     deletedAt?: Date | string | null
     subscriptions?: SubscriptionCreateNestedOneWithoutTenantInput
     users?: UserCreateNestedManyWithoutTenantInput
+    userBranches?: UserBranchCreateNestedManyWithoutTenantInput
     roles?: RoleCreateNestedManyWithoutTenantInput
     restaurants?: RestaurantCreateNestedManyWithoutTenantInput
     branches?: BranchCreateNestedManyWithoutTenantInput
@@ -56033,6 +58058,7 @@ export namespace Prisma {
     deletedAt?: Date | string | null
     subscriptions?: SubscriptionUncheckedCreateNestedOneWithoutTenantInput
     users?: UserUncheckedCreateNestedManyWithoutTenantInput
+    userBranches?: UserBranchUncheckedCreateNestedManyWithoutTenantInput
     roles?: RoleUncheckedCreateNestedManyWithoutTenantInput
     restaurants?: RestaurantUncheckedCreateNestedManyWithoutTenantInput
     branches?: BranchUncheckedCreateNestedManyWithoutTenantInput
@@ -56078,6 +58104,7 @@ export namespace Prisma {
     restaurant: RestaurantCreateNestedOneWithoutBranchesInput
     tables?: TableCreateNestedManyWithoutBranchInput
     kitchenQueues?: KitchenQueueCreateNestedManyWithoutBranchInput
+    userBranches?: UserBranchCreateNestedManyWithoutBranchInput
   }
 
   export type BranchUncheckedCreateWithoutOrdersInput = {
@@ -56096,6 +58123,7 @@ export namespace Prisma {
     deletedAt?: Date | string | null
     tables?: TableUncheckedCreateNestedManyWithoutBranchInput
     kitchenQueues?: KitchenQueueUncheckedCreateNestedManyWithoutBranchInput
+    userBranches?: UserBranchUncheckedCreateNestedManyWithoutBranchInput
   }
 
   export type BranchCreateOrConnectWithoutOrdersInput = {
@@ -56353,6 +58381,7 @@ export namespace Prisma {
     deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     subscriptions?: SubscriptionUpdateOneWithoutTenantNestedInput
     users?: UserUpdateManyWithoutTenantNestedInput
+    userBranches?: UserBranchUpdateManyWithoutTenantNestedInput
     roles?: RoleUpdateManyWithoutTenantNestedInput
     restaurants?: RestaurantUpdateManyWithoutTenantNestedInput
     branches?: BranchUpdateManyWithoutTenantNestedInput
@@ -56394,6 +58423,7 @@ export namespace Prisma {
     deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     subscriptions?: SubscriptionUncheckedUpdateOneWithoutTenantNestedInput
     users?: UserUncheckedUpdateManyWithoutTenantNestedInput
+    userBranches?: UserBranchUncheckedUpdateManyWithoutTenantNestedInput
     roles?: RoleUncheckedUpdateManyWithoutTenantNestedInput
     restaurants?: RestaurantUncheckedUpdateManyWithoutTenantNestedInput
     branches?: BranchUncheckedUpdateManyWithoutTenantNestedInput
@@ -56445,6 +58475,7 @@ export namespace Prisma {
     restaurant?: RestaurantUpdateOneRequiredWithoutBranchesNestedInput
     tables?: TableUpdateManyWithoutBranchNestedInput
     kitchenQueues?: KitchenQueueUpdateManyWithoutBranchNestedInput
+    userBranches?: UserBranchUpdateManyWithoutBranchNestedInput
   }
 
   export type BranchUncheckedUpdateWithoutOrdersInput = {
@@ -56463,6 +58494,7 @@ export namespace Prisma {
     deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     tables?: TableUncheckedUpdateManyWithoutBranchNestedInput
     kitchenQueues?: KitchenQueueUncheckedUpdateManyWithoutBranchNestedInput
+    userBranches?: UserBranchUncheckedUpdateManyWithoutBranchNestedInput
   }
 
   export type CustomerUpsertWithoutOrdersInput = {
@@ -56676,6 +58708,7 @@ export namespace Prisma {
     deletedAt?: Date | string | null
     subscriptions?: SubscriptionCreateNestedOneWithoutTenantInput
     users?: UserCreateNestedManyWithoutTenantInput
+    userBranches?: UserBranchCreateNestedManyWithoutTenantInput
     roles?: RoleCreateNestedManyWithoutTenantInput
     restaurants?: RestaurantCreateNestedManyWithoutTenantInput
     branches?: BranchCreateNestedManyWithoutTenantInput
@@ -56717,6 +58750,7 @@ export namespace Prisma {
     deletedAt?: Date | string | null
     subscriptions?: SubscriptionUncheckedCreateNestedOneWithoutTenantInput
     users?: UserUncheckedCreateNestedManyWithoutTenantInput
+    userBranches?: UserBranchUncheckedCreateNestedManyWithoutTenantInput
     roles?: RoleUncheckedCreateNestedManyWithoutTenantInput
     restaurants?: RestaurantUncheckedCreateNestedManyWithoutTenantInput
     branches?: BranchUncheckedCreateNestedManyWithoutTenantInput
@@ -56950,6 +58984,7 @@ export namespace Prisma {
     deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     subscriptions?: SubscriptionUpdateOneWithoutTenantNestedInput
     users?: UserUpdateManyWithoutTenantNestedInput
+    userBranches?: UserBranchUpdateManyWithoutTenantNestedInput
     roles?: RoleUpdateManyWithoutTenantNestedInput
     restaurants?: RestaurantUpdateManyWithoutTenantNestedInput
     branches?: BranchUpdateManyWithoutTenantNestedInput
@@ -56991,6 +59026,7 @@ export namespace Prisma {
     deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     subscriptions?: SubscriptionUncheckedUpdateOneWithoutTenantNestedInput
     users?: UserUncheckedUpdateManyWithoutTenantNestedInput
+    userBranches?: UserBranchUncheckedUpdateManyWithoutTenantNestedInput
     roles?: RoleUncheckedUpdateManyWithoutTenantNestedInput
     restaurants?: RestaurantUncheckedUpdateManyWithoutTenantNestedInput
     branches?: BranchUncheckedUpdateManyWithoutTenantNestedInput
@@ -57224,6 +59260,7 @@ export namespace Prisma {
     deletedAt?: Date | string | null
     subscriptions?: SubscriptionCreateNestedOneWithoutTenantInput
     users?: UserCreateNestedManyWithoutTenantInput
+    userBranches?: UserBranchCreateNestedManyWithoutTenantInput
     roles?: RoleCreateNestedManyWithoutTenantInput
     restaurants?: RestaurantCreateNestedManyWithoutTenantInput
     branches?: BranchCreateNestedManyWithoutTenantInput
@@ -57265,6 +59302,7 @@ export namespace Prisma {
     deletedAt?: Date | string | null
     subscriptions?: SubscriptionUncheckedCreateNestedOneWithoutTenantInput
     users?: UserUncheckedCreateNestedManyWithoutTenantInput
+    userBranches?: UserBranchUncheckedCreateNestedManyWithoutTenantInput
     roles?: RoleUncheckedCreateNestedManyWithoutTenantInput
     restaurants?: RestaurantUncheckedCreateNestedManyWithoutTenantInput
     branches?: BranchUncheckedCreateNestedManyWithoutTenantInput
@@ -57382,6 +59420,7 @@ export namespace Prisma {
     deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     subscriptions?: SubscriptionUpdateOneWithoutTenantNestedInput
     users?: UserUpdateManyWithoutTenantNestedInput
+    userBranches?: UserBranchUpdateManyWithoutTenantNestedInput
     roles?: RoleUpdateManyWithoutTenantNestedInput
     restaurants?: RestaurantUpdateManyWithoutTenantNestedInput
     branches?: BranchUpdateManyWithoutTenantNestedInput
@@ -57423,6 +59462,7 @@ export namespace Prisma {
     deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     subscriptions?: SubscriptionUncheckedUpdateOneWithoutTenantNestedInput
     users?: UserUncheckedUpdateManyWithoutTenantNestedInput
+    userBranches?: UserBranchUncheckedUpdateManyWithoutTenantNestedInput
     roles?: RoleUncheckedUpdateManyWithoutTenantNestedInput
     restaurants?: RestaurantUncheckedUpdateManyWithoutTenantNestedInput
     branches?: BranchUncheckedUpdateManyWithoutTenantNestedInput
@@ -57536,6 +59576,7 @@ export namespace Prisma {
     deletedAt?: Date | string | null
     subscriptions?: SubscriptionCreateNestedOneWithoutTenantInput
     users?: UserCreateNestedManyWithoutTenantInput
+    userBranches?: UserBranchCreateNestedManyWithoutTenantInput
     roles?: RoleCreateNestedManyWithoutTenantInput
     restaurants?: RestaurantCreateNestedManyWithoutTenantInput
     branches?: BranchCreateNestedManyWithoutTenantInput
@@ -57577,6 +59618,7 @@ export namespace Prisma {
     deletedAt?: Date | string | null
     subscriptions?: SubscriptionUncheckedCreateNestedOneWithoutTenantInput
     users?: UserUncheckedCreateNestedManyWithoutTenantInput
+    userBranches?: UserBranchUncheckedCreateNestedManyWithoutTenantInput
     roles?: RoleUncheckedCreateNestedManyWithoutTenantInput
     restaurants?: RestaurantUncheckedCreateNestedManyWithoutTenantInput
     branches?: BranchUncheckedCreateNestedManyWithoutTenantInput
@@ -57694,6 +59736,7 @@ export namespace Prisma {
     deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     subscriptions?: SubscriptionUpdateOneWithoutTenantNestedInput
     users?: UserUpdateManyWithoutTenantNestedInput
+    userBranches?: UserBranchUpdateManyWithoutTenantNestedInput
     roles?: RoleUpdateManyWithoutTenantNestedInput
     restaurants?: RestaurantUpdateManyWithoutTenantNestedInput
     branches?: BranchUpdateManyWithoutTenantNestedInput
@@ -57735,6 +59778,7 @@ export namespace Prisma {
     deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     subscriptions?: SubscriptionUncheckedUpdateOneWithoutTenantNestedInput
     users?: UserUncheckedUpdateManyWithoutTenantNestedInput
+    userBranches?: UserBranchUncheckedUpdateManyWithoutTenantNestedInput
     roles?: RoleUncheckedUpdateManyWithoutTenantNestedInput
     restaurants?: RestaurantUncheckedUpdateManyWithoutTenantNestedInput
     branches?: BranchUncheckedUpdateManyWithoutTenantNestedInput
@@ -57792,6 +59836,7 @@ export namespace Prisma {
     deletedAt?: Date | string | null
     subscriptions?: SubscriptionCreateNestedOneWithoutTenantInput
     users?: UserCreateNestedManyWithoutTenantInput
+    userBranches?: UserBranchCreateNestedManyWithoutTenantInput
     roles?: RoleCreateNestedManyWithoutTenantInput
     restaurants?: RestaurantCreateNestedManyWithoutTenantInput
     branches?: BranchCreateNestedManyWithoutTenantInput
@@ -57833,6 +59878,7 @@ export namespace Prisma {
     deletedAt?: Date | string | null
     subscriptions?: SubscriptionUncheckedCreateNestedOneWithoutTenantInput
     users?: UserUncheckedCreateNestedManyWithoutTenantInput
+    userBranches?: UserBranchUncheckedCreateNestedManyWithoutTenantInput
     roles?: RoleUncheckedCreateNestedManyWithoutTenantInput
     restaurants?: RestaurantUncheckedCreateNestedManyWithoutTenantInput
     branches?: BranchUncheckedCreateNestedManyWithoutTenantInput
@@ -57945,6 +59991,7 @@ export namespace Prisma {
     deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     subscriptions?: SubscriptionUpdateOneWithoutTenantNestedInput
     users?: UserUpdateManyWithoutTenantNestedInput
+    userBranches?: UserBranchUpdateManyWithoutTenantNestedInput
     roles?: RoleUpdateManyWithoutTenantNestedInput
     restaurants?: RestaurantUpdateManyWithoutTenantNestedInput
     branches?: BranchUpdateManyWithoutTenantNestedInput
@@ -57986,6 +60033,7 @@ export namespace Prisma {
     deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     subscriptions?: SubscriptionUncheckedUpdateOneWithoutTenantNestedInput
     users?: UserUncheckedUpdateManyWithoutTenantNestedInput
+    userBranches?: UserBranchUncheckedUpdateManyWithoutTenantNestedInput
     roles?: RoleUncheckedUpdateManyWithoutTenantNestedInput
     restaurants?: RestaurantUncheckedUpdateManyWithoutTenantNestedInput
     branches?: BranchUncheckedUpdateManyWithoutTenantNestedInput
@@ -58088,6 +60136,7 @@ export namespace Prisma {
     deletedAt?: Date | string | null
     subscriptions?: SubscriptionCreateNestedOneWithoutTenantInput
     users?: UserCreateNestedManyWithoutTenantInput
+    userBranches?: UserBranchCreateNestedManyWithoutTenantInput
     roles?: RoleCreateNestedManyWithoutTenantInput
     restaurants?: RestaurantCreateNestedManyWithoutTenantInput
     branches?: BranchCreateNestedManyWithoutTenantInput
@@ -58129,6 +60178,7 @@ export namespace Prisma {
     deletedAt?: Date | string | null
     subscriptions?: SubscriptionUncheckedCreateNestedOneWithoutTenantInput
     users?: UserUncheckedCreateNestedManyWithoutTenantInput
+    userBranches?: UserBranchUncheckedCreateNestedManyWithoutTenantInput
     roles?: RoleUncheckedCreateNestedManyWithoutTenantInput
     restaurants?: RestaurantUncheckedCreateNestedManyWithoutTenantInput
     branches?: BranchUncheckedCreateNestedManyWithoutTenantInput
@@ -58241,6 +60291,7 @@ export namespace Prisma {
     deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     subscriptions?: SubscriptionUpdateOneWithoutTenantNestedInput
     users?: UserUpdateManyWithoutTenantNestedInput
+    userBranches?: UserBranchUpdateManyWithoutTenantNestedInput
     roles?: RoleUpdateManyWithoutTenantNestedInput
     restaurants?: RestaurantUpdateManyWithoutTenantNestedInput
     branches?: BranchUpdateManyWithoutTenantNestedInput
@@ -58282,6 +60333,7 @@ export namespace Prisma {
     deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     subscriptions?: SubscriptionUncheckedUpdateOneWithoutTenantNestedInput
     users?: UserUncheckedUpdateManyWithoutTenantNestedInput
+    userBranches?: UserBranchUncheckedUpdateManyWithoutTenantNestedInput
     roles?: RoleUncheckedUpdateManyWithoutTenantNestedInput
     restaurants?: RestaurantUncheckedUpdateManyWithoutTenantNestedInput
     branches?: BranchUncheckedUpdateManyWithoutTenantNestedInput
@@ -58384,6 +60436,7 @@ export namespace Prisma {
     deletedAt?: Date | string | null
     subscriptions?: SubscriptionCreateNestedOneWithoutTenantInput
     users?: UserCreateNestedManyWithoutTenantInput
+    userBranches?: UserBranchCreateNestedManyWithoutTenantInput
     roles?: RoleCreateNestedManyWithoutTenantInput
     restaurants?: RestaurantCreateNestedManyWithoutTenantInput
     branches?: BranchCreateNestedManyWithoutTenantInput
@@ -58425,6 +60478,7 @@ export namespace Prisma {
     deletedAt?: Date | string | null
     subscriptions?: SubscriptionUncheckedCreateNestedOneWithoutTenantInput
     users?: UserUncheckedCreateNestedManyWithoutTenantInput
+    userBranches?: UserBranchUncheckedCreateNestedManyWithoutTenantInput
     roles?: RoleUncheckedCreateNestedManyWithoutTenantInput
     restaurants?: RestaurantUncheckedCreateNestedManyWithoutTenantInput
     branches?: BranchUncheckedCreateNestedManyWithoutTenantInput
@@ -58470,6 +60524,7 @@ export namespace Prisma {
     deletedAt?: Date | string | null
     tenant?: TenantCreateNestedOneWithoutUsersInput
     userRoles?: UserRoleCreateNestedManyWithoutUserInput
+    userBranches?: UserBranchCreateNestedManyWithoutUserInput
     sessionLogs?: SessionLogCreateNestedManyWithoutUserInput
   }
 
@@ -58489,6 +60544,7 @@ export namespace Prisma {
     updatedAt?: Date | string
     deletedAt?: Date | string | null
     userRoles?: UserRoleUncheckedCreateNestedManyWithoutUserInput
+    userBranches?: UserBranchUncheckedCreateNestedManyWithoutUserInput
     sessionLogs?: SessionLogUncheckedCreateNestedManyWithoutUserInput
   }
 
@@ -58525,6 +60581,7 @@ export namespace Prisma {
     deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     subscriptions?: SubscriptionUpdateOneWithoutTenantNestedInput
     users?: UserUpdateManyWithoutTenantNestedInput
+    userBranches?: UserBranchUpdateManyWithoutTenantNestedInput
     roles?: RoleUpdateManyWithoutTenantNestedInput
     restaurants?: RestaurantUpdateManyWithoutTenantNestedInput
     branches?: BranchUpdateManyWithoutTenantNestedInput
@@ -58566,6 +60623,7 @@ export namespace Prisma {
     deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     subscriptions?: SubscriptionUncheckedUpdateOneWithoutTenantNestedInput
     users?: UserUncheckedUpdateManyWithoutTenantNestedInput
+    userBranches?: UserBranchUncheckedUpdateManyWithoutTenantNestedInput
     roles?: RoleUncheckedUpdateManyWithoutTenantNestedInput
     restaurants?: RestaurantUncheckedUpdateManyWithoutTenantNestedInput
     branches?: BranchUncheckedUpdateManyWithoutTenantNestedInput
@@ -58617,6 +60675,7 @@ export namespace Prisma {
     deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     tenant?: TenantUpdateOneWithoutUsersNestedInput
     userRoles?: UserRoleUpdateManyWithoutUserNestedInput
+    userBranches?: UserBranchUpdateManyWithoutUserNestedInput
     sessionLogs?: SessionLogUpdateManyWithoutUserNestedInput
   }
 
@@ -58636,6 +60695,7 @@ export namespace Prisma {
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     userRoles?: UserRoleUncheckedUpdateManyWithoutUserNestedInput
+    userBranches?: UserBranchUncheckedUpdateManyWithoutUserNestedInput
     sessionLogs?: SessionLogUncheckedUpdateManyWithoutUserNestedInput
   }
 
@@ -58656,6 +60716,7 @@ export namespace Prisma {
     deletedAt?: Date | string | null
     subscriptions?: SubscriptionCreateNestedOneWithoutTenantInput
     users?: UserCreateNestedManyWithoutTenantInput
+    userBranches?: UserBranchCreateNestedManyWithoutTenantInput
     roles?: RoleCreateNestedManyWithoutTenantInput
     restaurants?: RestaurantCreateNestedManyWithoutTenantInput
     branches?: BranchCreateNestedManyWithoutTenantInput
@@ -58697,6 +60758,7 @@ export namespace Prisma {
     deletedAt?: Date | string | null
     subscriptions?: SubscriptionUncheckedCreateNestedOneWithoutTenantInput
     users?: UserUncheckedCreateNestedManyWithoutTenantInput
+    userBranches?: UserBranchUncheckedCreateNestedManyWithoutTenantInput
     roles?: RoleUncheckedCreateNestedManyWithoutTenantInput
     restaurants?: RestaurantUncheckedCreateNestedManyWithoutTenantInput
     branches?: BranchUncheckedCreateNestedManyWithoutTenantInput
@@ -58742,6 +60804,7 @@ export namespace Prisma {
     restaurant: RestaurantCreateNestedOneWithoutBranchesInput
     tables?: TableCreateNestedManyWithoutBranchInput
     orders?: OrderCreateNestedManyWithoutBranchInput
+    userBranches?: UserBranchCreateNestedManyWithoutBranchInput
   }
 
   export type BranchUncheckedCreateWithoutKitchenQueuesInput = {
@@ -58760,6 +60823,7 @@ export namespace Prisma {
     deletedAt?: Date | string | null
     tables?: TableUncheckedCreateNestedManyWithoutBranchInput
     orders?: OrderUncheckedCreateNestedManyWithoutBranchInput
+    userBranches?: UserBranchUncheckedCreateNestedManyWithoutBranchInput
   }
 
   export type BranchCreateOrConnectWithoutKitchenQueuesInput = {
@@ -58850,6 +60914,7 @@ export namespace Prisma {
     deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     subscriptions?: SubscriptionUpdateOneWithoutTenantNestedInput
     users?: UserUpdateManyWithoutTenantNestedInput
+    userBranches?: UserBranchUpdateManyWithoutTenantNestedInput
     roles?: RoleUpdateManyWithoutTenantNestedInput
     restaurants?: RestaurantUpdateManyWithoutTenantNestedInput
     branches?: BranchUpdateManyWithoutTenantNestedInput
@@ -58891,6 +60956,7 @@ export namespace Prisma {
     deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     subscriptions?: SubscriptionUncheckedUpdateOneWithoutTenantNestedInput
     users?: UserUncheckedUpdateManyWithoutTenantNestedInput
+    userBranches?: UserBranchUncheckedUpdateManyWithoutTenantNestedInput
     roles?: RoleUncheckedUpdateManyWithoutTenantNestedInput
     restaurants?: RestaurantUncheckedUpdateManyWithoutTenantNestedInput
     branches?: BranchUncheckedUpdateManyWithoutTenantNestedInput
@@ -58942,6 +61008,7 @@ export namespace Prisma {
     restaurant?: RestaurantUpdateOneRequiredWithoutBranchesNestedInput
     tables?: TableUpdateManyWithoutBranchNestedInput
     orders?: OrderUpdateManyWithoutBranchNestedInput
+    userBranches?: UserBranchUpdateManyWithoutBranchNestedInput
   }
 
   export type BranchUncheckedUpdateWithoutKitchenQueuesInput = {
@@ -58960,6 +61027,7 @@ export namespace Prisma {
     deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     tables?: TableUncheckedUpdateManyWithoutBranchNestedInput
     orders?: OrderUncheckedUpdateManyWithoutBranchNestedInput
+    userBranches?: UserBranchUncheckedUpdateManyWithoutBranchNestedInput
   }
 
   export type OrderUpsertWithoutKitchenQueuesInput = {
@@ -59040,6 +61108,7 @@ export namespace Prisma {
     deletedAt?: Date | string | null
     subscriptions?: SubscriptionCreateNestedOneWithoutTenantInput
     users?: UserCreateNestedManyWithoutTenantInput
+    userBranches?: UserBranchCreateNestedManyWithoutTenantInput
     roles?: RoleCreateNestedManyWithoutTenantInput
     restaurants?: RestaurantCreateNestedManyWithoutTenantInput
     branches?: BranchCreateNestedManyWithoutTenantInput
@@ -59081,6 +61150,7 @@ export namespace Prisma {
     deletedAt?: Date | string | null
     subscriptions?: SubscriptionUncheckedCreateNestedOneWithoutTenantInput
     users?: UserUncheckedCreateNestedManyWithoutTenantInput
+    userBranches?: UserBranchUncheckedCreateNestedManyWithoutTenantInput
     roles?: RoleUncheckedCreateNestedManyWithoutTenantInput
     restaurants?: RestaurantUncheckedCreateNestedManyWithoutTenantInput
     branches?: BranchUncheckedCreateNestedManyWithoutTenantInput
@@ -59126,6 +61196,7 @@ export namespace Prisma {
     deletedAt?: Date | string | null
     tenant?: TenantCreateNestedOneWithoutUsersInput
     userRoles?: UserRoleCreateNestedManyWithoutUserInput
+    userBranches?: UserBranchCreateNestedManyWithoutUserInput
     deviceTokens?: DeviceTokenCreateNestedManyWithoutUserInput
   }
 
@@ -59145,6 +61216,7 @@ export namespace Prisma {
     updatedAt?: Date | string
     deletedAt?: Date | string | null
     userRoles?: UserRoleUncheckedCreateNestedManyWithoutUserInput
+    userBranches?: UserBranchUncheckedCreateNestedManyWithoutUserInput
     deviceTokens?: DeviceTokenUncheckedCreateNestedManyWithoutUserInput
   }
 
@@ -59181,6 +61253,7 @@ export namespace Prisma {
     deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     subscriptions?: SubscriptionUpdateOneWithoutTenantNestedInput
     users?: UserUpdateManyWithoutTenantNestedInput
+    userBranches?: UserBranchUpdateManyWithoutTenantNestedInput
     roles?: RoleUpdateManyWithoutTenantNestedInput
     restaurants?: RestaurantUpdateManyWithoutTenantNestedInput
     branches?: BranchUpdateManyWithoutTenantNestedInput
@@ -59222,6 +61295,7 @@ export namespace Prisma {
     deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     subscriptions?: SubscriptionUncheckedUpdateOneWithoutTenantNestedInput
     users?: UserUncheckedUpdateManyWithoutTenantNestedInput
+    userBranches?: UserBranchUncheckedUpdateManyWithoutTenantNestedInput
     roles?: RoleUncheckedUpdateManyWithoutTenantNestedInput
     restaurants?: RestaurantUncheckedUpdateManyWithoutTenantNestedInput
     branches?: BranchUncheckedUpdateManyWithoutTenantNestedInput
@@ -59273,6 +61347,7 @@ export namespace Prisma {
     deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     tenant?: TenantUpdateOneWithoutUsersNestedInput
     userRoles?: UserRoleUpdateManyWithoutUserNestedInput
+    userBranches?: UserBranchUpdateManyWithoutUserNestedInput
     deviceTokens?: DeviceTokenUpdateManyWithoutUserNestedInput
   }
 
@@ -59292,6 +61367,7 @@ export namespace Prisma {
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     userRoles?: UserRoleUncheckedUpdateManyWithoutUserNestedInput
+    userBranches?: UserBranchUncheckedUpdateManyWithoutUserNestedInput
     deviceTokens?: DeviceTokenUncheckedUpdateManyWithoutUserNestedInput
   }
 
@@ -59312,6 +61388,7 @@ export namespace Prisma {
     deletedAt?: Date | string | null
     subscriptions?: SubscriptionCreateNestedOneWithoutTenantInput
     users?: UserCreateNestedManyWithoutTenantInput
+    userBranches?: UserBranchCreateNestedManyWithoutTenantInput
     roles?: RoleCreateNestedManyWithoutTenantInput
     restaurants?: RestaurantCreateNestedManyWithoutTenantInput
     branches?: BranchCreateNestedManyWithoutTenantInput
@@ -59353,6 +61430,7 @@ export namespace Prisma {
     deletedAt?: Date | string | null
     subscriptions?: SubscriptionUncheckedCreateNestedOneWithoutTenantInput
     users?: UserUncheckedCreateNestedManyWithoutTenantInput
+    userBranches?: UserBranchUncheckedCreateNestedManyWithoutTenantInput
     roles?: RoleUncheckedCreateNestedManyWithoutTenantInput
     restaurants?: RestaurantUncheckedCreateNestedManyWithoutTenantInput
     branches?: BranchUncheckedCreateNestedManyWithoutTenantInput
@@ -59410,6 +61488,7 @@ export namespace Prisma {
     deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     subscriptions?: SubscriptionUpdateOneWithoutTenantNestedInput
     users?: UserUpdateManyWithoutTenantNestedInput
+    userBranches?: UserBranchUpdateManyWithoutTenantNestedInput
     roles?: RoleUpdateManyWithoutTenantNestedInput
     restaurants?: RestaurantUpdateManyWithoutTenantNestedInput
     branches?: BranchUpdateManyWithoutTenantNestedInput
@@ -59451,6 +61530,7 @@ export namespace Prisma {
     deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     subscriptions?: SubscriptionUncheckedUpdateOneWithoutTenantNestedInput
     users?: UserUncheckedUpdateManyWithoutTenantNestedInput
+    userBranches?: UserBranchUncheckedUpdateManyWithoutTenantNestedInput
     roles?: RoleUncheckedUpdateManyWithoutTenantNestedInput
     restaurants?: RestaurantUncheckedUpdateManyWithoutTenantNestedInput
     branches?: BranchUncheckedUpdateManyWithoutTenantNestedInput
@@ -59492,6 +61572,7 @@ export namespace Prisma {
     deletedAt?: Date | string | null
     subscriptions?: SubscriptionCreateNestedOneWithoutTenantInput
     users?: UserCreateNestedManyWithoutTenantInput
+    userBranches?: UserBranchCreateNestedManyWithoutTenantInput
     roles?: RoleCreateNestedManyWithoutTenantInput
     restaurants?: RestaurantCreateNestedManyWithoutTenantInput
     branches?: BranchCreateNestedManyWithoutTenantInput
@@ -59533,6 +61614,7 @@ export namespace Prisma {
     deletedAt?: Date | string | null
     subscriptions?: SubscriptionUncheckedCreateNestedOneWithoutTenantInput
     users?: UserUncheckedCreateNestedManyWithoutTenantInput
+    userBranches?: UserBranchUncheckedCreateNestedManyWithoutTenantInput
     roles?: RoleUncheckedCreateNestedManyWithoutTenantInput
     restaurants?: RestaurantUncheckedCreateNestedManyWithoutTenantInput
     branches?: BranchUncheckedCreateNestedManyWithoutTenantInput
@@ -59590,6 +61672,7 @@ export namespace Prisma {
     deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     subscriptions?: SubscriptionUpdateOneWithoutTenantNestedInput
     users?: UserUpdateManyWithoutTenantNestedInput
+    userBranches?: UserBranchUpdateManyWithoutTenantNestedInput
     roles?: RoleUpdateManyWithoutTenantNestedInput
     restaurants?: RestaurantUpdateManyWithoutTenantNestedInput
     branches?: BranchUpdateManyWithoutTenantNestedInput
@@ -59631,6 +61714,7 @@ export namespace Prisma {
     deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     subscriptions?: SubscriptionUncheckedUpdateOneWithoutTenantNestedInput
     users?: UserUncheckedUpdateManyWithoutTenantNestedInput
+    userBranches?: UserBranchUncheckedUpdateManyWithoutTenantNestedInput
     roles?: RoleUncheckedUpdateManyWithoutTenantNestedInput
     restaurants?: RestaurantUncheckedUpdateManyWithoutTenantNestedInput
     branches?: BranchUncheckedUpdateManyWithoutTenantNestedInput
@@ -59672,6 +61756,7 @@ export namespace Prisma {
     deletedAt?: Date | string | null
     subscriptions?: SubscriptionCreateNestedOneWithoutTenantInput
     users?: UserCreateNestedManyWithoutTenantInput
+    userBranches?: UserBranchCreateNestedManyWithoutTenantInput
     roles?: RoleCreateNestedManyWithoutTenantInput
     restaurants?: RestaurantCreateNestedManyWithoutTenantInput
     branches?: BranchCreateNestedManyWithoutTenantInput
@@ -59713,6 +61798,7 @@ export namespace Prisma {
     deletedAt?: Date | string | null
     subscriptions?: SubscriptionUncheckedCreateNestedOneWithoutTenantInput
     users?: UserUncheckedCreateNestedManyWithoutTenantInput
+    userBranches?: UserBranchUncheckedCreateNestedManyWithoutTenantInput
     roles?: RoleUncheckedCreateNestedManyWithoutTenantInput
     restaurants?: RestaurantUncheckedCreateNestedManyWithoutTenantInput
     branches?: BranchUncheckedCreateNestedManyWithoutTenantInput
@@ -59770,6 +61856,7 @@ export namespace Prisma {
     deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     subscriptions?: SubscriptionUpdateOneWithoutTenantNestedInput
     users?: UserUpdateManyWithoutTenantNestedInput
+    userBranches?: UserBranchUpdateManyWithoutTenantNestedInput
     roles?: RoleUpdateManyWithoutTenantNestedInput
     restaurants?: RestaurantUpdateManyWithoutTenantNestedInput
     branches?: BranchUpdateManyWithoutTenantNestedInput
@@ -59811,6 +61898,7 @@ export namespace Prisma {
     deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     subscriptions?: SubscriptionUncheckedUpdateOneWithoutTenantNestedInput
     users?: UserUncheckedUpdateManyWithoutTenantNestedInput
+    userBranches?: UserBranchUncheckedUpdateManyWithoutTenantNestedInput
     roles?: RoleUncheckedUpdateManyWithoutTenantNestedInput
     restaurants?: RestaurantUncheckedUpdateManyWithoutTenantNestedInput
     branches?: BranchUncheckedUpdateManyWithoutTenantNestedInput
@@ -59849,6 +61937,12 @@ export namespace Prisma {
     createdAt?: Date | string
     updatedAt?: Date | string
     deletedAt?: Date | string | null
+  }
+
+  export type UserBranchCreateManyTenantInput = {
+    userId: string
+    branchId: string
+    assignedAt?: Date | string
   }
 
   export type RoleCreateManyTenantInput = {
@@ -60138,6 +62232,7 @@ export namespace Prisma {
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     userRoles?: UserRoleUpdateManyWithoutUserNestedInput
+    userBranches?: UserBranchUpdateManyWithoutUserNestedInput
     deviceTokens?: DeviceTokenUpdateManyWithoutUserNestedInput
     sessionLogs?: SessionLogUpdateManyWithoutUserNestedInput
   }
@@ -60157,6 +62252,7 @@ export namespace Prisma {
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     userRoles?: UserRoleUncheckedUpdateManyWithoutUserNestedInput
+    userBranches?: UserBranchUncheckedUpdateManyWithoutUserNestedInput
     deviceTokens?: DeviceTokenUncheckedUpdateManyWithoutUserNestedInput
     sessionLogs?: SessionLogUncheckedUpdateManyWithoutUserNestedInput
   }
@@ -60175,6 +62271,24 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  }
+
+  export type UserBranchUpdateWithoutTenantInput = {
+    assignedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    user?: UserUpdateOneRequiredWithoutUserBranchesNestedInput
+    branch?: BranchUpdateOneRequiredWithoutUserBranchesNestedInput
+  }
+
+  export type UserBranchUncheckedUpdateWithoutTenantInput = {
+    userId?: StringFieldUpdateOperationsInput | string
+    branchId?: StringFieldUpdateOperationsInput | string
+    assignedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type UserBranchUncheckedUpdateManyWithoutTenantInput = {
+    userId?: StringFieldUpdateOperationsInput | string
+    branchId?: StringFieldUpdateOperationsInput | string
+    assignedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
   export type RoleUpdateWithoutTenantInput = {
@@ -60261,6 +62375,7 @@ export namespace Prisma {
     tables?: TableUpdateManyWithoutBranchNestedInput
     orders?: OrderUpdateManyWithoutBranchNestedInput
     kitchenQueues?: KitchenQueueUpdateManyWithoutBranchNestedInput
+    userBranches?: UserBranchUpdateManyWithoutBranchNestedInput
   }
 
   export type BranchUncheckedUpdateWithoutTenantInput = {
@@ -60279,6 +62394,7 @@ export namespace Prisma {
     tables?: TableUncheckedUpdateManyWithoutBranchNestedInput
     orders?: OrderUncheckedUpdateManyWithoutBranchNestedInput
     kitchenQueues?: KitchenQueueUncheckedUpdateManyWithoutBranchNestedInput
+    userBranches?: UserBranchUncheckedUpdateManyWithoutBranchNestedInput
   }
 
   export type BranchUncheckedUpdateManyWithoutTenantInput = {
@@ -61106,6 +63222,12 @@ export namespace Prisma {
     assignedAt?: Date | string
   }
 
+  export type UserBranchCreateManyUserInput = {
+    branchId: string
+    tenantId: string
+    assignedAt?: Date | string
+  }
+
   export type DeviceTokenCreateManyUserInput = {
     id?: string
     tenantId: string
@@ -61136,6 +63258,24 @@ export namespace Prisma {
 
   export type UserRoleUncheckedUpdateManyWithoutUserInput = {
     roleId?: StringFieldUpdateOperationsInput | string
+    assignedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type UserBranchUpdateWithoutUserInput = {
+    assignedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    branch?: BranchUpdateOneRequiredWithoutUserBranchesNestedInput
+    tenant?: TenantUpdateOneRequiredWithoutUserBranchesNestedInput
+  }
+
+  export type UserBranchUncheckedUpdateWithoutUserInput = {
+    branchId?: StringFieldUpdateOperationsInput | string
+    tenantId?: StringFieldUpdateOperationsInput | string
+    assignedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type UserBranchUncheckedUpdateManyWithoutUserInput = {
+    branchId?: StringFieldUpdateOperationsInput | string
+    tenantId?: StringFieldUpdateOperationsInput | string
     assignedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
@@ -61295,6 +63435,7 @@ export namespace Prisma {
     tables?: TableUpdateManyWithoutBranchNestedInput
     orders?: OrderUpdateManyWithoutBranchNestedInput
     kitchenQueues?: KitchenQueueUpdateManyWithoutBranchNestedInput
+    userBranches?: UserBranchUpdateManyWithoutBranchNestedInput
   }
 
   export type BranchUncheckedUpdateWithoutRestaurantInput = {
@@ -61313,6 +63454,7 @@ export namespace Prisma {
     tables?: TableUncheckedUpdateManyWithoutBranchNestedInput
     orders?: OrderUncheckedUpdateManyWithoutBranchNestedInput
     kitchenQueues?: KitchenQueueUncheckedUpdateManyWithoutBranchNestedInput
+    userBranches?: UserBranchUncheckedUpdateManyWithoutBranchNestedInput
   }
 
   export type BranchUncheckedUpdateManyWithoutRestaurantInput = {
@@ -61406,6 +63548,12 @@ export namespace Prisma {
     priority?: string
     startedCookingAt?: Date | string | null
     completedCookingAt?: Date | string | null
+  }
+
+  export type UserBranchCreateManyBranchInput = {
+    userId: string
+    tenantId: string
+    assignedAt?: Date | string
   }
 
   export type TableUpdateWithoutBranchInput = {
@@ -61545,6 +63693,24 @@ export namespace Prisma {
     priority?: StringFieldUpdateOperationsInput | string
     startedCookingAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     completedCookingAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  }
+
+  export type UserBranchUpdateWithoutBranchInput = {
+    assignedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    user?: UserUpdateOneRequiredWithoutUserBranchesNestedInput
+    tenant?: TenantUpdateOneRequiredWithoutUserBranchesNestedInput
+  }
+
+  export type UserBranchUncheckedUpdateWithoutBranchInput = {
+    userId?: StringFieldUpdateOperationsInput | string
+    tenantId?: StringFieldUpdateOperationsInput | string
+    assignedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type UserBranchUncheckedUpdateManyWithoutBranchInput = {
+    userId?: StringFieldUpdateOperationsInput | string
+    tenantId?: StringFieldUpdateOperationsInput | string
+    assignedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
   export type OrderCreateManyTableInput = {
@@ -62508,6 +64674,10 @@ export namespace Prisma {
      * @deprecated Use UserDefaultArgs instead
      */
     export type UserArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = UserDefaultArgs<ExtArgs>
+    /**
+     * @deprecated Use UserBranchDefaultArgs instead
+     */
+    export type UserBranchArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = UserBranchDefaultArgs<ExtArgs>
     /**
      * @deprecated Use RoleDefaultArgs instead
      */

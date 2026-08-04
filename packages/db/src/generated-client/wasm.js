@@ -189,6 +189,13 @@ exports.Prisma.UserScalarFieldEnum = {
   deletedAt: 'deletedAt'
 };
 
+exports.Prisma.UserBranchScalarFieldEnum = {
+  userId: 'userId',
+  branchId: 'branchId',
+  tenantId: 'tenantId',
+  assignedAt: 'assignedAt'
+};
+
 exports.Prisma.RoleScalarFieldEnum = {
   id: 'id',
   tenantId: 'tenantId',
@@ -626,6 +633,7 @@ exports.Prisma.ModelName = {
   SubscriptionPlan: 'SubscriptionPlan',
   Subscription: 'Subscription',
   User: 'User',
+  UserBranch: 'UserBranch',
   Role: 'Role',
   Permission: 'Permission',
   UserRole: 'UserRole',

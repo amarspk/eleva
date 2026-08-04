@@ -1,5 +1,5 @@
 import { Controller, Post, Get, Body, Param, Req, UseGuards, HttpCode, HttpStatus, ForbiddenException } from '@nestjs/common';
-import { WalletService } from './wallet.service';
+import { WalletService, VerifyPaymentResult, WalletPaymentResult } from './wallet.service';
 import { CreateWalletPaymentRequestDto } from './dto/create-wallet-payment-request.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { AuthenticatedRequest } from '../common/types/request.types';
@@ -17,19 +17,10 @@ export class PaymentController {
    */
   @Post('wallet')
   @HttpCode(HttpStatus.CREATED)
-  async createWalletPayment(@Body() dto: CreateWalletPaymentRequestDto, @Req() req: AuthenticatedRequest): Promise<{
-    paymentId: string;
-    provider: string;
-    walletType: string;
-    amount: number;
-    currency: string;
-    status: string;
-    nextAction?: { type: string; stripeSdk?: { walletType: string; clientSecret: string } };
-    redirectUrl?: string;
-    clientSecret?: string;
-    successUrl?: string;
-    cancelUrl?: string;
-  }> {
+  async createWalletPayment(
+    @Body() dto: CreateWalletPaymentRequestDto,
+    @Req() req: AuthenticatedRequest,
+  ): Promise<WalletPaymentResult> {
     const user = req.user;
     if (!user?.tenantId) {
       throw new ForbiddenException('Tenant context missing');
@@ -40,16 +31,17 @@ export class PaymentController {
 
   /**
    * GET /api/v1/payments/wallet/:paymentId/verify
-   * Verifies wallet payment status
+   *
+   * Verifies a payment against the PROVIDER and reconciles the stored record.
+   * An id unknown to this tenant returns 404 — it is never reported as
+   * settled (AUDIT-002).
    */
   @Get('wallet/:paymentId/verify')
   @HttpCode(HttpStatus.OK)
-  async verifyPayment(@Param('paymentId') paymentId: string, @Req() req: AuthenticatedRequest): Promise<{
-    paymentId: string;
-    status: string;
-    verified: boolean;
-    tenantId: string;
-  }> {
+  async verifyPayment(
+    @Param('paymentId') paymentId: string,
+    @Req() req: AuthenticatedRequest,
+  ): Promise<VerifyPaymentResult> {
     const user = req.user;
     if (!user?.tenantId) {
       throw new ForbiddenException('Tenant context missing');

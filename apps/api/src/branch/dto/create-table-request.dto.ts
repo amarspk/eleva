@@ -1,7 +1,7 @@
-import { IsString, IsNotEmpty, IsInt, Min, Max } from 'class-validator';
+import { IsString, IsNotEmpty, IsInt, Min, Max, IsUUID } from 'class-validator';
 
 export class CreateTableRequestDto {
-  @IsString()
+  @IsUUID('4')
   @IsNotEmpty()
   branchId!: string;
 

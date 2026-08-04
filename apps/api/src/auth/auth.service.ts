@@ -1,4 +1,10 @@
-import { Injectable, UnauthorizedException, Logger, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  UnauthorizedException,
+  Logger,
+  NotFoundException,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as argon2 from 'argon2';
 import { JWT_CONFIG } from './config/jwt.config';
@@ -43,6 +49,14 @@ interface UserFromDb {
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger('AuthService');
+
+  /**
+   * Lifetime of a per-user token-revocation marker. Must be >= the maximum
+   * access-token lifetime (`JWT_CONFIG.accessTokenExpiry` = 15m) so that every
+   * token issued before the cut-off has expired before the marker evicts.
+   * 1 hour gives a 4x safety margin for clock skew.
+   */
+  private static readonly USER_REVOCATION_TTL_SECONDS = 3600;
 
   constructor(
     private readonly jwtService: JwtService,
@@ -162,6 +176,70 @@ export class AuthService {
   async isTokenBlacklisted(token: string): Promise<boolean> {
     const blacklistKey = `blacklist:access:${token}`;
     return await this.cacheService.get(blacklistKey, async () => false);
+  }
+
+  /**
+   * Revokes EVERY currently-issued access token for a single user
+   * (AUDIT-004 architecture review, ISSUE-1/ISSUE-2).
+   *
+   * `blacklistToken` can only revoke a token the caller physically holds, so it
+   * cannot help an administrator who deactivates or deletes *another* user:
+   * that victim's already-issued JWT stays valid until it expires (15 minutes,
+   * `JWT_CONFIG.accessTokenExpiry`) because `JwtStrategy.validate` performs no
+   * database read. Runtime-verified pre-fix: a soft-deleted user's token still
+   * returned HTTP 200 on `/auth/me` and `/branches`.
+   *
+   * This records a per-user revocation marker instead. `JwtStrategy` rejects
+   * any token whose `iat` predates the marker, so deactivation and deletion
+   * take effect on the very next request. TTL matches the maximum access-token
+   * lifetime — once every token issued before the cut-off has expired the
+   * marker is worthless and self-evicts.
+   */
+  async revokeAllUserTokens(userId: string): Promise<void> {
+    if (!userId) {
+      return;
+    }
+    // Second granularity matches the JWT `iat`/`exp` claim unit. Add 1s so a
+    // token minted in the same second as the revocation is also rejected
+    // (fail-closed on the boundary rather than fail-open).
+    const cutoff = Math.floor(Date.now() / 1000) + 1;
+
+    // Durable write: `cacheService.set` is best-effort and returns silently
+    // when Redis is offline, which would report a successful revocation while
+    // storing nothing — the victim's JWT would stay valid until expiry. This is
+    // a security control, so a failed write must surface to the caller rather
+    // than fail open.
+    const persisted = await this.cacheService.setStrict(
+      `revoked:user:${userId}`,
+      cutoff,
+      AuthService.USER_REVOCATION_TTL_SECONDS,
+    );
+
+    if (!persisted) {
+      this.logger.error(
+        `Token revocation for user [${userId}] could not be persisted (session store unavailable).`,
+      );
+      throw new ServiceUnavailableException(
+        'Unable to revoke active sessions right now. The change was not applied — please retry.',
+      );
+    }
+
+    this.logger.log(`All access tokens revoked for user [${userId}] (cutoff ${cutoff})`);
+  }
+
+  /**
+   * Returns the revocation cut-off for a user, or 0 when none is active.
+   */
+  async getUserRevocationCutoff(userId: string): Promise<number> {
+    if (!userId) {
+      return 0;
+    }
+    const value = await this.cacheService.get<number>(
+      `revoked:user:${userId}`,
+      async () => 0,
+      AuthService.USER_REVOCATION_TTL_SECONDS,
+    );
+    return typeof value === 'number' ? value : 0;
   }
 
   /**

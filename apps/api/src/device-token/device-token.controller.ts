@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Delete, Param, Body, Req, UseGuards, HttpCode, HttpStatus, ForbiddenException, Query } from '@nestjs/common';
+import { Controller, Post, Get, Delete, Param, Body, Req, UseGuards, HttpCode, HttpStatus, ForbiddenException, Query , ParseUUIDPipe } from '@nestjs/common';
 import { DeviceTokenService } from './device-token.service';
 import { CreateDeviceTokenRequestDto } from './dto/create-device-token-request.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -53,7 +53,7 @@ export class DeviceTokenController {
 
   @Delete(':id')
   @HttpCode(HttpStatus.OK)
-  async deleteToken(@Param('id') id: string, @Req() req: AuthenticatedRequest): Promise<{ success: boolean; id: string }> {
+  async deleteToken(@Param('id', new ParseUUIDPipe()) id: string, @Req() req: AuthenticatedRequest): Promise<{ success: boolean; id: string }> {
     const user = req.user;
     if (!user?.tenantId) {
       throw new ForbiddenException('Tenant context missing');

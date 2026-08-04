@@ -1,4 +1,4 @@
-import { IsString, IsEnum, IsOptional, MaxLength } from 'class-validator';
+import { IsString, IsEnum, IsOptional, MaxLength, IsUUID } from 'class-validator';
 
 export enum MediaTypeDto {
   IMAGE = 'IMAGE',
@@ -13,7 +13,7 @@ export class UploadMediaDto {
   @MaxLength(50)
   entityType!: string;
 
-  @IsString()
+  @IsUUID('4')
   @MaxLength(255)
   entityId!: string;
 

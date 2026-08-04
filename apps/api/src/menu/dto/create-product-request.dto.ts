@@ -1,7 +1,7 @@
-import { IsString, IsNotEmpty, IsNumber, Min, IsOptional, IsInt, Length } from 'class-validator';
+import { IsString, IsNotEmpty, IsNumber, Min, IsOptional, IsInt, Length, IsUUID } from 'class-validator';
 
 export class CreateProductRequestDto {
-  @IsString()
+  @IsUUID('4')
   @IsNotEmpty()
   categoryId!: string;
 

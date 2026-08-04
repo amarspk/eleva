@@ -1,8 +1,8 @@
-import { IsString, IsNotEmpty, IsEnum, IsNumber, Min, IsOptional, IsUrl, IsIn } from 'class-validator';
+import { IsString, IsNotEmpty, IsEnum, IsNumber, Min, IsOptional, IsUrl, IsIn, IsUUID } from 'class-validator';
 import { PaymentMethodType } from '@zayjar/types';
 
 export class CreateWalletPaymentRequestDto {
-  @IsString()
+  @IsUUID('4')
   @IsNotEmpty()
   orderId!: string;
 

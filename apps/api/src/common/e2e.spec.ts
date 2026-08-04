@@ -157,6 +157,13 @@ describe('Zayjar Platform End-to-End API Verification (TSK-2.0)', () => {
     const categoryId = 'cat1';
     const productId = 'prod1';
 
+    // AUDIT-014 DEFECT-N: createCategory now validates the parent brand before
+    // inserting — a foreign restaurantId previously reached Postgres and
+    // surfaced as an unhandled FK violation (HTTP 500). Without this spy the
+    // lookup falls through to real Prisma and fails on a missing DATABASE_URL.
+    jest.spyOn(TenantRestaurantRepository.prototype, 'findById')
+      .mockResolvedValue({ id: 'rest1', name: 'E2E Brand' } as any);
+
     const catSpy = jest.spyOn(TenantCategoryRepository.prototype, 'create')
       .mockResolvedValue({ id: categoryId, name: 'Premium Craft Burgers' } as any);
     const prodSpy = jest.spyOn(TenantProductRepository.prototype, 'create')

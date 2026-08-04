@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, IsIn, IsOptional } from 'class-validator';
+import { IsString, IsNotEmpty, IsIn, IsOptional, IsUUID } from 'class-validator';
 
 export class CreateDeviceTokenRequestDto {
   @IsString()
@@ -10,7 +10,7 @@ export class CreateDeviceTokenRequestDto {
   @IsIn(['ios', 'android', 'web', 'unknown'])
   deviceType!: string;
 
-  @IsString()
+  @IsUUID('4')
   @IsOptional()
   userId?: string; // optional for admin registering others, otherwise from JWT
 }

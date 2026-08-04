@@ -1,23 +1,23 @@
-import { IsString, IsNotEmpty, IsEnum, IsOptional, IsArray, ValidateNested, IsInt, Min, ArrayNotEmpty } from 'class-validator';
+import { IsString, IsNotEmpty, IsEnum, IsOptional, IsArray, ValidateNested, IsInt, Min, ArrayNotEmpty, IsUUID } from 'class-validator';
 import { Type } from 'class-transformer';
 import { OrderType, PaymentMethodType } from '@zayjar/types';
 
 export class OrderAddonSelectionDto {
-  @IsString()
+  @IsUUID('4')
   @IsNotEmpty()
   addonItemId!: string;
 }
 
 export class OrderItemSelectionDto {
-  @IsString()
+  @IsUUID('4')
   @IsNotEmpty()
   productId!: string;
 
-  @IsString()
+  @IsUUID('4')
   @IsOptional()
   sizeId?: string;
 
-  @IsString()
+  @IsUUID('4')
   @IsOptional()
   variantId?: string;
 
@@ -33,11 +33,11 @@ export class OrderItemSelectionDto {
 }
 
 export class CreateOrderRequestDto {
-  @IsString()
+  @IsUUID('4')
   @IsNotEmpty()
   branchId!: string;
 
-  @IsString()
+  @IsUUID('4')
   @IsOptional()
   tableId?: string;
 

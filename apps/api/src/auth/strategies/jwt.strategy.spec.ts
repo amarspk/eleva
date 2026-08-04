@@ -12,7 +12,13 @@ import { AuthService } from '../auth.service';
  */
 describe('JwtStrategy — C-1 (AUTHZ-001) tenant reconciliation', () => {
   let strategy: JwtStrategy;
-  const authService = { isTokenBlacklisted: jest.fn() } as unknown as AuthService;
+  const authService = {
+    isTokenBlacklisted: jest.fn(),
+    // AUDIT-004 review (ISSUE-1/2): validate() now consults the per-user
+    // revocation marker so admin-side deactivation/deletion takes effect on
+    // the next request. Default 0 = no revocation active.
+    getUserRevocationCutoff: jest.fn(),
+  } as unknown as AuthService;
   const staffPayload = {
     sub: 'u-1',
     email: 'staff@tenant-a.example',
@@ -29,6 +35,7 @@ describe('JwtStrategy — C-1 (AUTHZ-001) tenant reconciliation', () => {
 
   beforeEach(() => {
     (authService.isTokenBlacklisted as jest.Mock).mockResolvedValue(false);
+    (authService.getUserRevocationCutoff as jest.Mock).mockResolvedValue(0);
     strategy = new JwtStrategy(authService);
   });
 
@@ -93,5 +100,39 @@ describe('JwtStrategy — C-1 (AUTHZ-001) tenant reconciliation', () => {
   it('preserves the pre-existing blacklist rejection (regression)', async () => {
     (authService.isTokenBlacklisted as jest.Mock).mockResolvedValue(true);
     await expect(strategy.validate(makeReq(), staffPayload)).rejects.toThrow(UnauthorizedException);
+  });
+
+  // ==========================================
+  // AUDIT-004 architecture review (ISSUE-1 / ISSUE-2)
+  // Admin-side deactivation/deletion must invalidate tokens already issued to
+  // the victim. The logout blacklist cannot express this (it needs the raw
+  // token), so a per-user revocation cut-off is consulted here.
+  // ==========================================
+  describe('per-user token revocation (account deactivated/deleted)', () => {
+    it('rejects a token issued BEFORE the revocation cut-off', async () => {
+      (authService.getUserRevocationCutoff as jest.Mock).mockResolvedValue(2_000);
+      const stale = { ...staffPayload, iat: 1_999 };
+      await dbTenantContext.run({ tenantId: 'T-A' }, async () => {
+        await expect(strategy.validate(makeReq(), stale)).rejects.toThrow(UnauthorizedException);
+      });
+    });
+
+    it('accepts a token issued AFTER the cut-off (post-reinstatement login)', async () => {
+      (authService.getUserRevocationCutoff as jest.Mock).mockResolvedValue(2_000);
+      const fresh = { ...staffPayload, iat: 2_001 };
+      await dbTenantContext.run({ tenantId: 'T-A' }, async () => {
+        const user = await strategy.validate(makeReq(), fresh);
+        expect(user.id).toBe(staffPayload.sub);
+      });
+    });
+
+    it('is inert when no revocation is recorded (cut-off 0)', async () => {
+      (authService.getUserRevocationCutoff as jest.Mock).mockResolvedValue(0);
+      const anyToken = { ...staffPayload, iat: 1 };
+      await dbTenantContext.run({ tenantId: 'T-A' }, async () => {
+        const user = await strategy.validate(makeReq(), anyToken);
+        expect(user.id).toBe(staffPayload.sub);
+      });
+    });
   });
 });

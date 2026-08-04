@@ -1,10 +1,24 @@
-import { Controller, Get, Put, Param, Body, Query, Req, UseGuards, HttpCode, HttpStatus } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Put,
+  Param,
+  Body,
+  Query,
+  Req,
+  UseGuards,
+  HttpCode,
+  HttpStatus,
+  BadRequestException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { KdsService } from './kds.service';
 import { UpdateCookingStatusRequestDto } from './dto/update-cooking-status-request.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RbacPermissionGuard } from '../auth/guards/rbac-permission.guard';
 import { RequirePermission } from '../auth/decorators/require-permission.decorator';
 import { AuthenticatedRequest } from '../common/types/request.types';
+import { OptionalUuidPipe } from '../common/pipes/optional-uuid.pipe';
 
 @Controller('api/v1/kds')
 @UseGuards(JwtAuthGuard, RbacPermissionGuard)
@@ -19,7 +33,7 @@ export class KdsController {
   @Get('tickets')
   @HttpCode(HttpStatus.OK)
   @RequirePermission('read', 'Order')
-  async getTickets(@Query('branchId') branchId: string, @Req() req: AuthenticatedRequest): Promise<Array<{
+  async getTickets(@Query('branchId', OptionalUuidPipe) branchId: string, @Req() req: AuthenticatedRequest): Promise<Array<{
     ticketId: string;
     orderId: string;
     ticketNumber: string;
@@ -38,10 +52,16 @@ export class KdsController {
   }>> {
     const tenantId = req.user?.tenantId;
     if (!tenantId) {
-      throw new Error('Tenant context missing from authenticated request');
+      // Bare `throw new Error` surfaces as HTTP 500. Missing tenant context is
+      // an authorization condition, and the rest of the platform answers it
+      // with 403 (see user.controller.ts / payment.controller.ts).
+      throw new ForbiddenException('Access denied: Missing valid tenant context.');
     }
     if (!branchId) {
-      throw new Error('branchId query param is required');
+      // Client omitted a required query parameter: that is a 400, not a 500.
+      // Reported as HTTP 500 before this fix (runtime-verified), which makes a
+      // caller mistake look like a server fault in logs and alerting.
+      throw new BadRequestException('branchId query param is required.');
     }
     return this.kdsService.getTickets(branchId, tenantId);
   }
@@ -61,7 +81,10 @@ export class KdsController {
   ): Promise<{ orderItemId: string; cookingStatus: string; updatedAt: string }> {
     const tenantId = req.user?.tenantId;
     if (!tenantId) {
-      throw new Error('Tenant context missing from authenticated request');
+      // Bare `throw new Error` surfaces as HTTP 500. Missing tenant context is
+      // an authorization condition, and the rest of the platform answers it
+      // with 403 (see user.controller.ts / payment.controller.ts).
+      throw new ForbiddenException('Access denied: Missing valid tenant context.');
     }
     return this.kdsService.updateCookingStatus(orderItemId, dto.status, tenantId);
   }

@@ -29,11 +29,11 @@ jest.mock('argon2', () => ({
 }));
 
 const TENANT_ID = 'tenant-integ-001';
-const BRANCH_ID = 'branch-integ-001';
+const BRANCH_ID = '4a9b5ff2-988a-42aa-b8d9-453baf673507';
 const RESTAURANT_ID = 'rest-integ-001';
-const PRODUCT_ID = 'prod-integ-001';
-const SIZE_ID = 'size-integ-001';
-const ADDON_ID = 'addon-integ-001';
+const PRODUCT_ID = '31335e6c-65fd-4502-9fd8-2d077c6dc481';
+const SIZE_ID = '929a0309-5682-4d62-accc-504649ffb97c';
+const ADDON_ID = 'cd99b212-0ac2-4c23-9336-c86ad3a5836e';
 
 function mockBranch() {
   return jest.spyOn(TenantBranchRepository.prototype, 'findById').mockResolvedValue({
@@ -88,7 +88,7 @@ function mockTransaction(orderResult: any, discountRow: any = null) {
 
 function baseOrderResult(overrides: Partial<any> = {}) {
   return {
-    id: 'order-integ-001',
+    id: '54c6eb5d-8cdb-4ec1-b69e-f5ba079b2e9c',
     orderNumber: 'ORD-2026-12345',
     tenantId: TENANT_ID,
     branchId: BRANCH_ID,
@@ -112,7 +112,7 @@ function baseOrderResult(overrides: Partial<any> = {}) {
         totalPrice: 56,
         cookingStatus: 'PENDING',
         orderItemAddons: [
-          { id: 'addon-1', addonItemId: ADDON_ID, price: 3 },
+          { id: '71d9bbca-b2e3-4729-9d86-e71196853697', addonItemId: ADDON_ID, price: 3 },
         ],
       },
     ],
@@ -209,7 +209,7 @@ describe('Order Checkout HTTP Integration Tests', () => {
       .send(checkoutPayload());
 
     expect(res.status).toBe(201);
-    expect(res.body.id).toBe('order-integ-001');
+    expect(res.body.id).toBe('54c6eb5d-8cdb-4ec1-b69e-f5ba079b2e9c');
     expect(res.body.orderNumber).toMatch(/^ORD-\d{4}-\d{5}$/);
     expect(res.body.status).toBe('PENDING');
     expect(res.body.branchId).toBe(BRANCH_ID);
@@ -288,7 +288,7 @@ describe('Order Checkout HTTP Integration Tests', () => {
           quantity: 2,
           unitPrice: 28,
           totalPrice: 56,
-          orderItemAddons: [{ id: 'addon-1', addonItemId: ADDON_ID, price: 3 }],
+          orderItemAddons: [{ id: '71d9bbca-b2e3-4729-9d86-e71196853697', addonItemId: ADDON_ID, price: 3 }],
         },
       ],
     });
@@ -316,7 +316,7 @@ describe('Order Checkout HTTP Integration Tests', () => {
       .set('X-Tenant-ID', TENANT_ID)
       .send({
         type: OrderType.DINE_IN,
-        items: [{ productId: 'x', quantity: 1 }],
+        items: [{ productId: 'ae0a448c-f913-4178-8fea-6caec69f6835', quantity: 1 }],
         paymentMethod: PaymentMethodType.CASH,
       });
 
@@ -353,7 +353,7 @@ describe('Order Checkout HTTP Integration Tests', () => {
       .send({
         branchId: BRANCH_ID,
         type: 'INVALID_TYPE',
-        items: [{ productId: 'x', quantity: 1 }],
+        items: [{ productId: 'ae0a448c-f913-4178-8fea-6caec69f6835', quantity: 1 }],
         paymentMethod: PaymentMethodType.CASH,
       });
 
@@ -370,7 +370,7 @@ describe('Order Checkout HTTP Integration Tests', () => {
       .send({
         branchId: BRANCH_ID,
         type: OrderType.DINE_IN,
-        items: [{ productId: 'x', quantity: 1 }],
+        items: [{ productId: 'ae0a448c-f913-4178-8fea-6caec69f6835', quantity: 1 }],
         paymentMethod: 'BITCOIN',
       });
 
@@ -387,7 +387,7 @@ describe('Order Checkout HTTP Integration Tests', () => {
       .send({
         branchId: BRANCH_ID,
         type: OrderType.DINE_IN,
-        items: [{ productId: 'x', quantity: 0 }],
+        items: [{ productId: 'ae0a448c-f913-4178-8fea-6caec69f6835', quantity: 0 }],
         paymentMethod: PaymentMethodType.CASH,
       });
 
@@ -424,6 +424,66 @@ describe('Order Checkout HTTP Integration Tests', () => {
     expect(res.body.message).toEqual(
       expect.stringContaining('branch'),
     );
+  });
+
+  // ==========================================
+  // 9b. Table validation (AUDIT-007 / DEFECT-G)
+  // ==========================================
+  // `dto.tableId` used to be written straight onto the order with no lookup.
+  // Runtime-proven before the fix: a checkout naming a SOFT-DELETED table
+  // returned HTTP 201 and persisted the order against it, which defeats the
+  // new DELETE /api/v1/tables/:id endpoint entirely. A table from a different
+  // branch was likewise accepted.
+  describe('table validation (AUDIT-007 DEFECT-G)', () => {
+    const TABLE_ID = 'b7c1f0e1-2c9c-4a2f-9a34-6d5a1b9f0c21';
+
+    it('rejects a soft-deleted / unknown table with 404', async () => {
+      mockBranch();
+      mockRestaurant(10);
+      // findById is tenant-scoped AND filters `deletedAt IS NULL`, so a
+      // soft-deleted table resolves to null exactly like an unknown one.
+      jest.spyOn(TenantTableRepository.prototype, 'findById').mockResolvedValue(null);
+
+      const res = await request(app.getHttpServer())
+        .post('/api/v1/orders/checkout')
+        .set('X-Tenant-ID', TENANT_ID)
+        .send(checkoutPayload({ tableId: TABLE_ID }));
+
+      expect(res.status).toBe(404);
+      expect(res.body.message).toEqual(expect.stringContaining('table'));
+    });
+
+    it('rejects a table that belongs to a different branch with 400', async () => {
+      mockBranch();
+      mockRestaurant(10);
+      jest.spyOn(TenantTableRepository.prototype, 'findById').mockResolvedValue({
+        id: TABLE_ID,
+        tenantId: TENANT_ID,
+        branchId: 'ffffffff-ffff-4fff-8fff-ffffffffffff',
+        deletedAt: null,
+      } as any);
+
+      const res = await request(app.getHttpServer())
+        .post('/api/v1/orders/checkout')
+        .set('X-Tenant-ID', TENANT_ID)
+        .send(checkoutPayload({ tableId: TABLE_ID }));
+
+      expect(res.status).toBe(400);
+      expect(res.body.message).toEqual(expect.stringContaining('does not belong'));
+    });
+
+    it('does not look up a table when the order has no tableId', async () => {
+      mockBranch();
+      mockRestaurant(10);
+      const tableSpy = jest.spyOn(TenantTableRepository.prototype, 'findById');
+
+      await request(app.getHttpServer())
+        .post('/api/v1/orders/checkout')
+        .set('X-Tenant-ID', TENANT_ID)
+        .send(checkoutPayload());
+
+      expect(tableSpy).not.toHaveBeenCalled();
+    });
   });
 
   // ==========================================
@@ -630,10 +690,18 @@ describe('Order Checkout HTTP Integration Tests', () => {
     mockBranch();
     mockRestaurant(0);
     mockProduct(10);
+    // AUDIT-007: a supplied tableId is now validated (tenant-scoped, must be
+    // live and belong to the branch) before the order is written.
+    jest.spyOn(TenantTableRepository.prototype, 'findById').mockResolvedValue({
+      id: '934f51f6-889c-47db-943b-11405ef8e5f0',
+      tenantId: TENANT_ID,
+      branchId: BRANCH_ID,
+      deletedAt: null,
+    } as any);
 
     const orderWithTable = {
       ...baseOrderResult(),
-      tableId: 'table-7',
+      tableId: '934f51f6-889c-47db-943b-11405ef8e5f0',
       subtotal: 10.00,
       taxAmount: 0,
       total: 10.00,
@@ -646,13 +714,13 @@ describe('Order Checkout HTTP Integration Tests', () => {
       .send({
         branchId: BRANCH_ID,
         type: OrderType.DINE_IN,
-        tableId: 'table-7',
+        tableId: '934f51f6-889c-47db-943b-11405ef8e5f0',
         items: [{ productId: PRODUCT_ID, quantity: 1 }],
         paymentMethod: PaymentMethodType.CASH,
       });
 
     expect(res.status).toBe(201);
-    expect(res.body.tableId).toBe('table-7');
+    expect(res.body.tableId).toBe('934f51f6-889c-47db-943b-11405ef8e5f0');
   });
 
   // ==========================================
@@ -709,7 +777,7 @@ describe('Order Checkout HTTP Integration Tests', () => {
   // 22. Multiple items with different products
   // ==========================================
   it('POST /api/v1/orders/checkout — multiple items with different products succeeds', async () => {
-    const PRODUCT_ID_2 = 'prod-integ-002';
+    const PRODUCT_ID_2 = '9a159817-e83d-4c03-9918-0ce2e14323b1';
 
     mockBranch();
     mockRestaurant(10);
@@ -785,10 +853,15 @@ describe('Order Checkout HTTP Integration Tests', () => {
   // Sprint 1, Step 2 — Public Guest QR Checkout
   // POST /api/v1/public/orders/checkout (@Public, guest rate tier)
   // ======================================================================
-  const GUEST_TABLE = { id: 'table-guest-001', tenantId: TENANT_ID, branchId: BRANCH_ID, number: 'T-7' };
+  const GUEST_TABLE = { id: '8befa7db-3382-4f7e-b683-ae678f488af3', tenantId: TENANT_ID, branchId: BRANCH_ID, number: 'T-7' };
 
   it('P1. guest checkout with a valid qrCodeToken returns 201 and forces server-side branch/table binding', async () => {
     jest.spyOn(TenantTableRepository.prototype, 'findByQrCodeToken').mockResolvedValue(GUEST_TABLE as any);
+    // AUDIT-007: createOrder now re-validates the resolved tableId by id
+    // (defense in depth — the guest path binds the table from the verified
+    // QR token, and the shared pipeline confirms it is still live and
+    // belongs to the branch). Without this mock the lookup reaches Prisma.
+    jest.spyOn(TenantTableRepository.prototype, 'findById').mockResolvedValue(GUEST_TABLE as any);
     // R6 parity gate (2026-07-30): createGuestOrder enforces tenant status — fixture ACTIVE.
     jest.spyOn(prisma.tenant, 'findUnique').mockResolvedValue({ status: 'ACTIVE' } as any);
     mockBranch();
@@ -817,7 +890,7 @@ describe('Order Checkout HTTP Integration Tests', () => {
       .send(checkoutPayload({ qrCodeToken: 'qr-valid-token' }));
 
     expect(res.status).toBe(201);
-    expect(res.body.id).toBe('order-integ-001');
+    expect(res.body.id).toBe('54c6eb5d-8cdb-4ec1-b69e-f5ba079b2e9c');
     // Branch/table are derived from the verified token, not from the guest body
     expect(createMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -844,11 +917,16 @@ describe('Order Checkout HTTP Integration Tests', () => {
 
   it('P3. guest checkout with a branchId mismatching the token table returns 400 (DOC-005 4.6)', async () => {
     jest.spyOn(TenantTableRepository.prototype, 'findByQrCodeToken').mockResolvedValue(GUEST_TABLE as any);
+    // AUDIT-007: createOrder now re-validates the resolved tableId by id
+    // (defense in depth — the guest path binds the table from the verified
+    // QR token, and the shared pipeline confirms it is still live and
+    // belongs to the branch). Without this mock the lookup reaches Prisma.
+    jest.spyOn(TenantTableRepository.prototype, 'findById').mockResolvedValue(GUEST_TABLE as any);
 
     const res = await request(app.getHttpServer())
       .post('/api/v1/public/orders/checkout')
       .set('X-Tenant-ID', TENANT_ID)
-      .send(checkoutPayload({ qrCodeToken: 'qr-valid-token', branchId: 'branch-foreign' }));
+      .send(checkoutPayload({ qrCodeToken: 'qr-valid-token', branchId: '6f30b284-2c28-4e87-81c3-c5bb8c275cb9' }));
 
     expect(res.status).toBe(400);
     expect(res.body.message).toEqual(expect.stringContaining('does not match the scanned table branch'));
@@ -866,13 +944,18 @@ describe('Order Checkout HTTP Integration Tests', () => {
 
   it('P5. guest checkout with a variant applies the absolute variant price override (DEFECT-A)', async () => {
     jest.spyOn(TenantTableRepository.prototype, 'findByQrCodeToken').mockResolvedValue(GUEST_TABLE as any);
+    // AUDIT-007: createOrder now re-validates the resolved tableId by id
+    // (defense in depth — the guest path binds the table from the verified
+    // QR token, and the shared pipeline confirms it is still live and
+    // belongs to the branch). Without this mock the lookup reaches Prisma.
+    jest.spyOn(TenantTableRepository.prototype, 'findById').mockResolvedValue(GUEST_TABLE as any);
     // R6 parity gate (2026-07-30): createGuestOrder enforces tenant status — fixture ACTIVE.
     jest.spyOn(prisma.tenant, 'findUnique').mockResolvedValue({ status: 'ACTIVE' } as any);
     mockBranch();
     mockRestaurant(10);
     mockProduct(20);
     jest.spyOn(prisma.productVariant, 'findFirst').mockResolvedValue({
-      id: 'var-1',
+      id: '6946e635-e6a6-4086-8e66-c3174934abae',
       productId: PRODUCT_ID,
       price: 30 as any,
       stockQuantity: 5,
@@ -897,7 +980,7 @@ describe('Order Checkout HTTP Integration Tests', () => {
       .set('X-Tenant-ID', TENANT_ID)
       .send(checkoutPayload({
         qrCodeToken: 'qr-valid-token',
-        items: [{ productId: PRODUCT_ID, variantId: 'var-1', quantity: 2 }],
+        items: [{ productId: PRODUCT_ID, variantId: '6946e635-e6a6-4086-8e66-c3174934abae', quantity: 2 }],
       }));
 
     expect(res.status).toBe(201);

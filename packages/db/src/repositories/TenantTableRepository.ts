@@ -2,6 +2,9 @@ import { BaseTenantRepository } from './BaseTenantRepository';
 import { Table, prisma } from '../index';
 
 export class TenantTableRepository extends BaseTenantRepository<Table> {
+  /** DOC-002 §Soft Delete Policy: this table carries `deletedAt`. */
+  protected readonly softDeletable = true;
+
   constructor() {
     super(prisma.table);
   }

@@ -1,13 +1,54 @@
-import { Injectable, Logger, BadRequestException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  BadRequestException,
+  NotFoundException,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import { CreateWalletPaymentRequestDto } from './dto/create-wallet-payment-request.dto';
 import { PaymentMethodType } from '@zayjar/types';
 import { dbTenantContext } from '@zayjar/db';
-import { TenantOrderRepository } from '@zayjar/db';
+import { TenantOrderRepository, TenantPaymentRepository } from '@zayjar/db';
+
+/**
+ * Normalised result of a provider-side status lookup.
+ * `status` is the provider's own vocabulary; `settled` is our interpretation.
+ */
+interface ProviderStatus {
+  status: string;
+  settled: boolean;
+  failed: boolean;
+}
+
+export interface WalletPaymentResult {
+  paymentId: string;
+  provider: string;
+  walletType: string;
+  amount: number;
+  currency: string;
+  status: string;
+  nextAction?: { type: string; url?: string; stripeSdk?: { walletType: string; clientSecret: string } };
+  redirectUrl?: string;
+  clientSecret?: string;
+  successUrl?: string;
+  cancelUrl?: string;
+}
+
+export interface VerifyPaymentResult {
+  paymentId: string;
+  orderId: string;
+  status: string;
+  verified: boolean;
+  amount: number;
+  provider: string;
+  tenantId: string;
+}
 
 @Injectable()
 export class WalletService {
   private readonly logger = new Logger(WalletService.name);
   private readonly orderRepository = new TenantOrderRepository();
+  private readonly paymentRepository = new TenantPaymentRepository();
 
   // Regional payment gateways per DOC-009 8.3
   private readonly REGIONAL_GATEWAYS: Record<string, { provider: string; countries: string[] }> = {
@@ -18,25 +59,64 @@ export class WalletService {
     google_pay: { provider: 'stripe', countries: ['global'] },
   };
 
+  /** Wallet types routed through Tap Payments. */
+  private static readonly TAP_WALLETS = ['knet', 'benefit', 'mada'];
+
+  /** Bounded wait for an outbound provider HTTP call. */
+  private static readonly PROVIDER_TIMEOUT_MS = 10_000;
+
   /**
-   * Creates regional wallet payment session per DOC-009 8.3
-   * Supports Apple Pay, Google Pay via Stripe, and KNET, Benefit, Mada via Tap Payments/PayTabs
-   * Tenant isolation enforced via dbTenantContext and order ownership
+   * Maps a wallet type to the `PaymentMethodType` persisted on the record.
+   * The enum is intentionally coarse (CASH / CREDIT_CARD / APPLE_PAY /
+   * LOCAL_WALLET); the precise rail is kept in `transactionReference`'s
+   * provider prefix and in the order's own metadata.
    */
-  async createWalletPayment(dto: CreateWalletPaymentRequestDto, tenantId: string, userId: string): Promise<{
-    paymentId: string;
-    provider: string;
-    walletType: string;
-    amount: number;
-    currency: string;
-    status: string;
-    nextAction?: { type: string; url?: string; stripeSdk?: { walletType: string; clientSecret: string } };
-    redirectUrl?: string;
-    clientSecret?: string;
-    successUrl?: string;
-    cancelUrl?: string;
-  }> {
-    this.logger.log(`Creating wallet payment for tenant [${tenantId}] order [${dto.orderId}] method [${dto.paymentMethod}] wallet [${dto.walletType}]`);
+  private toPaymentMethod(walletType: string): PaymentMethodType {
+    if (walletType === 'apple_pay' || walletType === 'google_pay') {
+      return PaymentMethodType.APPLE_PAY;
+    }
+    if (WalletService.TAP_WALLETS.includes(walletType)) {
+      return PaymentMethodType.LOCAL_WALLET;
+    }
+    if (walletType === 'cash') {
+      return PaymentMethodType.CASH;
+    }
+    return PaymentMethodType.CREDIT_CARD;
+  }
+
+  /**
+   * Fails closed when a payment provider is not configured.
+   *
+   * AUDIT-002: the previous implementation silently substituted a fabricated
+   * session/charge id whenever a provider key was absent — and, for Tap, even
+   * when the key WAS present. Callers could not distinguish a real payment
+   * from a fake one, so an unconfigured deployment appeared to take money.
+   * Refusing the request is the only safe behaviour for a money path.
+   */
+  private assertProviderConfigured(value: string | undefined, envVar: string, rail: string): string {
+    if (!value) {
+      this.logger.error(`${envVar} is not configured — refusing to create a ${rail} payment.`);
+      throw new ServiceUnavailableException(
+        `${rail} payments are not available: the payment provider is not configured.`,
+      );
+    }
+    return value;
+  }
+
+  /**
+   * Creates regional wallet payment session per DOC-009 8.3.
+   * Supports Apple Pay / Google Pay via Stripe, and KNET / Benefit / Mada via
+   * Tap Payments. Tenant isolation enforced via dbTenantContext and order
+   * ownership. Every attempt is persisted to the `payments` table.
+   */
+  async createWalletPayment(
+    dto: CreateWalletPaymentRequestDto,
+    tenantId: string,
+    userId: string,
+  ): Promise<WalletPaymentResult> {
+    this.logger.log(
+      `Creating wallet payment for tenant [${tenantId}] order [${dto.orderId}] method [${dto.paymentMethod}] wallet [${dto.walletType}]`,
+    );
 
     // Validate order exists and belongs to tenant
     const order = await dbTenantContext.run({ tenantId }, async () => {
@@ -47,42 +127,74 @@ export class WalletService {
       throw new NotFoundException(`Order with ID [${dto.orderId}] not found under tenant context`);
     }
 
-    // Validate payment method
-    if (![PaymentMethodType.APPLE_PAY, PaymentMethodType.LOCAL_WALLET, PaymentMethodType.CREDIT_CARD, PaymentMethodType.CASH].includes(dto.paymentMethod as PaymentMethodType)) {
-      // Allow APPLE_PAY and LOCAL_WALLET as per spec, plus existing types
-      if (!Object.values(PaymentMethodType).includes(dto.paymentMethod)) {
-        throw new BadRequestException(`Invalid payment method [${dto.paymentMethod}]`);
-      }
+    if (!Object.values(PaymentMethodType).includes(dto.paymentMethod)) {
+      throw new BadRequestException(`Invalid payment method [${dto.paymentMethod}]`);
     }
 
     // Determine wallet type from payment method if not explicitly provided
     let walletType = dto.walletType;
     if (!walletType) {
-      if (dto.paymentMethod === PaymentMethodType.APPLE_PAY) {walletType = 'apple_pay';}
-      else if (dto.paymentMethod === PaymentMethodType.LOCAL_WALLET) {walletType = 'knet';} // default local wallet
-      else {walletType = 'credit_card';}
+      if (dto.paymentMethod === PaymentMethodType.APPLE_PAY) {
+        walletType = 'apple_pay';
+      } else if (dto.paymentMethod === PaymentMethodType.LOCAL_WALLET) {
+        walletType = 'knet';
+      } else {
+        walletType = 'credit_card';
+      }
     }
 
-    // Validate wallet type
     if (!this.REGIONAL_GATEWAYS[walletType] && walletType !== 'credit_card' && walletType !== 'cash') {
-      throw new BadRequestException(`Unsupported wallet type [${walletType}]. Supported: ${Object.keys(this.REGIONAL_GATEWAYS).join(', ')}, credit_card, cash`);
+      throw new BadRequestException(
+        `Unsupported wallet type [${walletType}]. Supported: ${Object.keys(this.REGIONAL_GATEWAYS).join(', ')}, credit_card, cash`,
+      );
+    }
+
+    // The charged amount is taken from the ORDER, never from the client.
+    // Trusting `dto.amount` would let a caller pay 0.01 for a 42.55 order.
+    const orderTotal = Number((order as unknown as { total: unknown }).total);
+    if (!Number.isFinite(orderTotal) || orderTotal <= 0) {
+      throw new BadRequestException('Order total is not payable.');
     }
 
     const gatewayInfo = this.REGIONAL_GATEWAYS[walletType];
     const provider = gatewayInfo ? gatewayInfo.provider : 'stripe';
 
-    // For Apple Pay / Google Pay, use Stripe Payment Intent with wallet enabled
+    let result: WalletPaymentResult;
     if (walletType === 'apple_pay' || walletType === 'google_pay') {
-      return this.createStripeWalletPayment(dto, walletType, provider, tenantId, userId, order);
+      result = await this.createStripeWalletPayment(dto, walletType, provider, tenantId, userId, orderTotal);
+    } else if (WalletService.TAP_WALLETS.includes(walletType)) {
+      result = await this.createTapPayment(dto, walletType, provider, orderTotal);
+    } else {
+      // credit_card / cash are settled at the till, not through a wallet rail.
+      result = {
+        paymentId: `pos_${walletType}_${dto.orderId}`,
+        provider: 'pos',
+        walletType,
+        amount: orderTotal,
+        currency: dto.currency || 'USD',
+        status: 'pending',
+        successUrl: dto.successUrl,
+        cancelUrl: dto.cancelUrl,
+      };
     }
 
-    // For KNET, Benefit, Mada via Tap Payments
-    if (['knet', 'benefit', 'mada'].includes(walletType)) {
-      return this.createTapPayment(dto, walletType, provider, tenantId, userId, order);
-    }
+    // Persist the attempt. A payment that is not recorded cannot be
+    // reconciled, refunded or audited — this was AUDIT-002's second defect.
+    await dbTenantContext.run({ tenantId }, async () => {
+      await this.paymentRepository.create({
+        orderId: dto.orderId,
+        paymentMethod: this.toPaymentMethod(walletType as string),
+        status: 'PENDING',
+        amount: orderTotal,
+        transactionReference: `${result.provider}:${result.paymentId}`,
+      });
+    });
 
-    // For credit card, cash - use existing flow or mock
-    return this.createMockPayment(dto, walletType, provider, tenantId);
+    this.logger.log(
+      `Recorded PENDING payment [${result.provider}:${result.paymentId}] for order [${dto.orderId}] amount [${orderTotal}]`,
+    );
+
+    return { ...result, amount: orderTotal };
   }
 
   private async createStripeWalletPayment(
@@ -91,59 +203,24 @@ export class WalletService {
     provider: string,
     tenantId: string,
     userId: string,
-    _order: Record<string, unknown>,
-  ): Promise<{
-    paymentId: string;
-    provider: string;
-    walletType: string;
-    amount: number;
-    currency: string;
-    status: string;
-    nextAction?: { type: string; url?: string; stripeSdk?: { walletType: string; clientSecret: string } };
-    redirectUrl?: string;
-    clientSecret?: string;
-    successUrl?: string;
-    cancelUrl?: string;
-  }> {
-    const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
-
-    if (!stripeSecretKey) {
-      this.logger.warn(`STRIPE_SECRET_KEY not configured, returning mock ${walletType} session`);
-      const mockSessionId = `pi_mock_${walletType}_${Math.random().toString(36).substring(2, 15)}`;
-      return {
-        paymentId: mockSessionId,
-        provider: `${provider}-mock`,
-        walletType,
-        amount: dto.amount,
-        currency: dto.currency || 'USD',
-        status: 'requires_action',
-        nextAction: {
-          type: 'use_stripe_sdk',
-          stripeSdk: {
-            walletType,
-            clientSecret: `mock_client_secret_${mockSessionId}`,
-          },
-        },
-        successUrl: dto.successUrl,
-        cancelUrl: dto.cancelUrl,
-      };
-    }
+    amount: number,
+  ): Promise<WalletPaymentResult> {
+    const stripeSecretKey = this.assertProviderConfigured(
+      process.env.STRIPE_SECRET_KEY,
+      'STRIPE_SECRET_KEY',
+      walletType,
+    );
 
     try {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
       const Stripe = require('stripe');
       const stripe = new Stripe(stripeSecretKey, { apiVersion: '2023-10-16' });
 
-      // Create PaymentIntent with wallet support
       const paymentIntent = await stripe.paymentIntents.create({
-        amount: Math.round(dto.amount * 100), // cents
+        amount: Math.round(amount * 100), // minor units
         currency: (dto.currency || 'usd').toLowerCase(),
         payment_method_types: walletType === 'apple_pay' ? ['card', 'apple_pay'] : ['card', 'google_pay'],
-        metadata: {
-          tenantId,
-          orderId: dto.orderId,
-          walletType,
-          userId,
-        },
+        metadata: { tenantId, orderId: dto.orderId, walletType, userId },
         receipt_email: dto.customerEmail,
       });
 
@@ -151,7 +228,7 @@ export class WalletService {
         paymentId: paymentIntent.id,
         provider,
         walletType,
-        amount: dto.amount,
+        amount,
         currency: dto.currency || 'USD',
         status: paymentIntent.status,
         clientSecret: paymentIntent.client_secret,
@@ -164,115 +241,264 @@ export class WalletService {
     }
   }
 
+  /**
+   * Real Tap Payments charge creation (KNET / Benefit / Mada).
+   *
+   * AUDIT-002: this method previously returned a fabricated `chg_…` id even
+   * when `TAP_PAYMENTS_SECRET_KEY` was set — the comment read
+   * "we mock success for test/dev". The Gulf rails therefore never contacted
+   * Tap at all.
+   */
   private async createTapPayment(
     dto: CreateWalletPaymentRequestDto,
     walletType: string,
     provider: string,
-    _tenantId: string,
-    _userId: string,
-    _order: Record<string, unknown>,
-  ): Promise<{
-    paymentId: string;
-    provider: string;
-    walletType: string;
-    amount: number;
-    currency: string;
-    status: string;
-    nextAction?: { type: string; url?: string; stripeSdk?: { walletType: string; clientSecret: string } };
-    redirectUrl?: string;
-    clientSecret?: string;
-    successUrl?: string;
-    cancelUrl?: string;
-  }> {
-    const tapSecretKey = process.env.TAP_PAYMENTS_SECRET_KEY;
+    amount: number,
+  ): Promise<WalletPaymentResult> {
+    const tapSecretKey = this.assertProviderConfigured(
+      process.env.TAP_PAYMENTS_SECRET_KEY,
+      'TAP_PAYMENTS_SECRET_KEY',
+      walletType,
+    );
 
-    if (!tapSecretKey) {
-      this.logger.warn(`TAP_PAYMENTS_SECRET_KEY not configured, returning mock ${walletType} payment`);
-      const mockChargeId = `chg_mock_${walletType}_${Math.random().toString(36).substring(2, 15)}`;
-      return {
-        paymentId: mockChargeId,
-        provider: `${provider}-mock`,
-        walletType,
-        amount: dto.amount,
-        currency: dto.currency || 'KWD', // Default for KNET
-        status: 'initiated',
-        redirectUrl: `https://mock-tap-payments.com/pay/${mockChargeId}`,
-        nextAction: {
-          type: 'redirect',
-          url: `https://mock-tap-payments.com/pay/${mockChargeId}`,
-        },
-        successUrl: dto.successUrl,
-        cancelUrl: dto.cancelUrl,
-      };
-    }
+    const currency = dto.currency || 'KWD';
+    const sourceId = walletType === 'knet' ? 'src_kw.knet' : walletType === 'benefit' ? 'src_bh.benefit' : 'src_sa.mada';
 
     try {
-      // Real Tap Payments integration would use axios to call Tap API
-      // For this implementation, we mock success for test/dev
-      const mockChargeId = `chg_${walletType}_${Math.random().toString(36).substring(2, 15)}`;
+      const response = await this.httpJson(
+        `${process.env.TAP_PAYMENTS_API_URL || 'https://api.tap.company'}/v2/charges`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${tapSecretKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            amount,
+            currency,
+            source: { id: sourceId },
+            reference: { order: dto.orderId },
+            redirect: { url: dto.successUrl },
+            customer: dto.customerEmail ? { email: dto.customerEmail } : undefined,
+          }),
+        },
+      );
+
+      const charge = response as Record<string, unknown>;
+      const chargeId = String(charge.id ?? '');
+      if (!chargeId) {
+        throw new Error('Tap response did not include a charge id');
+      }
+
+      const transaction = charge.transaction as Record<string, unknown> | undefined;
+      const redirectUrl = transaction?.url ? String(transaction.url) : undefined;
+
       return {
-        paymentId: mockChargeId,
+        paymentId: chargeId,
         provider,
         walletType,
-        amount: dto.amount,
-        currency: dto.currency || 'KWD',
-        status: 'initiated',
-        redirectUrl: `https://api.tap.company/v2/charges/${mockChargeId}`,
+        amount,
+        currency,
+        status: String(charge.status ?? 'INITIATED').toLowerCase(),
+        redirectUrl,
+        nextAction: redirectUrl ? { type: 'redirect', url: redirectUrl } : undefined,
         successUrl: dto.successUrl,
         cancelUrl: dto.cancelUrl,
       };
     } catch (err) {
       this.logger.error(`Tap Payments ${walletType} creation failed: ${(err as Error).message}`);
-      throw new BadRequestException(`Failed to create ${walletType} payment via Tap: ${(err as Error).message}`);
+      throw new BadRequestException(
+        `Failed to create ${walletType} payment via Tap: ${(err as Error).message}`,
+      );
     }
   }
 
-  private async createMockPayment(dto: CreateWalletPaymentRequestDto, walletType: string, provider: string, _tenantId: string): Promise<{
-    paymentId: string;
-    provider: string;
-    walletType: string;
-    amount: number;
-    currency: string;
-    status: string;
-    nextAction?: { type: string; url?: string; stripeSdk?: { walletType: string; clientSecret: string } };
-    redirectUrl?: string;
-    clientSecret?: string;
-    successUrl?: string;
-    cancelUrl?: string;
-  }> {
-    const mockId = `mock_${walletType}_${Math.random().toString(36).substring(2, 10)}`;
+  /**
+   * Verifies a payment against the PROVIDER and reconciles our record.
+   *
+   * AUDIT-002 (critical): the previous implementation ignored `paymentId`
+   * entirely and unconditionally returned `{status:'succeeded', verified:true}`
+   * — runtime-proven with the id `I-JUST-MADE-THIS-UP`. Any caller could claim
+   * any payment had settled.
+   *
+   * The rewritten flow:
+   *   1. Look the payment up in OUR table, tenant-scoped (unknown id -> 404).
+   *   2. Ask the provider for the authoritative status.
+   *   3. Persist the resulting state transition.
+   *   4. Report the provider's answer — never an assumption.
+   */
+  async verifyPayment(paymentId: string, tenantId: string): Promise<VerifyPaymentResult> {
+    this.logger.log(`Verifying wallet payment [${paymentId}] for tenant [${tenantId}]`);
+
+    const record = await dbTenantContext.run({ tenantId }, async () => {
+      const matches = await this.paymentRepository.findMany({
+        transactionReference: { endsWith: `:${paymentId}` },
+      });
+      return matches[0] ?? null;
+    });
+
+    if (!record) {
+      // Unknown to this tenant: 404, never a synthesised success.
+      throw new NotFoundException(`Payment with reference [${paymentId}] was not found.`);
+    }
+
+    const row = record as unknown as {
+      id: string;
+      orderId: string;
+      status: string;
+      amount: unknown;
+      transactionReference: string | null;
+    };
+    const provider = (row.transactionReference ?? '').split(':')[0] || 'unknown';
+
+    // Terminal states are not re-queried: they cannot change back.
+    if (row.status === 'PAID' || row.status === 'REFUNDED' || row.status === 'FAILED') {
+      return {
+        paymentId,
+        orderId: row.orderId,
+        status: row.status,
+        verified: row.status === 'PAID',
+        amount: Number(row.amount),
+        provider,
+        tenantId,
+      };
+    }
+
+    const providerStatus = await this.fetchProviderStatus(provider, paymentId);
+    const nextStatus = providerStatus.settled ? 'PAID' : providerStatus.failed ? 'FAILED' : row.status;
+
+    if (nextStatus !== row.status) {
+      await dbTenantContext.run({ tenantId }, async () => {
+        await this.paymentRepository.update(row.id, {
+          status: nextStatus,
+          completedAt: providerStatus.settled ? new Date() : null,
+        });
+      });
+      this.logger.log(`Payment [${paymentId}] transitioned ${row.status} -> ${nextStatus}`);
+    }
+
     return {
-      paymentId: mockId,
-      provider: `${provider}-mock`,
-      walletType,
-      amount: dto.amount,
-      currency: dto.currency || 'USD',
-      status: 'succeeded',
-      successUrl: dto.successUrl,
-      cancelUrl: dto.cancelUrl,
+      paymentId,
+      orderId: row.orderId,
+      status: nextStatus,
+      verified: nextStatus === 'PAID',
+      amount: Number(row.amount),
+      provider,
+      tenantId,
     };
   }
 
   /**
-   * Verifies wallet payment status
+   * Authoritative status lookup against the real provider API.
+   * Never invents a result: an unreachable provider surfaces as 503 so the
+   * caller retries instead of treating the payment as settled.
    */
-  async verifyPayment(paymentId: string, tenantId: string): Promise<{
-    paymentId: string;
-    status: string;
-    verified: boolean;
-    tenantId: string;
-  }> {
-    // In real implementation, would query Stripe or Tap API to verify status
-    // For mock, return succeeded
-    this.logger.log(`Verifying wallet payment [${paymentId}] for tenant [${tenantId}]`);
+  private async fetchProviderStatus(provider: string, paymentId: string): Promise<ProviderStatus> {
+    if (provider === 'stripe') {
+      const key = this.assertProviderConfigured(
+        process.env.STRIPE_SECRET_KEY,
+        'STRIPE_SECRET_KEY',
+        'stripe',
+      );
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        const Stripe = require('stripe');
+        const stripe = new Stripe(key, { apiVersion: '2023-10-16' });
+        const intent = await stripe.paymentIntents.retrieve(paymentId);
+        const status = String(intent.status);
+        return {
+          status,
+          settled: status === 'succeeded',
+          failed: status === 'canceled' || status === 'payment_failed',
+        };
+      } catch (err) {
+        this.logger.error(`Stripe verification failed for [${paymentId}]: ${(err as Error).message}`);
+        throw new ServiceUnavailableException(
+          'Unable to verify the payment with the provider right now. Please retry.',
+        );
+      }
+    }
 
-    // Try to find associated order via payment record (mock)
-    // In real, would query payment table
-    return {
-      paymentId,
-      status: 'succeeded',
-      verified: true,
-      tenantId,
-    };
+    if (provider === 'tap_payments') {
+      const key = this.assertProviderConfigured(
+        process.env.TAP_PAYMENTS_SECRET_KEY,
+        'TAP_PAYMENTS_SECRET_KEY',
+        'tap',
+      );
+      try {
+        const charge = (await this.httpJson(
+          `${process.env.TAP_PAYMENTS_API_URL || 'https://api.tap.company'}/v2/charges/${encodeURIComponent(paymentId)}`,
+          { method: 'GET', headers: { Authorization: `Bearer ${key}` } },
+        )) as Record<string, unknown>;
+        const status = String(charge.status ?? '').toUpperCase();
+        return {
+          status,
+          settled: status === 'CAPTURED',
+          failed: status === 'FAILED' || status === 'DECLINED' || status === 'CANCELLED',
+        };
+      } catch (err) {
+        this.logger.error(`Tap verification failed for [${paymentId}]: ${(err as Error).message}`);
+        throw new ServiceUnavailableException(
+          'Unable to verify the payment with the provider right now. Please retry.',
+        );
+      }
+    }
+
+    if (provider === 'pos') {
+      // Cash / card at the till is settled by staff closing the order, not by
+      // an external rail. It is never auto-verified here.
+      return { status: 'PENDING', settled: false, failed: false };
+    }
+
+    throw new ServiceUnavailableException(`No verification path for provider [${provider}].`);
+  }
+
+  /** Minimal JSON HTTP helper with a bounded timeout. */
+  private async httpJson(url: string, init: Record<string, unknown>): Promise<unknown> {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), WalletService.PROVIDER_TIMEOUT_MS);
+    try {
+      const res = await fetch(url, { ...init, signal: controller.signal } as RequestInit);
+      const text = await res.text();
+      if (!res.ok) {
+        throw new Error(`provider responded ${res.status}: ${text.slice(0, 200)}`);
+      }
+      return text ? JSON.parse(text) : {};
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  /**
+   * Marks a payment settled from a verified provider webhook.
+   * Exposed for the webhook path; performs the same reconciliation write as
+   * `verifyPayment` without polling the provider.
+   */
+  async settleFromWebhook(
+    providerPaymentId: string,
+    tenantId: string,
+    settled: boolean,
+  ): Promise<void> {
+    await dbTenantContext.run({ tenantId }, async () => {
+      const matches = await this.paymentRepository.findMany({
+        transactionReference: { endsWith: `:${providerPaymentId}` },
+      });
+      const record = matches[0] as unknown as { id: string } | undefined;
+      if (!record) {
+        this.logger.warn(`Webhook referenced unknown payment [${providerPaymentId}]`);
+        return;
+      }
+      await this.paymentRepository.update(record.id, {
+        status: settled ? 'PAID' : 'FAILED',
+        completedAt: settled ? new Date() : null,
+      });
+    });
+  }
+
+  /** Exposed for reconciliation tooling: all payments for one order. */
+  async listForOrder(orderId: string, tenantId: string): Promise<unknown[]> {
+    return dbTenantContext.run({ tenantId }, async () => {
+      return this.paymentRepository.findMany({ orderId });
+    });
   }
 }

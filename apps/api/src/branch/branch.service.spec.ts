@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { BranchService } from './branch.service';
+import { BranchService, resolveSystemPepper } from './branch.service';
 import { dbTenantContext, TenantBranchRepository, TenantTableRepository } from '@zayjar/db';
 
 describe('BranchService Unit Tests', () => {
@@ -41,6 +41,42 @@ describe('BranchService Unit Tests', () => {
       
       expect(branchFindSpy).toHaveBeenCalledWith(branchId);
       expect(tableCreateSpy).toHaveBeenCalled();
+    });
+  });
+
+  // ==========================================
+  // Production-readiness review — SYSTEM_PEPPER fail-closed
+  // ==========================================
+  describe('resolveSystemPepper (QR signing secret)', () => {
+    const ORIGINAL_ENV = { ...process.env };
+
+    afterEach(() => {
+      process.env = { ...ORIGINAL_ENV };
+    });
+
+    it('refuses to fall back to the hardcoded pepper in production', () => {
+      // Pre-fix this returned the repository-committed constant, so anyone
+      // reading the source could forge QR tokens for any table of any tenant
+      // (payload is tenantId:branchId:tableNumber, both ids are exposed by the
+      // public guest surface).
+      process.env.NODE_ENV = 'production';
+      delete process.env.SYSTEM_PEPPER;
+
+      expect(() => resolveSystemPepper()).toThrow(/SYSTEM_PEPPER must be set in production/);
+    });
+
+    it('uses the configured pepper when present in production', () => {
+      process.env.NODE_ENV = 'production';
+      process.env.SYSTEM_PEPPER = 'a-real-production-pepper';
+
+      expect(resolveSystemPepper()).toBe('a-real-production-pepper');
+    });
+
+    it('preserves the development fallback outside production', () => {
+      process.env.NODE_ENV = 'development';
+      delete process.env.SYSTEM_PEPPER;
+
+      expect(resolveSystemPepper()).toBe('zayjar-default-pepper-999!');
     });
   });
 });

@@ -7,6 +7,7 @@ import { RbacPermissionGuard } from '../auth/guards/rbac-permission.guard';
 import { RequirePermission } from '../auth/decorators/require-permission.decorator';
 import { RateLimitGuard, RateLimit } from '../common/rate-limit/rate-limit.guard';
 import { AuthenticatedRequest } from '../common/types/request.types';
+import { OptionalUuidPipe } from '../common/pipes/optional-uuid.pipe';
 
 @Controller('api/v1/orders')
 @UseGuards(JwtAuthGuard, RbacPermissionGuard, RateLimitGuard)
@@ -35,7 +36,7 @@ export class OrderController {
   @Get()
   @HttpCode(HttpStatus.OK)
   @RequirePermission('read', 'Order')
-  async getOrders(@Query('branchId') branchId?: string): Promise<unknown> {
+  async getOrders(@Query('branchId', OptionalUuidPipe) branchId?: string): Promise<unknown> {
     return this.orderService.getOrders(branchId);
   }
 

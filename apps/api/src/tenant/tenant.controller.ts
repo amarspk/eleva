@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Put, Body, Param, Req, HttpCode, HttpStatus, UseGuards } from '@nestjs/common';
+import { Controller, Post, Get, Put, Body, Param, Req, HttpCode, HttpStatus, UseGuards , ParseUUIDPipe } from '@nestjs/common';
 import { TenantService } from './tenant.service';
 import { CreateTenantRequestDto } from './dto/create-tenant-request.dto';
 import { UpdateTenantRequestDto } from './dto/update-tenant-request.dto';
@@ -46,7 +46,7 @@ export class TenantController {
   @Get(':id')
   @HttpCode(HttpStatus.OK)
   @UseGuards(JwtAuthGuard)
-  async getTenant(@Param('id') id: string, @Req() req: AuthenticatedRequest): Promise<{
+  async getTenant(@Param('id', new ParseUUIDPipe()) id: string, @Req() req: AuthenticatedRequest): Promise<{
     id: string;
     name: string;
     subdomain: string;
@@ -63,7 +63,7 @@ export class TenantController {
   @UseGuards(JwtAuthGuard, RbacPermissionGuard, SubscriptionGuard)
   @RequirePermission('update', 'Tenant')
   @RequireSubscriptionCheck('customDomain')
-  async updateTenant(@Param('id') id: string, @Body() dto: UpdateTenantRequestDto, @Req() req: AuthenticatedRequest): Promise<{
+  async updateTenant(@Param('id', new ParseUUIDPipe()) id: string, @Body() dto: UpdateTenantRequestDto, @Req() req: AuthenticatedRequest): Promise<{
     id: string;
     name: string;
     subdomain: string;

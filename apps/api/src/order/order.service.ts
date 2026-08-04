@@ -173,6 +173,27 @@ export class OrderService {
       throw new NotFoundException(`The parent restaurant brand was not found under this tenant context.`);
     }
 
+    // 1b. Validate the table (AUDIT-007). `dto.tableId` was previously written
+    // straight onto the order with no lookup at all — only `branchId` and the
+    // products were checked. Runtime-proven before this fix: a checkout naming
+    // a SOFT-DELETED table (and a table belonging to a DIFFERENT branch than
+    // the one being ordered against) returned HTTP 201 and persisted the order
+    // against that table. Soft-deleting a table is supposed to remove it from
+    // service, so this is the bypass that made the new DELETE endpoint
+    // incomplete.
+    //
+    // `tableRepository.findById` is tenant-scoped and filters `deletedAt IS
+    // NULL`, so this rejects foreign, unknown and deleted tables uniformly.
+    if (dto.tableId) {
+      const table = await this.tableRepository.findById(dto.tableId);
+      if (!table) {
+        throw new NotFoundException(`The selected table with ID [${dto.tableId}] was not found.`);
+      }
+      if (table.branchId !== branch.id) {
+        throw new BadRequestException('The selected table does not belong to the selected branch.');
+      }
+    }
+
     let subtotal = 0;
     const orderItemsToCreate: Prisma.OrderItemUncheckedCreateWithoutOrderInput[] = [];
 

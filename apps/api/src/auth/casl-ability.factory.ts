@@ -2,7 +2,31 @@ import { Injectable } from '@nestjs/common';
 import { createMongoAbility, AbilityBuilder, MongoAbility, MongoQuery } from '@casl/ability';
 
 export type Action = 'manage' | 'create' | 'read' | 'update' | 'delete';
-export type Subjects = 'Product' | 'Order' | 'Branch' | 'Tenant' | 'User' | 'Table' | 'all';
+// AUDIT-006/007: `Category` added. Menu categories were readable/creatable only
+// via the `Product` subject, and there was no way to express category-level
+// authority at all. The permission strings on the JWT are PascalCased by
+// `createForUser` below (`category:update` -> `Category`), so the union must
+// contain the subject for the rule to be matchable.
+// AUDIT-014: `Customer` added. `GET /api/v1/customers` shipped with NO guard at
+// all and no CASL subject, so the entire customer PII table (names, emails,
+// loyalty points) was readable by ANY unauthenticated caller — runtime-proven
+// as HTTP 200 with full rows before this fix.
+export type Subjects =
+  | 'Product'
+  | 'Category'
+  | 'Order'
+  | 'Branch'
+  | 'Tenant'
+  | 'User'
+  | 'Table'
+  | 'Customer'
+  // AUDIT-014 DEFECT-L: reads of the restaurant brand. A dedicated subject is
+  // required rather than reusing 'Branch': the RBAC guard re-resolves `:id`
+  // against the repository registered for the subject, so a Branch-guarded
+  // `/restaurants/:id` looked the restaurant id up in the BRANCHES table and
+  // returned 404 for a valid brand (runtime-proven).
+  | 'Restaurant'
+  | 'all';
 
 export type AppAbility = MongoAbility<[Action, Subjects]>;
 

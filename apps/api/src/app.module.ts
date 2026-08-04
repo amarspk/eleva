@@ -10,6 +10,7 @@ import { BranchModule } from './branch/branch.module';
 import { MenuModule } from './menu/menu.module';
 import { OrderModule } from './order/order.module';
 import { KdsModule } from './kds/kds.module';
+import { RestaurantModule } from './restaurant/restaurant.module';
 import { CustomerModule } from './customer/customer.module';
 import { BillingModule } from './billing/billing.module';
 import { AdminModule } from './admin/admin.module';
@@ -20,6 +21,7 @@ import { SubscriptionModule } from './subscription/subscription.module';
 import { AuditModule } from './audit/audit.module';
 import { PaymentModule } from './payment/payment.module';
 import { MediaModule } from './media/media.module';
+import { UserModule } from './user/user.module';
 import { AuditInterceptor } from './audit/audit.interceptor';
 import { TenantContextMiddleware } from './common/middleware/tenant-context.middleware';
 import { CsrfModule } from './common/csrf/csrf.module';
@@ -30,7 +32,7 @@ import { CorrelationIdMiddleware } from './common/logging/correlation-id.middlew
 import { HttpLoggingMiddleware } from './common/logging/http-logging.middleware';
 
 @Module({
-  imports: [EventEmitterModule.forRoot(), CacheModule, LoggingModule, HealthModule, CsrfModule, SanitizationModule, AuthModule, TenantModule, BranchModule, MenuModule, OrderModule, KdsModule, CustomerModule, BillingModule, AdminModule, AssetModule, WebhookModule, DeviceTokenModule, SubscriptionModule, AuditModule, PaymentModule, MediaModule],
+  imports: [EventEmitterModule.forRoot(), CacheModule, LoggingModule, HealthModule, CsrfModule, SanitizationModule, AuthModule, TenantModule, BranchModule, MenuModule, RestaurantModule, OrderModule, KdsModule, CustomerModule, BillingModule, AdminModule, AssetModule, WebhookModule, DeviceTokenModule, SubscriptionModule, AuditModule, PaymentModule, MediaModule, UserModule],
   providers: [
     {
       provide: APP_INTERCEPTOR,

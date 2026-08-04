@@ -1,7 +1,7 @@
-import { IsString, IsNotEmpty, Length, IsOptional, IsNumber, IsObject } from 'class-validator';
+import { IsString, IsNotEmpty, Length, IsOptional, IsNumber, IsObject, IsUUID } from 'class-validator';
 
 export class CreateBranchRequestDto {
-  @IsString()
+  @IsUUID('4')
   @IsNotEmpty()
   restaurantId!: string;
 

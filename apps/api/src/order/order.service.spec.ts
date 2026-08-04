@@ -747,6 +747,9 @@ describe('OrderService — Sprint 1 Step 2 (Guest Checkout / DEFECT-A / DEFECT-B
   it('guest checkout with a valid qrCodeToken delegates to checkout with server-authoritative branch/table binding', async () => {
     const table = { id: 'tbl-9', tenantId, branchId, number: 'T-9' };
     jest.spyOn(TenantTableRepository.prototype, 'findByQrCodeToken').mockResolvedValue(table as any);
+    // AUDIT-007: the shared createOrder pipeline re-validates the bound table
+    // by id (must still be live and belong to the branch).
+    jest.spyOn(TenantTableRepository.prototype, 'findById').mockResolvedValue(table as any);
 
     mockBasePricingFixtures(0);
     const createMock = mockCapturingTransaction({

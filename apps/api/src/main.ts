@@ -62,9 +62,34 @@ async function bootstrap(): Promise<void> {
       allowedHeaders: ['Content-Type', 'Authorization', 'X-Tenant-ID', 'X-Branch-ID', 'X-CSRF-Token', 'X-Request-ID'],
     });
     logger.log(`CORS configured for origins: ${origins.join(', ')}`);
+  } else if (process.env.NODE_ENV === 'production') {
+    // Fail closed in production: a wildcard would either break credentialed
+    // requests (browsers reject `*` when credentials are included) or, if
+    // combined with credentials, expose every tenant's API to any origin.
+    throw new Error(
+      'FATAL: CORS_ORIGIN must be set in production. Refusing to start with a wildcard CORS policy.',
+    );
   } else {
-    app.enableCors({ origin: '*', methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'] });
-    logger.warn('CORS_ORIGIN not set — allowing all origins (development mode only)');
+    // AUDIT-014 (DEFECT-K), runtime-proven in Chromium: the previous dev
+    // fallback was `origin: '*'` with no `credentials`, so EVERY browser call
+    // from the Backoffice SPA failed at preflight —
+    //
+    //   Access to fetch at 'http://albaik.localhost:8000/api/v1/menu/products'
+    //   from origin 'http://albaik.localhost:3001' has been blocked by CORS
+    //   policy: the value of the 'Access-Control-Allow-Origin' header must not
+    //   be the wildcard '*' when the request's credentials mode is 'include'.
+    //
+    // curl never surfaced this because curl does not enforce CORS. The SPA must
+    // send credentials so the `__Host-*` refresh/CSRF cookies travel with the
+    // request, so the dev fallback now REFLECTS the caller's origin (which is
+    // what `credentials: true` requires) instead of using a wildcard.
+    app.enableCors({
+      origin: true,
+      credentials: true,
+      methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+      allowedHeaders: ['Content-Type', 'Authorization', 'X-Tenant-ID', 'X-Branch-ID', 'X-CSRF-Token', 'X-Request-ID'],
+    });
+    logger.warn('CORS_ORIGIN not set — reflecting request origin (development mode only)');
   }
 
   // Serve locally-stored generated assets (media uploads + invoice PDFs) from

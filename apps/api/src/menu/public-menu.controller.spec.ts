@@ -171,6 +171,17 @@ describe('PublicMenu (QR guest surface)', () => {
       );
     });
 
+    it('bounds the guest menu fan-out on this unauthenticated endpoint', async () => {
+      // Production-readiness audit: the query previously had no `take`, so the
+      // payload grew linearly with catalogue size — runtime-measured 5 KB at 13
+      // products vs 177 KB at 813 products, reachable without credentials.
+      await service.getPublicMenu(VALID_TOKEN, TENANT_ID);
+
+      const args = mockPrisma.category.findMany.mock.calls[0][0];
+      expect(args.take).toBe(100);
+      expect(args.select.products.take).toBe(200);
+    });
+
     it('maps the menu into the guest DTO shape with numeric prices and addon options', async () => {
       const result = await service.getPublicMenu(VALID_TOKEN, TENANT_ID);
 

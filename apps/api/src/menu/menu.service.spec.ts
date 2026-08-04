@@ -11,6 +11,14 @@ jest.mock('@zayjar/db', () => {
   }));
   return {
     TenantCategoryRepository: MockRepo,
+    // AUDIT-014 DEFECT-N: createCategory now validates the parent brand before
+    // inserting (a foreign restaurantId used to reach Postgres and surface as
+    // an unhandled FK violation -> HTTP 500). The shared MockRepo resolves
+    // findById to null, which would make every create 404, so this repository
+    // needs its own stub returning a real row.
+    TenantRestaurantRepository: jest.fn().mockImplementation(() => ({
+      findById: jest.fn().mockResolvedValue({ id: 'rest-1', name: 'Al-Baik' }),
+    })),
     TenantProductRepository: MockRepo,
     TenantProductSizeRepository: MockRepo,
     TenantProductAddonRepository: MockRepo,

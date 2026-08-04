@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Delete, Param, Body, Req, UseGuards, HttpCode, HttpStatus, ForbiddenException } from '@nestjs/common';
+import { Controller, Post, Get, Delete, Param, Body, Req, UseGuards, HttpCode, HttpStatus, ForbiddenException , ParseUUIDPipe } from '@nestjs/common';
 import { WebhookService } from './webhook.service';
 import { CreateWebhookRequestDto } from './dto/create-webhook-request.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -53,7 +53,7 @@ export class WebhookController {
 
   @Delete(':id')
   @HttpCode(HttpStatus.OK)
-  async deleteWebhook(@Param('id') id: string, @Req() req: AuthenticatedRequest): Promise<{ success: boolean; id: string }> {
+  async deleteWebhook(@Param('id', new ParseUUIDPipe()) id: string, @Req() req: AuthenticatedRequest): Promise<{ success: boolean; id: string }> {
     const user = req.user;
     if (!user?.tenantId) {
       throw new ForbiddenException('Tenant context missing');

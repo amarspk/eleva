@@ -1,7 +1,7 @@
-import { IsString, IsNotEmpty, IsUrl } from 'class-validator';
+import { IsNotEmpty, IsUrl, IsUUID } from 'class-validator';
 
 export class CreateBillingSessionRequestDto {
-  @IsString()
+  @IsUUID('4')
   @IsNotEmpty()
   planId!: string;
 

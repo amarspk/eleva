@@ -2,7 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { Reflector } from '@nestjs/core';
 import { RbacPermissionGuard } from './rbac-permission.guard';
 import { CaslAbilityFactory } from '../casl-ability.factory';
-import { ForbiddenException, UnauthorizedException } from '@nestjs/common';
+import { ForbiddenException, UnauthorizedException, NotFoundException } from '@nestjs/common';
 import { prisma, dbTenantContext } from '@zayjar/db';
 
 describe('RbacPermissionGuard Unit & ABAC Tests', () => {
@@ -114,7 +114,7 @@ describe('RbacPermissionGuard Unit & ABAC Tests', () => {
     // Mock prisma.product.findFirst since our repository delegates to findFirst for scoping
     const findFirstSpy = jest.spyOn(prisma.product, 'findFirst')
       .mockResolvedValue({
-        id: 'prod-uuid-999',
+        id: '11111111-1111-4111-8111-111111111999',
         tenantId: 't1',
         categoryId: 'cat-1',
         name: 'Umami Smash Burger',
@@ -140,9 +140,9 @@ describe('RbacPermissionGuard Unit & ABAC Tests', () => {
             permissions: ['product:update'],
             branches: ['branch-uuid-1', 'branch-uuid-2'], // Authorized branches
           },
-          params: { id: 'prod-uuid-999' },
+          params: { id: '11111111-1111-4111-8111-111111111999' },
           body: {
-            id: 'prod-uuid-999',
+            id: '11111111-1111-4111-8111-111111111999',
             branchId: 'branch-uuid-1', // FORGED
           },
         }),
@@ -155,7 +155,11 @@ describe('RbacPermissionGuard Unit & ABAC Tests', () => {
       await expect(guard.canActivate(context)).rejects.toThrow(ForbiddenException);
     });
     
-    expect(findFirstSpy).toHaveBeenCalledWith({ where: { id: 'prod-uuid-999', tenantId: 't1' } });
+    // DOC-002 soft-delete policy: reads on soft-deletable models now also
+    // exclude `deletedAt`-stamped rows.
+    expect(findFirstSpy).toHaveBeenCalledWith({
+      where: { id: '11111111-1111-4111-8111-111111111999', tenantId: 't1', deletedAt: null },
+    });
   });
 
   it('ABAC Integration: Forged status inside request body cannot bypass Cashier PAID constraints', async () => {
@@ -163,7 +167,7 @@ describe('RbacPermissionGuard Unit & ABAC Tests', () => {
 
     const findFirstSpy = jest.spyOn(prisma.order, 'findFirst')
       .mockResolvedValue({
-        id: 'order-uuid-999',
+        id: '22222222-2222-4222-8222-222222222999',
         tenantId: 't1',
         branchId: 'branch-1',
         customerId: null,
@@ -194,9 +198,9 @@ describe('RbacPermissionGuard Unit & ABAC Tests', () => {
             roles: ['CASHIER'],
             permissions: ['order:update'],
           },
-          params: { id: 'order-uuid-999' },
+          params: { id: '22222222-2222-4222-8222-222222222999' },
           body: {
-            id: 'order-uuid-999',
+            id: '22222222-2222-4222-8222-222222222999',
             status: 'PENDING', // FORGED
           },
         }),
@@ -209,7 +213,10 @@ describe('RbacPermissionGuard Unit & ABAC Tests', () => {
       await expect(guard.canActivate(context)).rejects.toThrow(ForbiddenException);
     });
     
-    expect(findFirstSpy).toHaveBeenCalledWith({ where: { id: 'order-uuid-999', tenantId: 't1' } });
+    // Order has no `deletedAt` column, so its scope is unchanged.
+    expect(findFirstSpy).toHaveBeenCalledWith({
+      where: { id: '22222222-2222-4222-8222-222222222999', tenantId: 't1' },
+    });
   });
 
   // ==========================================
@@ -270,5 +277,42 @@ describe('RbacPermissionGuard Unit & ABAC Tests', () => {
     } as any;
 
     await expect(guard.canActivate(context)).rejects.toThrow(UnauthorizedException);
+  });
+
+
+  it('rejects a malformed (non-UUID) record id as 404 instead of leaking a DB error', async () => {
+    // Guards run BEFORE pipes in Nest, so a route-level ParseUUIDPipe cannot
+    // protect the guard's own repository lookup. Pre-fix a non-UUID param
+    // reached a `@db.Uuid` column and surfaced as an unhandled HTTP 500
+    // ("Inconsistent column data: Error creating UUID") — reproduced live on
+    // /users/1000 and on the pre-existing /orders/1000.
+    mockReflector.get.mockReturnValue({ action: 'read', resource: 'Product' });
+
+    const findFirstSpy = jest.spyOn(prisma.product, 'findFirst');
+
+    const context = {
+      switchToHttp: () => ({
+        getRequest: () => ({
+          user: {
+            id: 'u1',
+            email: 'user@zayjar.com',
+            tenantId: 't1',
+            roles: ['CASHIER'],
+            permissions: ['product:read'],
+          },
+          params: { id: '1000' },
+          body: {},
+        }),
+      }),
+      getHandler: () => ({}),
+      getClass: () => ({}),
+    } as any;
+
+    await dbTenantContext.run({ tenantId: 't1' }, async () => {
+      await expect(guard.canActivate(context)).rejects.toThrow(NotFoundException);
+    });
+
+    // Short-circuited before touching the database.
+    expect(findFirstSpy).not.toHaveBeenCalled();
   });
 });

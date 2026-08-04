@@ -17,8 +17,11 @@
   },
   "devDependencies": {
     "@types/react": "19.2.17",
+    "@zayjar/jest-preset": "workspace:*",
+    "autoprefixer": "^10.5.4",
     "eslint-config-next": "^14.2.3",
-    "typescript": "^5.4.5",
-    "@zayjar/jest-preset": "workspace:*"
+    "postcss": "^8.4.31",
+    "tailwindcss": "^3.4.19",
+    "typescript": "^5.4.5"
   }
 }

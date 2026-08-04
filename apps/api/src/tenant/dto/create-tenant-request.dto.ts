@@ -1,4 +1,4 @@
-import { IsString, IsEmail, IsNotEmpty, Length, Matches, IsOptional, IsNumber, Min, Max, IsObject, ValidateNested } from 'class-validator';
+import { IsString, IsEmail, IsNotEmpty, Length, Matches, IsOptional, IsNumber, Min, Max, IsObject, ValidateNested, IsUUID } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class BranchDetailsDto {
@@ -64,7 +64,7 @@ export class CreateTenantRequestDto {
   @Length(8, 64)
   ownerPassword!: string;
 
-  @IsString()
+  @IsUUID('4')
   @IsNotEmpty()
   planId!: string;
 

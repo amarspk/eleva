@@ -194,6 +194,51 @@ async function main(): Promise<void> {
     { id: 'c18479ea-2b68-44c9-9c67-b7f04497704f', action: 'create', resource: 'order', description: 'Create orders' },
     { id: '9fac8c1f-75ee-4c77-9c3f-11450d5dc3ae', action: 'update', resource: 'order', description: 'Update orders' },
     { id: '788d9744-f80a-4a4e-9ca9-def860879b4b', action: 'update', resource: 'tenant', description: 'Update tenant settings' },
+    // AUDIT-004 (staff user management). The `User` CASL subject already
+    // existed in CaslAbilityFactory and in the RBAC guard's repository
+    // registry, but no permission rows granted it — so no role could manage
+    // staff. Same guard vocabulary as the rows above (resource is lowercased
+    // and PascalCased by the factory: `user` -> `User`). The owner is linked to
+    // EVERY permission row, so seeded and onboarded owners both gain staff
+    // management automatically; manager/cashier/kitchen filters below are
+    // name-based and therefore unaffected.
+    { id: '08c57546-b2c3-4064-a6fe-e0f18b56efdb', action: 'read', resource: 'user', description: 'View staff users' },
+    { id: 'f0d9362e-61cc-46e3-a7b3-ce3a971f961b', action: 'create', resource: 'user', description: 'Create staff users' },
+    { id: 'df1b4e44-3cb7-473a-a04b-8457f23fbb84', action: 'update', resource: 'user', description: 'Update staff users' },
+    { id: '9dff4c6a-ba60-43b1-bac6-37553b6b2155', action: 'delete', resource: 'user', description: 'Delete staff users' },
+    // AUDIT-006 / AUDIT-007 (menu + location CRUD). Runtime-proven before this
+    // change: a seeded RESTAURANT_OWNER token carried no `*:update`/`*:delete`
+    // for product/branch/table and no `category:*` at all, so the new
+    // PUT/DELETE/POST-restore endpoints would have returned 403 for every
+    // caller including the owner. `Category` is also a new CASL subject (it was
+    // absent from CaslAbilityFactory's Subjects union and from the RBAC guard's
+    // repository registry — both extended alongside this).
+    // Mirrored by migration 20260804000000_soft_delete_partial_unique_and_crud_permissions
+    // for databases that are upgraded rather than re-seeded.
+    { id: 'c113bd81-a04c-43a2-8b6a-800b7acb6d25', action: 'update', resource: 'product', description: 'Update products' },
+    { id: '909d7781-0273-4eac-8d0f-dde089545e5e', action: 'delete', resource: 'product', description: 'Delete products' },
+    { id: 'd5e00a2a-a884-4ad6-977f-7a7c3d08ce80', action: 'read', resource: 'category', description: 'View categories' },
+    { id: '91333552-edb4-4eba-8102-22e25b392064', action: 'create', resource: 'category', description: 'Create categories' },
+    { id: 'b4a79425-a0a9-419a-8e1f-57305ec8c30a', action: 'update', resource: 'category', description: 'Update categories' },
+    { id: 'e4678b9a-d826-4455-a185-cf5a14fcbfd1', action: 'delete', resource: 'category', description: 'Delete categories' },
+    { id: 'b3dfa635-ecff-4139-9a2a-4b36fac46f9a', action: 'update', resource: 'branch', description: 'Update branches' },
+    { id: 'b1a69822-1664-4b09-804d-7dcac002c950', action: 'delete', resource: 'branch', description: 'Delete branches' },
+    { id: 'ee2b6baa-999c-4d97-9371-062c40bd6d77', action: 'update', resource: 'table', description: 'Update tables' },
+    { id: 'f3d92895-1ac2-470d-a472-7ed904f27b36', action: 'delete', resource: 'table', description: 'Delete tables' },
+    // AUDIT-014 (DEFECT-H). `CustomerController` had NO guard at all, so
+    // `GET /api/v1/customers` served the whole customer PII table to
+    // unauthenticated callers (runtime-proven HTTP 200). It is now guarded with
+    // `@RequirePermission(<action>, 'Customer')`, which needs these rows in the
+    // CASL vocabulary — the legacy `customer:write` row is not a CASL action
+    // and never matched. Mirrored by migration
+    // 20260804010000_customer_crud_permissions for upgraded databases.
+    { id: '5c801e6a-9dd4-4efa-a259-1a5dda2a0dc4', action: 'create', resource: 'customer', description: 'Create customers' },
+    { id: 'b2f0df84-5159-4e76-9aa9-32633d49ba7f', action: 'update', resource: 'customer', description: 'Update customers' },
+    { id: 'e388594d-c749-480a-9045-514e01197bc3', action: 'delete', resource: 'customer', description: 'Delete customers' },
+    // AUDIT-014 DEFECT-L: the category/branch creation forms need a
+    // restaurantId, but nothing exposed one (GET /api/v1/restaurants was a hard
+    // 404). Mirrored by migration 20260804020000_restaurant_read_permission.
+    { id: 'e639eecc-9662-4413-b0fa-7268801aca3f', action: 'read', resource: 'restaurant', description: 'View restaurant brands' },
   ];
 
   const permissions = await Promise.all(

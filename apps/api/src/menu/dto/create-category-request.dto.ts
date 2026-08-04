@@ -1,7 +1,7 @@
-import { IsString, IsNotEmpty, IsInt, Min, Length } from 'class-validator';
+import { IsString, IsNotEmpty, IsInt, Min, Length, IsUUID } from 'class-validator';
 
 export class CreateCategoryRequestDto {
-  @IsString()
+  @IsUUID('4')
   @IsNotEmpty()
   restaurantId!: string;
 

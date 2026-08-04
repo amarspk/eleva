@@ -1,4 +1,17 @@
-import { Controller, Post, Get, Body, Req, Res, HttpStatus, HttpCode, UseGuards, Logger } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Get,
+  Body,
+  Req,
+  Res,
+  HttpStatus,
+  HttpCode,
+  UseGuards,
+  Logger,
+  BadRequestException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { Response } from 'express';
 import { AuthService } from './auth.service';
 import { JWT_CONFIG } from './config/jwt.config';
@@ -34,7 +47,8 @@ export class AuthController {
     const tenantId = req.tenantId || null;
 
     if (!dto.email || !dto.password) {
-      throw new Error('Email and password are required');
+      // Client error, not a server fault: bare `throw new Error` yields 500.
+      throw new BadRequestException('Email and password are required.');
     }
 
     // Real DB login with tenant isolation, password verification, and MFA check
@@ -90,7 +104,11 @@ export class AuthController {
     const oldRefreshToken = req.cookies?.['__Host-Refresh-Token'];
 
     if (!oldRefreshToken) {
-      throw new Error('Refresh session cookie is missing.');
+      // A missing/expired refresh cookie is an authentication condition (401),
+      // not a server fault. Reported as HTTP 500 before this fix
+      // (runtime-verified), which also breaks normal client re-login handling:
+      // an SPA retries on 401 but treats 500 as an outage.
+      throw new UnauthorizedException('Refresh session cookie is missing.');
     }
 
     // Rotation returns the subject of the ALREADY signature-verified old
