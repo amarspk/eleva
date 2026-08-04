@@ -5,6 +5,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ProductsModule } from './modules/ProductsModule';
 import { CategoriesModule } from './modules/CategoriesModule';
 import { BranchesModule } from './modules/BranchesModule';
+import { TablesModule } from './modules/TablesModule';
+import { CustomersModule } from './modules/CustomersModule';
 import { clearSession, loadSession } from '../lib/auth';
 
 /**
@@ -86,8 +88,8 @@ function ShellContent(): React.ReactElement {
         {activeTab === 'products' ? <ProductsModule /> : null}
         {activeTab === 'categories' ? <CategoriesModule /> : null}
         {activeTab === 'branches' ? <BranchesModule /> : null}
-        {activeTab === 'tables' ? <Placeholder label="Tables" /> : null}
-        {activeTab === 'customers' ? <Placeholder label="Customers" /> : null}
+        {activeTab === 'tables' ? <TablesModule /> : null}
+        {activeTab === 'customers' ? <CustomersModule /> : null}
         {activeTab === 'users' ? <Placeholder label="Staff" /> : null}
       </main>
     </div>

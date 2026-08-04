@@ -713,7 +713,8 @@ They are intentionally NOT created now. Until then, this PROJECT_STATE.md remain
 | Phase 2 | **Backoffice — Products UI** | ✅ Production-ready |
 | Phase 2 | **Backoffice — Categories UI** | ✅ Production-ready |
 | Phase 2 | **Backoffice — Branches UI** | ✅ Production-ready (full CRUD, 409 guard, cascade to tables, validation + unit tests) |
-| Phase 2 | Backoffice — Tables / Customers / Staff UI | ⬜ Not started |
+| Phase 2 | **Backoffice — Tables UI** | ✅ Production-ready + **RUNTIME VERIFIED** (full CRUD: Create/Edit/Archive/Restore in real Chromium; branchId + number immutable (QR HMAC); QR token display + copyable; 409 on orders-in-progress; seatingCapacity + status only updatable; validation + unit tests; DB inserts + soft-delete/restore confirmed) |
+| Phase 2 | Backoffice — Customers / Staff UI | ⬜ Not started |
 
 **12 CRUD endpoints** added in P0 (4 update, 4 soft-delete, 4 restore) plus
 **6 customer endpoints** and **2 restaurant endpoints**. There is **no

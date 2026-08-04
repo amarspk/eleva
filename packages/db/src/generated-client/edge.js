@@ -641,7 +641,7 @@ const config = {
       "value": "prisma-client-js"
     },
     "output": {
-      "value": "/home/user/zayjar-specification/packages/db/src/generated-client",
+      "value": "/home/user/zayjar/packages/db/src/generated-client",
       "fromEnvVar": null
     },
     "config": {
@@ -663,7 +663,7 @@ const config = {
       }
     ],
     "previewFeatures": [],
-    "sourceFilePath": "/home/user/zayjar-specification/packages/db/prisma/schema.prisma",
+    "sourceFilePath": "/home/user/zayjar/packages/db/prisma/schema.prisma",
     "isCustomOutput": true
   },
   "relativeEnvPaths": {
