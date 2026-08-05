@@ -1,4 +1,4 @@
-const { PrismaClient } = require('../packages/db/src/generated-client');
+const { PrismaClient } = require('./packages/db/src/generated-client');
 const prisma = new PrismaClient();
 
 const REAL_HASH = '$argon2id$v=19$m=65536,p=4,t=3$dX1bocpSJWrxIW0IXEf/0Q$8YXKPPaffOj6N9Dlun+3TfLsENBDzUEgFVDRlOtGBYk';
