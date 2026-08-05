@@ -20,7 +20,11 @@ cd packages/db
 npx prisma migrate deploy 2>&1 || echo "WARNING: Migration failed, continuing anyway"
 cd ../..
 
-# Run seed if explicitly requested (set RUN_SEED=true in env to enable on first deploy)
+# Ensure subscription plans exist (needed for tenant onboarding)
+echo "=== Ensuring Subscription Plans ==="
+node scripts/seed-plans.js 2>&1 || echo "WARNING: Plan seeding failed, continuing anyway"
+
+# Run full seed if explicitly requested (set RUN_SEED=true in env to enable on first deploy)
 if [ "${RUN_SEED:-}" = "true" ]; then
   echo "=== Running Database Seed ==="
   cd packages/db
@@ -38,8 +42,6 @@ if [ "${RUN_SEED:-}" = "true" ]; then
     echo "WARNING: Seed failed with exit code $SEED_EXIT, continuing anyway"
   else
     echo "Seed completed successfully."
-    # Remove RUN_SEED flag so it doesn't run on subsequent deploys
-    # (Can't modify env vars, but the seed is idempotent so it's OK)
   fi
   cd ../..
 fi
