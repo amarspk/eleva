@@ -42,5 +42,15 @@ npx tsc
 echo "API built successfully."
 cd ../..
 
+echo "=== Step 7: Compile seed script ==="
+cd packages/db
+npx tsc --outDir dist/seed --rootDir . prisma/seed.ts --esModuleInterop --module CommonJS --moduleResolution Node --target ES2022 --skipLibCheck --strict false 2>&1 || echo "WARNING: Seed compilation failed, seed will not be available"
+if [ -f dist/seed/prisma/seed.js ]; then
+  echo "Seed compiled successfully."
+else
+  echo "WARNING: Compiled seed not found at dist/seed/prisma/seed.js"
+fi
+cd ../..
+
 echo "=== Build Complete ==="
 ls -la apps/api/dist/main.js

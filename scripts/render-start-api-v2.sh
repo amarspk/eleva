@@ -24,12 +24,22 @@ cd ../..
 if [ "${RUN_SEED:-}" = "true" ]; then
   echo "=== Running Database Seed ==="
   cd packages/db
-  npx ts-node --compiler-options '{"module":"CommonJS"}' prisma/seed.ts 2>&1
-  SEED_EXIT=$?
+  # Try compiled seed first, fall back to ts-node
+  if [ -f dist/seed/prisma/seed.js ]; then
+    echo "Using compiled seed (dist/seed/prisma/seed.js)"
+    node dist/seed/prisma/seed.js 2>&1
+    SEED_EXIT=$?
+  else
+    echo "Using ts-node seed"
+    npx ts-node --compiler-options '{"module":"CommonJS"}' prisma/seed.ts 2>&1
+    SEED_EXIT=$?
+  fi
   if [ $SEED_EXIT -ne 0 ]; then
     echo "WARNING: Seed failed with exit code $SEED_EXIT, continuing anyway"
   else
     echo "Seed completed successfully."
+    # Remove RUN_SEED flag so it doesn't run on subsequent deploys
+    # (Can't modify env vars, but the seed is idempotent so it's OK)
   fi
   cd ../..
 fi
