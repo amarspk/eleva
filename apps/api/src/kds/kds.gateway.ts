@@ -72,6 +72,11 @@ export class KdsGateway
   implements OnGatewayConnection, OnGatewayDisconnect, OnGatewayInit, OnModuleDestroy
 {
   private readonly logger = new Logger(KdsGateway.name);
+
+  /* When ENABLE_SOCKET_IO is not set (e.g. on Render free tier to save
+     memory), the gateway skips Redis adapter setup and WebSocket init.
+     The REST KDS controller still works — only real-time push is disabled. */
+  private readonly socketIoEnabled = process.env.ENABLE_SOCKET_IO !== 'false';
   @WebSocketServer()
   public server!: Server;
 
@@ -91,6 +96,11 @@ export class KdsGateway
    * unchanged (no hard failure, no crash loop).
    */
   async afterInit(_server: Server): Promise<void> {
+    if (!this.socketIoEnabled) {
+      this.logger.warn('Socket.IO disabled (ENABLE_SOCKET_IO=false) — KDS real-time push inactive. REST API still available.');
+      return;
+    }
+
     const redisUrl = process.env.SOCKET_IO_REDIS_URL || process.env.REDIS_URL;
     if (!redisUrl) {
       this.logger.warn(

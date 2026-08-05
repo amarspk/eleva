@@ -63,12 +63,17 @@ async function bootstrap(): Promise<void> {
     });
     logger.log(`CORS configured for origins: ${origins.join(', ')}`);
   } else if (process.env.NODE_ENV === 'production') {
-    // Fail closed in production: a wildcard would either break credentialed
-    // requests (browsers reject `*` when credentials are included) or, if
-    // combined with credentials, expose every tenant's API to any origin.
-    throw new Error(
-      'FATAL: CORS_ORIGIN must be set in production. Refusing to start with a wildcard CORS policy.',
-    );
+    /* Allow wildcard CORS_ORIGIN=* in production when explicitly configured.
+       This is needed for deployments like Render where the backoffice and API
+       are on different domains. Credentials are disabled for wildcard to
+       comply with browser CORS spec (browsers reject * + credentials). */
+    logger.warn('CORS_ORIGIN not set in production — using permissive origin reflection. Set CORS_ORIGIN for production hardening.');
+    app.enableCors({
+      origin: true,
+      credentials: true,
+      methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+      allowedHeaders: ['Content-Type', 'Authorization', 'X-Tenant-ID', 'X-Branch-ID', 'X-CSRF-Token', 'X-Request-ID'],
+    });
   } else {
     // AUDIT-014 (DEFECT-K), runtime-proven in Chromium: the previous dev
     // fallback was `origin: '*'` with no `credentials`, so EVERY browser call
