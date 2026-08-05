@@ -59,7 +59,9 @@ export class AppModule implements NestModule {
       // health endpoint without tenant resolution. Excluded here at the
       // consumer level so the exemption is path-exact (only '/health') and
       // every other route keeps the full tenant fail-safe unchanged.
-      .exclude('health')
+      // Also excluded: tenant onboarding routes that must be accessible
+      // without an existing tenant context (signup, plan listing).
+      .exclude('health', 'api/v1/tenants/plans', 'api/v1/tenants')
       .forRoutes('*');
   }
 }
