@@ -24,7 +24,13 @@ cd ../..
 if [ "${RUN_SEED:-}" = "true" ]; then
   echo "=== Running Database Seed ==="
   cd packages/db
-  npx prisma db seed 2>&1 || echo "WARNING: Seed failed, continuing anyway"
+  npx ts-node --compiler-options '{"module":"CommonJS"}' prisma/seed.ts 2>&1
+  SEED_EXIT=$?
+  if [ $SEED_EXIT -ne 0 ]; then
+    echo "WARNING: Seed failed with exit code $SEED_EXIT, continuing anyway"
+  else
+    echo "Seed completed successfully."
+  fi
   cd ../..
 fi
 
