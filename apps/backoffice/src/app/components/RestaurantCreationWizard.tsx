@@ -1,5 +1,5 @@
 'use client';
-/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars, curly */
+/* eslint-disable @typescript-eslint/no-explicit-any, curly -- onboarding wizard uses dynamic form fields and concise one-liner conditionals */
 
 import React, { useState, useEffect, useCallback } from 'react';
 

@@ -409,14 +409,8 @@ Adversarial  Products  7/7    Categories 13/13
 
 ## Remaining work
 
-~~remove `AdminPanel.tsx`~~ → DONE (deleted, /kds uses KDSTerminal directly) →
-full-app adversarial pass. P1: AUDIT-005, AUDIT-020, AUDIT-012, AUDIT-011,
-AUDIT-023, a CI guard for the partial indexes, and a product decision on
-staff-role menu permissions.
+Full-app adversarial pass across all 6 modules. P1: AUDIT-005, AUDIT-020, AUDIT-012, AUDIT-011, AUDIT-023, a CI guard for the partial indexes, and a product decision on staff-role menu permissions.
 
 ## Next recommended task
 
-**AdminPanel.tsx cleanup** — now that all six tabs are real CRUD modules, the
-legacy `AdminPanel.tsx` can be removed. Verify `/kds` still works (it uses
-`KDSTerminal.tsx` directly). Then a **full-app adversarial pass** across all
-six modules.
+**Full-app adversarial pass** across all six Phase 2 modules.

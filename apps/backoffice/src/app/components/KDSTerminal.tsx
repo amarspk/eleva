@@ -1,5 +1,5 @@
 'use client';
-/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/explicit-function-return-type, curly, no-console, @typescript-eslint/no-unused-vars */
+/* eslint-disable @typescript-eslint/no-explicit-any -- Socket.io event payloads are dynamic */
 
 import React, { useEffect, useState } from 'react';
 import io from 'socket.io-client';
@@ -33,11 +33,7 @@ export const KDSTerminal: React.FC<KDSTerminalProps> = ({ branchId, accessToken,
   const [filterStatus, setFilterStatus] = useState<'ALL' | 'PENDING' | 'PREPARING' | 'COOKED'>('ALL');
 
   useEffect(() => {
-    // Resolve tenant context from props or subdomain per DOC-005 4.2 and DOC-006 tenant isolation
-    const tenant = tenantId || 'unknown-tenant';
-    console.log(`KDS Terminal initializing for tenant [${tenant}] branch [${branchId}]`);
-
-    // Handshake initialization with secure credentials validation per DOC-008 7.6
+    // Socket.io handshake per DOC-008 7.6
     const socketUrl = process.env.NEXT_PUBLIC_SOCKET_SERVER_URL || 'http://localhost:8000';
     const socket = io(`${socketUrl}/kds`, {
       auth: { token: accessToken },
@@ -46,7 +42,6 @@ export const KDSTerminal: React.FC<KDSTerminalProps> = ({ branchId, accessToken,
     });
 
     socket.on('connect', () => {
-      console.log('KDS WebSocket established successfully.');
       setIsConnected(true);
       // Join branch-specific room scoped to tenant:branch per DOC-008 7.6
       socket.emit('joinBranch', { branchId });
@@ -56,8 +51,8 @@ export const KDSTerminal: React.FC<KDSTerminalProps> = ({ branchId, accessToken,
       setIsConnected(false);
     });
 
-    socket.on('connected', (data: any) => {
-      console.log(`KDS authenticated for tenant ${data.tenantId}`, data);
+    socket.on('connected', (_data: any) => {
+      // KDS authenticated; tenant scope confirmed by the server
     });
 
     // Handle new incoming tickets per DOC-005 4.5 KDS Queue Management
@@ -124,12 +119,12 @@ export const KDSTerminal: React.FC<KDSTerminalProps> = ({ branchId, accessToken,
       );
     });
 
-    return () => {
+    return (): void => {
       socket.disconnect();
     };
   }, [branchId, accessToken, tenantId]);
 
-  const updateItemStatus = async (orderItemId: string, currentStatus: string) => {
+  const updateItemStatus = async (orderItemId: string, currentStatus: string): Promise<void> => {
     const nextStatus = currentStatus === 'PENDING' ? 'PREPARING' : currentStatus === 'PREPARING' ? 'COOKED' : 'SERVED';
     
     // Optimistic client mutation per Appendix C.2
@@ -154,12 +149,13 @@ export const KDSTerminal: React.FC<KDSTerminalProps> = ({ branchId, accessToken,
         body: JSON.stringify({ status: nextStatus }),
       });
     } catch (err) {
+      // eslint-disable-next-line no-console -- error reporting is legitimate here
       console.error(`Failed to update item status ${orderItemId}:`, err);
     }
   };
 
   const filteredTickets = tickets.filter((ticket) => {
-    if (filterStatus === 'ALL') return true;
+    if (filterStatus === 'ALL') { return true; }
     return ticket.items.some((item) => item.cookingStatus === filterStatus);
   });
 

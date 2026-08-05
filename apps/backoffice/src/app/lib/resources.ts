@@ -27,6 +27,8 @@ function buildQuery(params: Record<string, string | boolean | undefined>): strin
  * silently 404-ing at runtime.
  */
 
+import { TABLE_STATUSES, type TableStatus } from './table-validation';
+
 // ---------------------------------------------------------------- types
 
 export interface Category {
@@ -65,7 +67,9 @@ export interface Branch {
   deletedAt: string | null;
 }
 
-export type TableStatus = 'VACANT' | 'OCCUPIED' | 'RESERVED' | 'DIRTY';
+/** Canonical TableStatus — derived from the TABLE_STATUSES constant so the two cannot drift. */
+export type { TableStatus };
+export { TABLE_STATUSES };
 
 export interface RestaurantTable {
   id: string;

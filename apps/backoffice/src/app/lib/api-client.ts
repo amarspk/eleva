@@ -19,7 +19,7 @@ import { loadSession, readCsrfCookie, resolveApiBase } from './auth';
  *     rather than a `<subdomain>.localhost`.
  *
  *  3. **Error shape.** NestJS returns `{ message: string | string[] }`. Raw
- *     `Error(response.statusText)` (what `AdminPanel` used to do) discards the
+ *     `Error(response.statusText)` discards the
  *     validation detail, so a 400 surfaced to the operator as an unhelpful
  *     "Bad Request". `ApiError` preserves both the status and the joined
  *     message so forms can show exactly which field the server rejected.

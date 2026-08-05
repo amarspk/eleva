@@ -13,12 +13,8 @@ import { clearSession, loadSession } from '../lib/auth';
 /**
  * Backoffice application shell (AUDIT-014).
  *
- * Replaces the read-only `AdminPanel`, which rendered four static lists and
- * contained zero mutations. Each tab is a self-contained CRUD module wired to
- * the real API.
- *
- * The tenant no longer comes from the hardcoded `'tenant-uuid-1111'` literal —
- * it is read from the verified session, and every request carries it via the
+ * Six self-contained CRUD modules wired to the real API. Tenant context
+ * comes from the verified session and every request carries it via the
  * shared API client.
  */
 

@@ -84,14 +84,4 @@ export function validateBranchForm(
   return errors;
 }
 
-/** Formats operating hours for display (simple). */
-export function formatOperatingHours(value: Record<string, unknown> | string): string {
-  if (typeof value === 'string') {
-    try {
-      return JSON.stringify(JSON.parse(value));
-    } catch {
-      return value;
-    }
-  }
-  return JSON.stringify(value);
-}
+

@@ -8,10 +8,8 @@ import { loadSession } from './lib/auth';
 /**
  * Backoffice entry point.
  *
- * AUDIT-014: renders the CRUD shell instead of the old read-only `AdminPanel`.
- * The hardcoded `'tenant-uuid-1111'` / `'branch-uuid-1234'` literals are gone —
- * tenant context now comes from the verified session and is attached to every
- * request by the shared API client.
+ * AUDIT-014: renders the CRUD shell. Tenant context comes from the verified
+ * session and is attached to every request by the shared API client.
  *
  * Unauthenticated visitors are redirected to the standalone /login screen (the
  * restaurant-creation wizard remains at /setup for brand-new tenants).

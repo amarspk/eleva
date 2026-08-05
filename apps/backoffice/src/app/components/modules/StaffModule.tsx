@@ -17,6 +17,7 @@ import { ApiError } from '../../lib/api-client';
 import {
   usersApi,
   unwrapUsers,
+  branchesApi,
   type StaffUserRecord,
 } from '../../lib/resources';
 import {
@@ -25,7 +26,6 @@ import {
   validateStaffForm,
   type StaffFormState,
 } from '../../lib/staff-validation';
-import { branchesApi } from '../../lib/resources';
 
 /**
  * Staff user management (AUDIT-014 Phase 2 module 6).

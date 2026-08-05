@@ -27,10 +27,6 @@ import {
 /**
  * Products management (AUDIT-014).
  *
- * Replaces the read-only menu list in the old `AdminPanel`, which rendered
- * category names and nothing else — it contained zero `useMutation` calls, so
- * no product could be created, priced, archived or restored from the UI.
- *
  * Wired endpoints:
  *   GET    /api/v1/menu/products[?categoryId]
  *   POST   /api/v1/menu/products

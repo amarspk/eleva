@@ -30,10 +30,6 @@ import {
 /**
  * Categories management (AUDIT-014).
  *
- * Replaces the read-only category list in the old `AdminPanel`, which rendered
- * `{name}` and `Sort: {n}` with no way to create, rename, reorder or remove
- * anything.
- *
  * Wired endpoints:
  *   GET    /api/v1/menu/categories[?includeDeleted]
  *   POST   /api/v1/menu/categories
