@@ -20,5 +20,13 @@ cd packages/db
 npx prisma migrate deploy 2>&1 || echo "WARNING: Migration failed, continuing anyway"
 cd ../..
 
+# Run seed if explicitly requested (set RUN_SEED=true in env to enable on first deploy)
+if [ "${RUN_SEED:-}" = "true" ]; then
+  echo "=== Running Database Seed ==="
+  cd packages/db
+  npx prisma db seed 2>&1 || echo "WARNING: Seed failed, continuing anyway"
+  cd ../..
+fi
+
 echo "=== Starting API ==="
 exec node --max-old-space-size=384 apps/api/dist/main.js
