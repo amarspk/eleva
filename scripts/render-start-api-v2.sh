@@ -13,12 +13,6 @@ echo "REDIS_URL: ${REDIS_URL:-not set}"
 echo "ENABLE_SOCKET_IO: ${ENABLE_SOCKET_IO:-not set}"
 echo "ENABLE_BACKGROUND_JOBS: ${ENABLE_BACKGROUND_JOBS:-not set}"
 echo ""
-echo "Memory info:"
-free -h 2>/dev/null || true
-echo ""
-echo "Prisma engine check:"
-ls -la packages/db/src/generated-client/ 2>/dev/null | head -5 || echo "No generated client found!"
-echo ""
 
 # Run Prisma migrations at startup (before app starts)
 echo "=== Running Prisma Migrations ==="

@@ -23,7 +23,20 @@ npx prisma generate
 echo "Prisma client generated."
 cd ../..
 
-echo "=== Step 4: Build API ==="
+echo "=== Step 4: Build @zayjar/types ==="
+cd packages/types
+npx tsc
+echo "@zayjar/types built."
+cd ../..
+
+echo "=== Step 5: Build @zayjar/db (includes copy-generated-client) ==="
+cd packages/db
+npx tsc
+node scripts/copy-generated-client.js
+echo "@zayjar/db built."
+cd ../..
+
+echo "=== Step 6: Build API ==="
 cd apps/api
 npx tsc
 echo "API built successfully."
