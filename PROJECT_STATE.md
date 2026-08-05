@@ -715,7 +715,7 @@ They are intentionally NOT created now. Until then, this PROJECT_STATE.md remain
 | Phase 2 | **Backoffice — Branches UI** | ✅ Production-ready (full CRUD, 409 guard, cascade to tables, validation + unit tests) |
 | Phase 2 | **Backoffice — Tables UI** | ✅ Production-ready + **RUNTIME VERIFIED** (full CRUD: Create/Edit/Archive/Restore in real Chromium; branchId + number immutable (QR HMAC); QR token display + copyable; 409 on orders-in-progress; seatingCapacity + status only updatable; validation + unit tests; DB inserts + soft-delete/restore confirmed) |
 | Phase 2 | Backoffice — Customers UI | ✅ Production-ready + **RUNTIME VERIFIED** (full CRUD: Create/Edit/Archive/Restore in real Chromium; search by name/email/phone; loyalty points editable on update; customer-validation.spec 20/20; DB inserts + soft-delete/restore confirmed; auth 401 unauthenticated / 403 cross-tenant confirmed) |
-| Phase 2 | Backoffice — Staff UI | ⬜ Not started |
+| Phase 2 | Backoffice — Staff UI | ✅ Production-ready + **RUNTIME VERIFIED** (full CRUD: Create/Edit/Delete in real Chromium; role checkbox selector; branch checkbox selector; password field; isActive toggle; soft-delete confirmed; staff-validation.spec 20/20; DB soft-delete confirmed) |
 
 **12 CRUD endpoints** added in P0 (4 update, 4 soft-delete, 4 restore) plus
 **6 customer endpoints** and **2 restaurant endpoints**. There is **no
@@ -792,7 +792,7 @@ boundary input, field smuggling (`tenantId`/`deletedAt`/`id` all rejected by
 | 3 | **Branches** UI | 409 when orders are in progress; cascades to tables |
 | 4 | **Tables** UI | `branchId` + `number` immutable (QR HMAC); surface the QR token |
 | 5 | **Customers** UI | ✅ COMPLETE (full CRUD + runtime/browser/DB verified) |
-| 6 | **Staff users** UI | AUDIT-004 endpoints already exist |
+| 6 | **Staff users** UI | ✅ COMPLETE (full CRUD + role/branch selectors + soft-delete + runtime/browser/DB verified) |
 | — | Remove `AdminPanel.tsx` | only after all six tabs are migrated (`/kds` still uses it) |
 | — | Full-app adversarial pass | once every module is wired |
 
@@ -817,11 +817,6 @@ Prisma cannot express partial indexes, so `schema.prisma` still shows plain
 
 ## 29.6 Next recommended task
 
-**Backoffice — Staff UI (Phase 2 module 6)**, under the same strict cycle:
-prove defects → fix → runtime verify → adversarial review → regression tests →
-browser verification.
-
-The AUDIT-004 endpoints already exist — `usersApi` is bound in `resources.ts`
-and the Staff tab is in `BackofficeShell`. The module needs: list/create/edit
-(with role and branch selectors), soft-delete with truthful confirmation, and
-the same validation pattern as the other five modules.
+**AdminPanel.tsx cleanup.** All six Phase 2 tabs are now real CRUD modules.
+Remove the legacy `AdminPanel.tsx` and its spec, verify `/kds` still works,
+then run a full-app adversarial pass across all modules.

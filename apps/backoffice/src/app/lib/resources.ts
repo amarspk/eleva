@@ -275,6 +275,7 @@ export const usersApi = {
     email: string;
     password: string;
     phoneNumber?: string;
+    isActive?: boolean;
     roles?: string[];
     branchIds?: string[];
   }): Promise<StaffUserRecord> => api.post<StaffUserRecord>('/api/v1/users', body),
@@ -284,6 +285,7 @@ export const usersApi = {
       firstName?: string;
       lastName?: string;
       email?: string;
+      password?: string;
       phoneNumber?: string;
       isActive?: boolean;
       roles?: string[];

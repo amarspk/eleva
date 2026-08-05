@@ -7,6 +7,7 @@ import { CategoriesModule } from './modules/CategoriesModule';
 import { BranchesModule } from './modules/BranchesModule';
 import { TablesModule } from './modules/TablesModule';
 import { CustomersModule } from './modules/CustomersModule';
+import { StaffModule } from './modules/StaffModule';
 import { clearSession, loadSession } from '../lib/auth';
 
 /**
@@ -31,14 +32,6 @@ const TABS: { id: TabId; label: string }[] = [
   { id: 'customers', label: 'Customers' },
   { id: 'users', label: 'Staff' },
 ];
-
-function Placeholder({ label }: { label: string }): React.ReactElement {
-  return (
-    <div className="rounded border border-dashed border-gray-300 bg-white px-4 py-10 text-center text-sm text-gray-500">
-      {label} module is being wired next.
-    </div>
-  );
-}
 
 function ShellContent(): React.ReactElement {
   const [activeTab, setActiveTab] = useState<TabId>('products');
@@ -90,7 +83,7 @@ function ShellContent(): React.ReactElement {
         {activeTab === 'branches' ? <BranchesModule /> : null}
         {activeTab === 'tables' ? <TablesModule /> : null}
         {activeTab === 'customers' ? <CustomersModule /> : null}
-        {activeTab === 'users' ? <Placeholder label="Staff" /> : null}
+        {activeTab === 'users' ? <StaffModule /> : null}
       </main>
     </div>
   );

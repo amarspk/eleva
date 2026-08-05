@@ -1,7 +1,7 @@
 # Phase 2 — Frontend Completion (AUDIT-014) · Progress Log
 
-**Status:** Products + Categories + **Branches** + **Tables** + **Customers** ✅ COMPLETE (full runtime/browser/DB verified). 1 module remains (Staff).
-**Synchronized to GitHub:** commit `56f78e1` on `main` (2026-08-04) — Tables UI complete.
+**Status:** Products + Categories + **Branches** + **Tables** + **Customers** + **Staff** ✅ COMPLETE (full runtime/browser/DB verified). **All 6 Phase 2 modules are done.**
+**Synchronized to GitHub:** commit `71a0df0` on `main` (2026-08-05) — Customers UI complete.
 **Note:** the earlier "no commits / no pushes" constraint was lifted by the CTO on 2026-08-04; the repository is now synchronized. `PROJECT_STATE.md` is updated as part of that sync (§29).
 
 ---
@@ -12,7 +12,7 @@
 |---|---|
 | TypeScript — types / db / api / backoffice | **0 / 0 / 0 / 0** |
 | ESLint | **6 / 6 workspaces clean** |
-| Unit + integration tests | **637 passed**, 2 skipped, **0 failed** (Phase-1 baseline 717 → **+120**; backoffice 134) |
+| Unit + integration tests | **657 passed**, 2 skipped, **0 failed** (api 503 + backoffice 154) |
 | Build (`turbo run build`) | **6 / 6** |
 | Browser E2E — Products | **19 / 19** |
 | Browser E2E — Categories | **21 / 21** |
@@ -280,10 +280,69 @@ PROJECT_STATE.md   (§29 Customers UI row)
 | 3 | **Branches** | list / create / update / archive / restore | ✅ COMPLETE (full CRUD + 409 guard + cascade + validation + unit tests) |
 | 4 | **Tables** | list / create / update / archive / restore | ✅ COMPLETE (full CRUD, branchId+number immutable (QR HMAC), show/copyable QR token, 409 on orders-in-progress, seatingCapacity+status only updatable, validation + unit tests) |
 | 5 | **Customers** | list / create / update / archive / restore | ✅ COMPLETE (full CRUD + runtime/browser/DB verified + customer-validation.spec 20/20) |
-| 6 | **Staff users** | list / create / update / roles / branches / delete | AUDIT-004 endpoints already exist |
+| 6 | **Staff users** | list / create / update / roles / branches / delete | ✅ COMPLETE (full CRUD + role/branch selectors + soft-delete + runtime/browser/DB verified + staff-validation.spec 20/20) |
 
-Then: remove `AdminPanel.tsx` and its spec once every tab is migrated (kept
-temporarily so `/kds` keeps working), and a final full-app adversarial pass.
+Then: remove `AdminPanel.tsx` and its spec once confirmed safe, and a final full-app adversarial pass.
+
+## Staff module — what shipped
+
+- Full CRUD: list, search by name/email/role, create (with role and branch
+  selectors), edit (including password change, role and branch assignment),
+  soft-delete (deactivates and soft-deletes — prevents login).
+- Role selector: checkbox group for RESTAURANT_OWNER, MANAGER, CASHIER, KITCHEN.
+- Branch selector: checkbox group populated from the branches API.
+- Password field: required on create, optional on edit (leave blank to keep
+  current).
+- `isActive` toggle in the create/edit form.
+- Delete confirmation dialog explains the action (deactivation + soft-delete).
+- 10 Playwright screenshots captured in real Chromium against the live API+DB.
+- `Placeholder` component removed from `BackofficeShell` (all 6 tabs are now
+  real modules).
+
+### Runtime verification (2026-08-05)
+
+```
+API CRUD:
+  GET  /api/v1/users                     → 200, 4 users
+  POST /api/v1/users                     → 201, user created with CASHIER role
+  PUT  /api/v1/users/:id                 → 200, name + isActive updated
+  DELETE /api/v1/users/:id               → 200, {deleted: true}
+  Deleted user excluded from list
+
+Browser (Chromium):
+  Initial rows: 4
+  After create: 5 rows
+  After edit: name updated
+  After delete: 4 rows
+
+DB (PostgreSQL 17):
+  7 rows total (5 active + 2 soft-deleted from tests)
+  isActive=false for soft-deleted users
+
+Static gates:
+  tsc: api 0 / db 0 / types 0
+  ESLint: 6/6
+  API tests: 503 passed, 2 skipped, 0 failed
+  Backoffice tests: 154 passed (134 + 20 staff-validation.spec)
+  Build: 6/6
+```
+
+### Files added
+```
+apps/backoffice/src/app/components/modules/StaffModule.tsx
+apps/backoffice/src/app/lib/staff-validation.ts
+apps/backoffice/src/app/lib/staff-validation.spec.ts  (20 tests)
+scripts/verify-staff-ui.js                              (Playwright CRUD)
+screenshots/staff-01-home.png … staff-10-after-delete.png
+```
+
+### Files modified
+```
+apps/backoffice/src/app/components/BackofficeShell.tsx  (StaffModule + Placeholder removed)
+apps/backoffice/src/app/lib/resources.ts                (usersApi.create + isActive, update + password)
+PHASE2_PROGRESS.md
+PROJECT_STATE.md
+```
 
 ## Known environment notes
 - After **any** `next build`, restart `next start` — stale `.next` chunks cause
@@ -350,14 +409,14 @@ Adversarial  Products  7/7    Categories 13/13
 
 ## Remaining work
 
-Staff UI → remove `AdminPanel.tsx` →
+remove `AdminPanel.tsx` →
 full-app adversarial pass. P1: AUDIT-005, AUDIT-020, AUDIT-012, AUDIT-011,
 AUDIT-023, a CI guard for the partial indexes, and a product decision on
 staff-role menu permissions.
 
 ## Next recommended task
 
-**Staff UI (Phase 2 module 6).** AUDIT-004 endpoints already exist — the `usersApi`
-binding is in `resources.ts` and `BackofficeShell` already has the Staff tab.
-The module needs the same CRUD pattern: list, create, edit (roles/branches),
-soft-delete, with truthful confirmation dialogs.
+**AdminPanel.tsx cleanup** — now that all six tabs are real CRUD modules, the
+legacy `AdminPanel.tsx` can be removed. Verify `/kds` still works (it uses
+`KDSTerminal.tsx` directly). Then a **full-app adversarial pass** across all
+six modules.
