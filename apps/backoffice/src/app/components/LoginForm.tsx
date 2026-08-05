@@ -14,10 +14,19 @@ export function LoginForm(): React.ReactNode {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [tenantId, setTenantId] = useState('');
   const [mfaToken, setMfaToken] = useState('');
   const [phase, setPhase] = useState<'credentials' | 'mfa'>('credentials');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  /* Pre-populate tenantId from localStorage (previous session) */
+  React.useEffect(() => {
+    const stored = window.localStorage.getItem('tenantId');
+    if (stored) {
+      setTenantId(stored);
+    }
+  }, []);
 
   const returnTo = (): string => {
     if (typeof window === 'undefined') {
@@ -30,12 +39,20 @@ export function LoginForm(): React.ReactNode {
 
   const handleSubmit = async (event: React.FormEvent): Promise<void> => {
     event.preventDefault();
-    if (!email || !password) {
-      setError('Email and password are required.');
+    if (!email || !password || !tenantId) {
+      setError('Email, password, and Tenant ID are required.');
       return;
     }
     setSubmitting(true);
     setError(null);
+
+    /* Store tenantId in localStorage so loginStaff() can send it as
+       X-Tenant-Id header. Without this, the first login on a fresh
+       browser has no tenant context and gets 403. */
+    if (tenantId) {
+      window.localStorage.setItem('tenantId', tenantId);
+    }
+
     try {
       const result = await loginStaff(email, password, phase === 'mfa' ? mfaToken : undefined);
       if (result.ok) {
@@ -91,6 +108,23 @@ export function LoginForm(): React.ReactNode {
                   onChange={(e) => setPassword(e.target.value)}
                   className="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-600 focus:outline-none"
                 />
+              </div>
+              <div>
+                <label htmlFor="tenantId" className="block text-sm font-medium text-gray-700">
+                  Tenant ID
+                </label>
+                <input
+                  id="tenantId"
+                  type="text"
+                  required
+                  placeholder="e.g. 80a00898-782c-4a6e-8bad-880e8f4f7977"
+                  value={tenantId}
+                  onChange={(e) => setTenantId(e.target.value)}
+                  className="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-600 focus:outline-none font-mono text-xs"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Albaik: 80a00898-782c-4a6e-8bad-880e8f4f7977 &middot; Tokyo Ramen: 930c9c66-06df-4029-8ee8-ac4d0046c6af
+                </p>
               </div>
             </>
           ) : (

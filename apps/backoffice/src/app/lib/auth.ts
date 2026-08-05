@@ -51,22 +51,15 @@ const STORAGE_KEYS = {
  * 3. Production: same-origin (`''`), so `/api/*` is proxied by nginx while the
  *    tenant Host header stays intact.
  */
-export function resolveApiBase(locationLike?: { hostname: string; protocol: string }): string {
+export function resolveApiBase(): string {
   const configured = process.env.NEXT_PUBLIC_API_URL;
   if (configured) {
     return configured.replace(/\/$/, '');
   }
-  const location = locationLike ?? (typeof window === 'undefined' ? undefined : window.location);
-  if (!location) {
-    return 'http://localhost:8000';
-  }
-  const hostname = location.hostname;
-  if (hostname === 'localhost' || hostname === '127.0.0.1') {
-    return 'http://localhost:8000';
-  }
-  if (hostname.endsWith('.localhost')) {
-    return `${location.protocol}//${hostname}:8000`;
-  }
+  /* When no env override is set, use relative URLs so all API requests
+     are proxied through the Next.js rewrites (next.config.mjs). This
+     works in the Arena preview, Vercel, and any reverse-proxy setup
+     without requiring the browser to resolve an internal hostname. */
   return '';
 }
 
@@ -114,9 +107,22 @@ export async function loginStaff(
     body.mfaToken = mfaToken;
   }
 
+  /* Include X-Tenant-Id from a previous session so the API can resolve
+     tenant context even when the Host header has no subdomain (e.g. the
+     Arena preview URL). Without this, login returns 403 "Missing valid
+     tenant context". */
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  const storedTenantId = typeof window !== 'undefined'
+    ? window.localStorage.getItem(STORAGE_KEYS.tenantId)
+    : null;
+  if (storedTenantId) {
+    headers['X-Tenant-ID'] = storedTenantId;
+  }
+
   const res = await fetchImpl(`${resolveApiBase()}/api/v1/auth/login`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers,
+    credentials: 'include',
     body: JSON.stringify(body),
   });
 
