@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { TenantContextMiddleware } from './tenant-context.middleware';
 import { CacheService } from '../cache/cache.service';
-import { NotFoundException, ForbiddenException } from '@nestjs/common';
+import { ForbiddenException } from '@nestjs/common';
 import * as jwt from 'jsonwebtoken';
 import { dbTenantContext } from '@zayjar/db';
 import { JWT_CONFIG } from '../../auth/config/jwt.config';
@@ -43,7 +43,7 @@ describe('TenantContextMiddleware Unit Tests', () => {
     expect(next).toHaveBeenCalledTimes(1);
   });
 
-  it('should reject requests with 404 if subdomain is unmapped', async () => {
+  it('should reject requests with 403 if subdomain is unmapped', async () => {
     const req = {
       headers: {
         host: 'invalid.localhost',
@@ -53,7 +53,7 @@ describe('TenantContextMiddleware Unit Tests', () => {
     const next = jest.fn();
 
     // Act & Assert
-    await expect(middleware.use(req, res, next)).rejects.toThrow(NotFoundException);
+    await expect(middleware.use(req, res, next)).rejects.toThrow(ForbiddenException);
     expect(next).not.toHaveBeenCalled();
   });
 

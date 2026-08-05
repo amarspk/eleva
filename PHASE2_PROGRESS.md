@@ -12,7 +12,7 @@
 |---|---|
 | TypeScript — types / db / api / backoffice | **0 / 0 / 0 / 0** |
 | ESLint | **6 / 6 workspaces clean** |
-| Unit + integration tests | **657 passed**, 2 skipped, **0 failed** (api 503 + backoffice 154) |
+| Unit + integration tests | **906 passed**, 0 skipped, **0 failed** (api 760 + backoffice 146) |
 | Build (`turbo run build`) | **6 / 6** |
 | Browser E2E — Products | **19 / 19** |
 | Browser E2E — Categories | **21 / 21** |
@@ -255,8 +255,8 @@ DB (PostgreSQL 17):
 Static gates:
   tsc: api 0 / db 0 / types 0
   ESLint: 6/6
-  API tests: 503 passed, 2 skipped, 0 failed
-  Backoffice tests: 134 passed (114 + 20 customer-validation.spec)
+  API tests: 760 passed, 0 skipped, 0 failed
+  Backoffice tests: 146 passed (12 suites)
   Build: 6/6
 ```
 
@@ -282,7 +282,7 @@ PROJECT_STATE.md   (§29 Customers UI row)
 | 5 | **Customers** | list / create / update / archive / restore | ✅ COMPLETE (full CRUD + runtime/browser/DB verified + customer-validation.spec 20/20) |
 | 6 | **Staff users** | list / create / update / roles / branches / delete | ✅ COMPLETE (full CRUD + role/branch selectors + soft-delete + runtime/browser/DB verified + staff-validation.spec 20/20) |
 
-Then: remove `AdminPanel.tsx` and its spec once confirmed safe, and a final full-app adversarial pass.
+Then: ~~remove `AdminPanel.tsx` and its spec~~ (DONE — deleted in Phase 2 cleanup commit), and a final full-app adversarial pass.
 
 ## Staff module — what shipped
 
@@ -322,8 +322,8 @@ DB (PostgreSQL 17):
 Static gates:
   tsc: api 0 / db 0 / types 0
   ESLint: 6/6
-  API tests: 503 passed, 2 skipped, 0 failed
-  Backoffice tests: 154 passed (134 + 20 staff-validation.spec)
+  API tests: 760 passed, 0 skipped, 0 failed
+  Backoffice tests: 146 passed (12 suites, AdminPanel.spec removed)
   Build: 6/6
 ```
 
@@ -401,7 +401,7 @@ one tombstone and zero orphans · guest menu and QR resolution honour soft delet
 
 ```
 TypeScript   0 / 0 / 0 / 0        ESLint 6/6
-Jest         637 passed, 2 skipped, 0 failed   (api 503 + backoffice 134 = 637)
+Jest         906 passed, 0 skipped, 0 failed   (api 760 + backoffice 146 = 906)
 Build        6/6
 Browser E2E  Products 19/19   Categories 21/21
 Adversarial  Products  7/7    Categories 13/13
@@ -409,7 +409,7 @@ Adversarial  Products  7/7    Categories 13/13
 
 ## Remaining work
 
-remove `AdminPanel.tsx` →
+~~remove `AdminPanel.tsx`~~ → DONE (deleted, /kds uses KDSTerminal directly) →
 full-app adversarial pass. P1: AUDIT-005, AUDIT-020, AUDIT-012, AUDIT-011,
 AUDIT-023, a CI guard for the partial indexes, and a product decision on
 staff-role menu permissions.

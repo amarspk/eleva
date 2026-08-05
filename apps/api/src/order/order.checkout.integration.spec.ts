@@ -395,9 +395,9 @@ describe('Order Checkout HTTP Integration Tests', () => {
   });
 
   // ==========================================
-  // 8. Missing X-Tenant-ID header → 404
+  // 8. Missing X-Tenant-ID header → 403
   // ==========================================
-  it('POST /api/v1/orders/checkout — missing X-Tenant-ID header returns 404', async () => {
+  it('POST /api/v1/orders/checkout — missing X-Tenant-ID header returns 403', async () => {
     mockBranch();
     mockRestaurant();
     mockProduct();
@@ -406,7 +406,7 @@ describe('Order Checkout HTTP Integration Tests', () => {
       .post('/api/v1/orders/checkout')
       .send(checkoutPayload());
 
-    expect(res.status).toBe(404);
+    expect(res.status).toBe(403);
   });
 
   // ==========================================

@@ -124,7 +124,7 @@ Verified from `package.json` files and build output:
 - Next.js app. **AUDIT-014 (2026-08-04):** `BackofficeShell.tsx` is the entry point — a six-tab CRUD shell (Products, Categories, Branches, Tables, Customers, Staff). **Products** and **Categories** are fully wired; the remaining four render a placeholder pending implementation.
 - Shared `lib/api-client.ts` centralises auth, tenant context and CSRF: it attaches `X-CSRF-Token` to every POST/PUT/DELETE/PATCH (required since the `CsrfGuard` fix — see §29) and preserves NestJS `message` arrays so validation detail reaches the operator instead of a bare "Bad Request".
 - Tenant id now comes from the verified session. The hardcoded `'tenant-uuid-1111'` / `'branch-uuid-1234'` literals are gone from `page.tsx`.
-- `AdminPanel.tsx` (read-only, zero `useMutation`) is retained **only** so `/kds` keeps working; it is scheduled for deletion once all six tabs are migrated.
+- `AdminPanel.tsx` (read-only, zero `useMutation`) has been **deleted**; `/kds` uses `KDSTerminal.tsx` directly.
 - Also present: `RestaurantCreationWizard.tsx`, `KDSTerminal.tsx`, `LoginForm.tsx`.
 
 ## 4.6 Billing
@@ -772,7 +772,7 @@ checks in real Chromium against the live stack. **No mocks in any runtime test.*
 ```
 TypeScript   types 0 / db 0 / api 0 / backoffice 0
 ESLint       6/6 workspaces clean
-Jest         837 passed, 2 skipped, 0 failed     (baseline 613 → +224)
+Jest         906 passed, 0 skipped, 0 failed     (baseline 613 → +293)
 Build        turbo run build --concurrency=1 → 6/6
 Browser E2E  Products   19/19      Categories 21/21
 Adversarial  Products    7/7       Categories 13/13
@@ -793,7 +793,7 @@ boundary input, field smuggling (`tenantId`/`deletedAt`/`id` all rejected by
 | 4 | **Tables** UI | `branchId` + `number` immutable (QR HMAC); surface the QR token |
 | 5 | **Customers** UI | ✅ COMPLETE (full CRUD + runtime/browser/DB verified) |
 | 6 | **Staff users** UI | ✅ COMPLETE (full CRUD + role/branch selectors + soft-delete + runtime/browser/DB verified) |
-| — | Remove `AdminPanel.tsx` | only after all six tabs are migrated (`/kds` still uses it) |
+| — | ~~Remove `AdminPanel.tsx`~~ | DONE — deleted; `/kds` uses `KDSTerminal` directly |
 | — | Full-app adversarial pass | once every module is wired |
 
 **P1 backlog** — AUDIT-005 (no password reset / email verification),
@@ -817,6 +817,6 @@ Prisma cannot express partial indexes, so `schema.prisma` still shows plain
 
 ## 29.6 Next recommended task
 
-**AdminPanel.tsx cleanup.** All six Phase 2 tabs are now real CRUD modules.
-Remove the legacy `AdminPanel.tsx` and its spec, verify `/kds` still works,
+**AdminPanel.tsx cleanup — DONE.** All six Phase 2 tabs are real CRUD modules.
+`AdminPanel.tsx` and `AdminPanel.spec.tsx` deleted; `/kds` verified using `KDSTerminal` directly.
 then run a full-app adversarial pass across all modules.
