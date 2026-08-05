@@ -1,0 +1,15 @@
+{
+    "keep": {
+        "days": true,
+        "amount": 14
+    },
+    "auditLog": "/home/user/zayjar/logs/.77eaa7f5a7ea7d85cc87878fa2ca0b659b4db915-audit.json",
+    "files": [
+        {
+            "date": 1785960361756,
+            "name": "/home/user/zayjar/logs/zayjar-api-2026-08-05.log",
+            "hash": "aacbc340042ef4b7706b8c2098a66fd2681e584bf5afc230b43581217a904f84"
+        }
+    ],
+    "hashType": "sha256"
+}
