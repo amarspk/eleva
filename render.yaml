@@ -1,52 +1,66 @@
 databases:
-  - name: zayjar-db
-    databaseName: zayjar_cust
-    user: zayjar
-    plan: free
-    region: oregon
-
+- name: zayjar-db
+  databaseName: zayjar_cust
+  user: zayjar
+  plan: free
+  region: oregon
 services:
-  - type: web
-    name: zayjar-api
-    runtime: node
-    plan: free
-    region: oregon
-    repo: https://github.com/amarspk/zayjar-specification
-    branch: main
-    buildCommand: npm install -g pnpm@10 && pnpm install --frozen-lockfile && cd packages/db && npx prisma generate && cd ../../apps/api && npx tsc
-    startCommand: node apps/api/dist/main.js
-    rootDir: .
-    healthCheckPath: /health
-    envVars:
-      - key: DATABASE_URL
-        fromDatabase:
-          name: zayjar-db
-          property: connectionString
-      - key: JWT_SECRET
-        value: zayjar-jwt-secret-prod-2026
-      - key: JWT_REFRESH_SECRET
-        value: zayjar-refresh-secret-prod-2026
-      - key: CORS_ORIGIN
-        value: "*"
-      - key: PORT
-        value: "10000"
-      - key: NODE_ENV
-        value: production
-
-  - type: web
-    name: zayjar-backoffice
-    runtime: node
-    plan: free
-    region: oregon
-    repo: https://github.com/amarspk/zayjar-specification
-    branch: main
-    buildCommand: npm install -g pnpm@10 && pnpm install --frozen-lockfile && cd apps/backoffice && npx next build
-    startCommand: cd apps/backoffice && npx next start -p 10000
-    rootDir: .
-    envVars:
-      - key: NEXT_PUBLIC_API_URL
-        value: https://zayjar-api.onrender.com
-      - key: PORT
-        value: "10000"
-      - key: NODE_ENV
-        value: production
+- type: web
+  name: zayjar-api
+  runtime: node
+  plan: free
+  region: oregon
+  repo: https://github.com/amarspk/zayjar-specification
+  branch: main
+  buildCommand: bash scripts/render-build-api.sh
+  startCommand: cd packages/db && npx prisma migrate deploy 2>&1; cd ../.. && node
+    scripts/seed-plans.js 2>&1; exec node --max-old-space-size=384 apps/api/dist/main.js
+  rootDir: .
+  healthCheckPath: /health
+  envVars:
+  - key: DATABASE_URL
+    fromDatabase:
+      name: zayjar-db
+      property: connectionString
+  - key: JWT_SECRET
+    value: zayjar-jwt-secret-prod-2026
+  - key: JWT_REFRESH_SECRET
+    value: zayjar-refresh-secret-prod-2026
+  - key: CORS_ORIGIN
+    value: '*'
+  - key: PORT
+    value: '10000'
+  - key: NODE_ENV
+    value: production
+  - key: NODE_VERSION
+    value: '20'
+  - key: REDIS_URL
+    value: disabled
+  - key: ENABLE_SOCKET_IO
+    value: 'false'
+  - key: ENABLE_BACKGROUND_JOBS
+    value: 'false'
+  - key: STRIPE_SECRET_KEY
+    value: none
+  - key: STRIPE_WEBHOOK_SECRET
+    value: none
+  - key: RUN_SEED
+    value: 'false'
+- type: web
+  name: zayjar-backoffice
+  runtime: node
+  plan: free
+  region: oregon
+  repo: https://github.com/amarspk/zayjar-specification
+  branch: main
+  buildCommand: npm install -g pnpm@10 && pnpm install --frozen-lockfile && cd apps/backoffice
+    && npx next build
+  startCommand: cd apps/backoffice && npx next start -p 10000
+  rootDir: .
+  envVars:
+  - key: NEXT_PUBLIC_API_URL
+    value: ''
+  - key: API_PROXY_TARGET
+    value: https://zayjar-api.onrender.com
+  - key: PORT
+    value: '10000'
