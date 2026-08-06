@@ -48,7 +48,15 @@ export abstract class BaseTenantRepository<TModel extends { id: string }> {
    * models, the `deletedAt: null` predicate. An explicit `deletedAt` supplied
    * by the caller wins, so an admin/restore view can still opt in deliberately.
    */
-  protected scopedWhere(where: Record<string, unknown>, tenantId: string): Record<string, unknown> {
+  protected scopedWhere(where: Record<string, unknown>, tenantId: string | null): Record<string, unknown> {
+    // Platform Owner (tenantId=null): no tenant scoping — see all tenants
+    if (!tenantId) {
+      const base: Record<string, unknown> = { ...where };
+      if (this.softDeletable && !('deletedAt' in base)) {
+        base.deletedAt = null;
+      }
+      return base;
+    }
     const base: Record<string, unknown> = { ...where, tenantId };
     if (this.softDeletable && !('deletedAt' in base)) {
       base.deletedAt = null;
@@ -60,8 +68,14 @@ export abstract class BaseTenantRepository<TModel extends { id: string }> {
    * Resolves the active tenantId from the thread-local AsyncLocalStorage context.
    * Throws a Fail-Safe block exception if called outside a valid context.
    */
-  protected getTenantId(): string {
+  protected getTenantId(): string | null {
     const context = dbTenantContext.getStore();
+
+    // Platform Owners have no tenant — allow unscoped access
+    if (context?.isPlatformOwner && !context?.tenantId) {
+      return null;
+    }
+
     const tenantId = context?.tenantId;
 
     if (!tenantId) {

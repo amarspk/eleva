@@ -61,7 +61,12 @@ export class AppModule implements NestModule {
       // every other route keeps the full tenant fail-safe unchanged.
       // Also excluded: tenant onboarding routes that must be accessible
       // without an existing tenant context (signup, plan listing).
-      .exclude('health', 'api/v1/tenants/plans', 'api/v1/tenants')
+      // Login is excluded so Platform Owners (tenantId=null) can authenticate
+      // without a tenant context. The login handler enforces its own tenant
+      // scoping via X-Tenant-ID header or DTO — tenant-free login simply
+      // returns a JWT with tenantId=null which the middleware will accept
+      // on subsequent authenticated requests (isPlatformOwner=true).
+      .exclude('health', 'api/v1/tenants/plans', 'api/v1/tenants', 'api/v1/auth/login')
       .forRoutes('*');
   }
 }

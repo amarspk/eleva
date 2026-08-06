@@ -44,8 +44,34 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ): Promise<{ accessToken: string; csrfToken: string; expiresIn: number; user: Record<string, unknown> }> {
     // Resolve tenantId from middleware (subdomain, custom domain, x-tenant-id header) for tenant isolation
+    // For routes excluded from TenantContextMiddleware (like this login route),
+    // dbTenantContext may not be set. Platform Owners (no tenant) need a
+    // platform-level context so the DB fail-safe doesn't block their login.
     const tenantId = req.tenantId || null;
 
+    // Ensure dbTenantContext is set for the DB fail-safe extension.
+    // If the middleware already set it (tenant-scoped request), this is a no-op
+    // because the middleware's run() is still on the async stack.
+    // If the middleware was excluded (login without tenant), we set it here.
+    const { dbTenantContext } = await import('@zayjar/db');
+    const existingContext = dbTenantContext.getStore();
+    if (!existingContext) {
+      // No context from middleware — set one now.
+      // isPlatformOwner=true allows unscoped queries (needed for platform@zayjar.ai login).
+      return dbTenantContext.run({ tenantId: tenantId || undefined, isPlatformOwner: true }, () => {
+        return this._executeLogin(dto, tenantId, req, res);
+      });
+    }
+    return this._executeLogin(dto, tenantId, req, res);
+  }
+
+  /** Inner login logic, called within the correct dbTenantContext. */
+  private async _executeLogin(
+    dto: LoginDto,
+    tenantId: string | null,
+    req: AuthenticatedRequest,
+    res: Response,
+  ): Promise<{ accessToken: string; csrfToken: string; expiresIn: number; user: Record<string, unknown> }> {
     if (!dto.email || !dto.password) {
       // Client error, not a server fault: bare `throw new Error` yields 500.
       throw new BadRequestException('Email and password are required.');
