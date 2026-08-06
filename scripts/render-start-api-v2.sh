@@ -48,3 +48,4 @@ fi
 
 echo "=== Starting API ==="
 exec node --max-old-space-size=384 apps/api/dist/main.js
+# Build 2026-08-06T13:16:27Z
