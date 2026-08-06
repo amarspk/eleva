@@ -13,8 +13,9 @@ services:
   repo: https://github.com/amarspk/zayjar-specification
   branch: main
   buildCommand: bash scripts/render-build-api.sh
-  startCommand: cd packages/db && npx prisma migrate deploy 2>&1; cd ../.. && node
-    scripts/seed-plans.js 2>&1; exec node --max-old-space-size=384 apps/api/dist/main.js
+  startCommand: cd packages/db && npx prisma migrate deploy 2>&1; node scripts/seed-permissions.js
+    2>&1; cd ../.. && node scripts/seed-plans.js 2>&1; exec node --max-old-space-size=384
+    apps/api/dist/main.js
   rootDir: .
   healthCheckPath: /health
   envVars:
