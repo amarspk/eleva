@@ -7,6 +7,13 @@ export class MediaCleanupService implements OnApplicationBootstrap {
   private readonly logger = new Logger(MediaCleanupService.name);
 
   async onApplicationBootstrap(): Promise<void> {
+    /* Skip background jobs on resource-constrained hosts unless explicitly
+       enabled. Set ENABLE_BACKGROUND_JOBS=true to run orphan cleanup at
+       startup (e.g. in production with ample memory). */
+    if (process.env.ENABLE_BACKGROUND_JOBS !== 'true') {
+      this.logger.log('Media orphan cleanup skipped (ENABLE_BACKGROUND_JOBS not set).');
+      return;
+    }
     this.logger.log('Running media orphan cleanup...');
     await this.cleanupStaleProcessingRecords();
     await this.cleanupDeletedEntityReferences();

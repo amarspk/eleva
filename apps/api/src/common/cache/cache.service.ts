@@ -15,7 +15,19 @@ export class CacheService implements OnModuleInit, OnModuleDestroy {
   private static readonly STRICT_WRITE_TIMEOUT_MS = 1500;
 
   async onModuleInit(): Promise<void> {
-    const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
+    const redisUrl = process.env.REDIS_URL || '';
+
+    /* Skip Redis entirely when REDIS_URL is empty or explicitly disabled.
+       This allows the API to run on resource-constrained hosts (e.g. Render
+       free tier) without Redis. All cache operations fall through to the
+       database fetch path, which is correct but slower. */
+    if (!redisUrl || redisUrl === 'none' || redisUrl === 'disabled') {
+      this.logger.warn('REDIS_URL not configured — cache bypass enabled (all reads go to DB).');
+      this.redisClient = null;
+      this.isConnected = false;
+      return;
+    }
+
     this.logger.log(`Initializing Redis client mapping to target: ${redisUrl}`);
 
     try {
