@@ -117,13 +117,13 @@ export function LoginForm(): React.ReactNode {
                   id="tenantId"
                   type="text"
                   required
-                  placeholder="e.g. 80a00898-782c-4a6e-8bad-880e8f4f7977"
+                  placeholder="e.g. 01449106-c45d-4e84-bd34-3e0ca83625a5"
                   value={tenantId}
                   onChange={(e) => setTenantId(e.target.value)}
                   className="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-600 focus:outline-none font-mono text-xs"
                 />
                 <p className="text-xs text-gray-500 mt-1">
-                  Albaik: 80a00898-782c-4a6e-8bad-880e8f4f7977 &middot; Tokyo Ramen: 930c9c66-06df-4029-8ee8-ac4d0046c6af
+                  Albaik: 01449106-c45d-4e84-bd34-3e0ca83625a5 &middot; Tokyo Ramen: 57e9c3f9-4d35-452d-adb3-da679d65b57f
                 </p>
               </div>
             </>
