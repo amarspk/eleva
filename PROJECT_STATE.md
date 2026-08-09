@@ -1,5 +1,25 @@
 # PROJECT STATE — Zayjar Restaurant SaaS Platform
 
+> **Phase 3 — Eleva Builder / Preorder Integration — Update 2026-08-09 (Asia/Dubai)**
+> **Branch:** `phase-3/eleva-builder` | **Latest commit:** `60db09f69883ff315e7143ab06eacc4e15e2955b` (`feat: complete Phase 3 Eleva builder and preorder integration`) | **Remote:** `origin/phase-3/eleva-builder` verified `60db09f`
+> **Phase 3 completed work (committed 60db09f, 35 files, 1018 ins / 186 del):**
+> - Public website consumes `TenantDesign.published` only (`public-menu.service.ts` `select:{published:true}` inside `dbTenantContext.run({tenantId})`, `MenuBrowser.tsx` `DesignSections`); draft never exposed
+> - Design builder: `DesignService/Controller/Module` with draft/published/version, `DesignBuilder.tsx` (logo/cover/colors/fonts/navigation/sections/order/enable/disable/variants, auto-save 900ms, undo/redo 50, desktop/mobile preview, publish, version history restore)
+> - Public design sections/variants: `DesignSections` sorts `order`, filters `enabled`, renders `hero` 5 variants, `categories` 6, `featured/popular` 6, `banner/promo` 3; fallback to `ProductGrid` when no published sections
+> - Cart scroll preservation: `ProductGrid` `React.memo`, `scrollYRef` + `requestAnimationFrame(instant)`, `overscrollBehavior:contain`, `max-h-[65vh]`
+> - Preorder: `Order {isPreorder,scheduledAt,preorderStatus}` + migration `20260809000000_phase3_eleva`, DTO `isPreorder/scheduledAt`, service 15-min validation, `OrdersManager` filter/badge, `MenuBrowser` preorder UI
+> - Tenant isolation preserved (`dbTenantContext.run({tenantId})` everywhere), Eleva branding (user-facing only, `X-Zayjar-Signature` preserved), `cashier/next.config.mjs` fix, `playwright.config.ts` fix
+> - Schema + migration + tests: `preorder.spec.ts` 4/4, `verify-phase3.spec.ts` (cart scroll), `public-menu` 16/16
+> **Verified tests/results (no invention):** `preorder.spec.ts` 4/4 PASS, `order.service.spec.ts` 27/27 PASS, `public-menu.controller.spec.ts` 16/16 PASS; full `jest --runInBand` 82 passed / 5 failed pre-existing (identical to main) + 1 skipped; `pnpm --filter @zayjar/db build` green; `next dev` boots `✓ Ready in 1.6s` `GET / 200`
+> **Known verification gaps (NOT VERIFIED LIVE):** Chromium scroll open/close/qty/remove/place (webServer `npx --yes pnpm` overhead still times out 120s, Next boots via `start_process` but Playwright reuse hangs), live PostgreSQL preorder persistence (`DATABASE_URL=UNSET`), live draft-vs-published, live RTL/LTR — all code paths verified, live browser/DB not proved
+> **Remaining risks:** `featured/popular` use placeholder `flatProducts.slice` (no `Product.isFeatured` — explicitly not invented), Prisma 7 `validate` needs `prisma.config.ts`, 5 pre-existing Jest failures must not be hidden, `.git` snapshot wipe (periodically loses `.git/config`)
+> **Exact next recommended task:** Live browser/DB verification in CI with DB + stable Next, then `featured` product selection design decision
+> **Live browser/database verification:** NOT COMPLETED (code-level verified, infra timeout)
+> **Database verification:** NOT COMPLETED (`DATABASE_URL=UNSET`)
+
+
+---
+
 > Canonical engineering state document.
 > Generation date: 2026-07-29 (Asia/Dubai). Independent audit corrections applied 2026-07-30 (full repository verification + live re-run of every test/type/build count).
 > 2026-08-05 Phase 2 Stabilization — dead code removed, duplicate types consolidated, hardcoded UUIDs eliminated from KDS page, broad eslint-disable directives narrowed, console.log removed from production components, unused export deleted, import statements merged, obsolete AdminPanel references cleaned from JSDoc. No business logic changed. Verified: tsc 0/0/0/0, ESLint 6/6, 906 passed / 0 failed, build 6/6.
