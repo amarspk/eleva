@@ -75,7 +75,7 @@ export default async function Page({ searchParams }: PageProps): Promise<React.R
       <MenuBrowser initialData={menu} token={token} />
 
       <div style={{ textAlign: 'center', padding: '12px', fontSize: '10px', color: '#999' }}>
-        {restaurant.name} • Prices in {restaurant.currency} • Secure ordering • Tenant isolated • {new Date().getFullYear()} Zayjar
+        {restaurant.name} • Prices in {restaurant.currency} • Secure ordering • Tenant isolated • {new Date().getFullYear()} Eleva
       </div>
     </div>
   );

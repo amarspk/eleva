@@ -27,7 +27,7 @@ import { KdsGateway } from './kds/kds.gateway';
 const logger = new Logger('Worker');
 
 async function bootstrapWorker(): Promise<void> {
-  logger.log('Starting Zayjar worker process...');
+  logger.log('Starting Eleva worker process...');
 
   // DOC-006 §5.9: Load secrets before module initialization
   const secretsService = new SecretsManagerService();
@@ -168,14 +168,14 @@ async function processChannel(
 
     case 'sms': {
       const phone = (payload.phone || payload.customerPhone || '+12025550144') as string;
-      const smsMessage = (payload.message || `Zayjar: Event ${event} for order ${payload.orderNumber || payload.id || ''}`) as string;
+      const smsMessage = (payload.message || `Eleva: Event ${event} for order ${payload.orderNumber || payload.id || ''}`) as string;
       const result = await services.smsService.sendSms(phone, smsMessage, tenantId);
       return { success: result.success, provider: result.provider };
     }
 
     case 'push': {
       const userId = (payload.userId || payload.customerId) as string | undefined;
-      const title = (payload.title || `Zayjar: ${event}`) as string;
+      const title = (payload.title || `Eleva: ${event}`) as string;
       const body = (payload.body || payload.message || `Event ${event} occurred`) as string;
       if (!userId) {
         return { success: false, provider: 'fcm' };

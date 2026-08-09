@@ -306,8 +306,8 @@ export class AuthService {
       // Try to use speakeasy for proper TOTP
       const speakeasy = require('speakeasy');
       const generated = speakeasy.generateSecret({
-        name: `Zayjar:${email}`,
-        issuer: 'Zayjar',
+        name: `Eleva:${email}`,
+        issuer: 'Eleva',
         length: 20,
       });
       secret = generated.base32;
@@ -334,7 +334,7 @@ export class AuthService {
         output += alphabet[(value << (5 - bits)) & 31];
       }
       secret = output;
-      otpauthUrl = `otpauth://totp/Zayjar:${email}?secret=${secret}&issuer=Zayjar`;
+      otpauthUrl = `otpauth://totp/Eleva:${email}?secret=${secret}&issuer=Eleva`;
     }
 
     // Generate QR code data URL

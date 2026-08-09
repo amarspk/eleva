@@ -75,7 +75,7 @@ export class InvoicePdfService {
       doc
         .fontSize(8)
         .fillColor('#9ca3af')
-        .text('Thank you for dining with us. This invoice was generated electronically by Zayjar.', {
+        .text('Thank you for dining with us. This invoice was generated electronically by Eleva.', {
           align: 'center',
         });
 

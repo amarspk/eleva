@@ -1,7 +1,7 @@
 {
-  "name": "Zayjar Cashier Terminal PWA",
-  "short_name": "Zayjar Cashier",
-  "description": "Offline-First Cashier Terminal for Zayjar Restaurant SaaS",
+  "name": "Eleva Cashier Terminal PWA",
+  "short_name": "Eleva Cashier",
+  "description": "Offline-First Cashier Terminal for Eleva Restaurant SaaS",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#1e293b",

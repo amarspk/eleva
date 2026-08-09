@@ -3,7 +3,7 @@ import type { Metadata, Viewport } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Cashier — Zayjar',
+  title: 'Cashier — Eleva',
   description: 'Point-of-sale terminal.',
   manifest: '/manifest.json',
 };

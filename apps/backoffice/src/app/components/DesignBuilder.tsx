@@ -1,0 +1,226 @@
+'use client';
+/* eslint-disable @typescript-eslint/no-explicit-any, @next/next/no-img-element */
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+
+type Section = { id: string; type: string; enabled: boolean; order: number; config: Record<string, unknown> };
+
+const SECTION_TYPES = [
+  { type: 'hero', label: 'Hero / Cover' },
+  { type: 'categories', label: 'Categories' },
+  { type: 'featured', label: 'Featured Products' },
+  { type: 'popular', label: 'Popular Products' },
+  { type: 'banner', label: 'Banner' },
+  { type: 'promo', label: 'Promo' },
+];
+
+const LAYOUTS: Record<string, string[]> = {
+  categories: ['pills','grid','circular','horizontal','sidebar','image-based'],
+  featured: ['grid','cards','list','large-cards','compact','slider'],
+  popular: ['grid','cards','list','slider'],
+  hero: ['split','full-width','text-overlay','image-left','image-top'],
+  banner: ['full-width','split'],
+  promo: ['full-width','split','text-overlay'],
+};
+
+const FONTS = ['Inter','Poppins','Cairo','Amiri','Tajawal','Outfit'];
+
+function useAutoSave(value: unknown, onSave: (v: unknown)=>void, delay=900){
+  const ref = useRef<NodeJS.Timeout|null>(null);
+  useEffect(()=>{
+    if(ref.current) clearTimeout(ref.current);
+    ref.current = setTimeout(()=>onSave(value), delay);
+    return ()=>{ if(ref.current) clearTimeout(ref.current); };
+  },[value, onSave, delay]);
+}
+
+export function DesignBuilder({ tenantId }: { tenantId: string }){
+  const [draft,setDraft] = useState<any>({ colors:{primary:'#FF5733',secondary:'#FFFFFF'}, fonts:{heading:'Inter',body:'Inter'}, logo:null, coverImage:null, sections:[
+    {id:'hero',type:'hero',enabled:true,order:0,config:{variant:'split'}},
+    {id:'categories',type:'categories',enabled:true,order:1,config:{variant:'pills'}},
+    {id:'featured',type:'featured',enabled:true,order:2,config:{variant:'grid'}},
+  ]});
+  const [previewMode,setPreviewMode]=useState<'desktop'|'mobile'>('desktop');
+  const [selectedId,setSelectedId]=useState<string>('hero');
+  const [saving,setSaving]=useState(false);
+  const [publishedVersion,setPublishedVersion]=useState(1);
+  const [versions,setVersions]=useState<any[]>([]);
+  const [history,setHistory]=useState<any[]>([]);
+  const [historyIdx,setHistoryIdx]=useState(-1);
+  const [msg,setMsg]=useState<string|null>(null);
+
+  const apiBase = '/api';
+
+  const load = useCallback(async()=>{
+    try{
+      const r = await fetch(`${apiBase}/v1/design/tenant/${tenantId}?preview=true`,{headers:{'X-Tenant-ID':tenantId}});
+      if(r.ok){ const j=await r.json(); if(j.draft) setDraft(j.draft); if(j.version) setPublishedVersion(j.version); }
+      const v = await fetch(`${apiBase}/v1/design/tenant/${tenantId}/versions`,{headers:{'X-Tenant-ID':tenantId}});
+      if(v.ok) setVersions(await v.json());
+    }catch{}
+  },[tenantId]);
+  useEffect(()=>{ load(); },[load]);
+
+  const pushHistory = (next:any)=>{
+    setHistory(h=>{ const n=h.slice(0,historyIdx+1); n.push(JSON.parse(JSON.stringify(next))); if(n.length>50) n.shift(); return n; });
+    setHistoryIdx(i=> Math.min(i+1,49));
+  };
+
+  const saveDraft = useCallback(async (next:any)=>{
+    setSaving(true);
+    try{
+      await fetch(`${apiBase}/v1/design/tenant/${tenantId}/draft`,{method:'PUT',headers:{'Content-Type':'application/json','X-Tenant-ID':tenantId},body:JSON.stringify(next)});
+      // also persist to tenant branding for qr-menu SSR
+      await fetch(`${apiBase}/v1/tenants/${tenantId}`,{method:'PUT',headers:{'Content-Type':'application/json','X-Tenant-ID':tenantId},body:JSON.stringify({primaryColor:next.colors?.primary, branding: next})}).catch(()=>{});
+      setMsg('Auto-saved'); setTimeout(()=>setMsg(null),1500);
+    }finally{ setSaving(false); }
+  },[tenantId]);
+
+  useAutoSave(draft, (v)=>{ saveDraft(v as any); }, 900);
+
+  const updateDraft = (fn:(d:any)=>any)=>{
+    setDraft((prev:any)=>{ const next=fn(JSON.parse(JSON.stringify(prev))); pushHistory(next); return next; });
+  };
+
+  const move = (id:string,dir:number)=>{
+    updateDraft((d:any)=>{
+      const s=[...d.sections].sort((a:Section,b:Section)=>a.order-b.order);
+      const idx=s.findIndex(x=>x.id===id);
+      const nidx=idx+dir;
+      if(nidx<0||nidx>=s.length) return d;
+      const tmp=s[idx].order; s[idx].order=s[nidx].order; s[nidx].order=tmp;
+      d.sections=s;
+      return d;
+    });
+  };
+
+  const publish = async()=>{
+    await fetch(`${apiBase}/v1/design/tenant/${tenantId}/publish`,{method:'POST',headers:{'X-Tenant-ID':tenantId}});
+    setMsg('Published!'); setTimeout(()=>setMsg(null),2000); load();
+  };
+
+  const undo = ()=>{ if(historyIdx>0){ const v=history[historyIdx-1]; setDraft(v); setHistoryIdx(i=>i-1); }};
+  const redo = ()=>{ if(historyIdx<history.length-1){ const v=history[historyIdx+1]; setDraft(v); setHistoryIdx(i=>i+1); }};
+
+  const selected = draft.sections?.find((s:Section)=>s.id===selectedId);
+
+  return (
+    <div className="flex flex-col lg:flex-row gap-4">
+      {/* Left controls */}
+      <div className="w-full lg:w-[340px] bg-white rounded-xl border p-4 space-y-4 shrink-0">
+        <div className="flex items-center justify-between">
+          <h3 className="font-bold">Eleva Website Builder</h3>
+          <span className="text-xs text-gray-500">{saving?'Saving…':'Saved'} v{publishedVersion}</span>
+        </div>
+        {/* Colors */}
+        <div>
+          <h4 className="text-xs font-semibold text-gray-600 mb-2">Brand</h4>
+          <div className="grid grid-cols-2 gap-2">
+            <label className="text-xs">Primary<input type="color" value={draft.colors?.primary||'#000'} onChange={e=>updateDraft(d=>{d.colors.primary=e.target.value;return d;})} className="w-full h-8"/></label>
+            <label className="text-xs">Secondary<input type="color" value={draft.colors?.secondary||'#fff'} onChange={e=>updateDraft(d=>{d.colors.secondary=e.target.value;return d;})} className="w-full h-8"/></label>
+          </div>
+          <div className="grid grid-cols-2 gap-2 mt-2">
+            <label className="text-xs">Heading font<select value={draft.fonts?.heading} onChange={e=>updateDraft(d=>{d.fonts.heading=e.target.value;return d;})} className="w-full border rounded p-1 text-xs">{FONTS.map(f=><option key={f} value={f}>{f}</option>)}</select></label>
+            <label className="text-xs">Body font<select value={draft.fonts?.body} onChange={e=>updateDraft(d=>{d.fonts.body=e.target.value;return d;})} className="w-full border rounded p-1 text-xs">{FONTS.map(f=><option key={f} value={f}>{f}</option>)}</select></label>
+          </div>
+          <label className="text-xs block mt-2">Logo URL<input value={draft.logo||''} onChange={e=>updateDraft(d=>{d.logo=e.target.value;return d;})} placeholder="https://..." className="w-full border rounded p-1 text-xs"/></label>
+          <label className="text-xs block mt-1">Cover URL<input value={draft.coverImage||''} onChange={e=>updateDraft(d=>{d.coverImage=e.target.value;return d;})} placeholder="https://..." className="w-full border rounded p-1 text-xs"/></label>
+        </div>
+        {/* Sections */}
+        <div>
+          <div className="flex justify-between items-center">
+            <h4 className="text-xs font-semibold text-gray-600">Sections</h4>
+            <select onChange={e=>{ if(!e.target.value) return; const type=e.target.value; updateDraft(d=>{ d.sections.push({id:type+'-'+Date.now(),type,enabled:true,order:d.sections.length,config:{variant:LAYOUTS[type]?.[0]||'grid'}}); return d;}); e.target.value='';}} defaultValue="" className="text-xs border rounded p-1">
+              <option value="">+ Add</option>
+              {SECTION_TYPES.map(s=><option key={s.type} value={s.type}>{s.label}</option>)}
+            </select>
+          </div>
+          <div className="space-y-2 mt-2">
+            {[...(draft.sections||[])].sort((a:Section,b:Section)=>a.order-b.order).map((s:Section)=>(
+              <div key={s.id} onClick={()=>setSelectedId(s.id)} className={`border rounded-lg p-2 flex items-center justify-between cursor-pointer ${selectedId===s.id?'border-blue-500 bg-blue-50':'bg-gray-50'}`}>
+                <div>
+                  <div className="text-xs font-semibold capitalize">{s.type} <span className="text-[10px] text-gray-500">{s.config?.variant as string}</span></div>
+                  <label className="text-[10px] flex gap-1"><input type="checkbox" checked={s.enabled} onChange={e=>updateDraft(d=>{ const f=d.sections.find((x:Section)=>x.id===s.id); if(f) f.enabled=e.target.checked; return d;})}/> enabled</label>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <button onClick={()=>move(s.id,-1)} className="text-xs border rounded px-1">↑</button>
+                  <button onClick={()=>move(s.id,1)} className="text-xs border rounded px-1">↓</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+        {selected && (
+          <div className="border-t pt-3">
+            <h4 className="text-xs font-semibold">Edit: {selected.type}</h4>
+            <label className="text-xs block mt-1">Variant<select value={selected.config?.variant as string} onChange={e=>updateDraft(d=>{ const f=d.sections.find((x:Section)=>x.id===selected.id); if(f) f.config.variant=e.target.value; return d;})} className="w-full border rounded p-1 text-xs">
+              {(LAYOUTS[selected.type]||['grid']).map(v=><option key={v} value={v}>{v}</option>)}
+            </select></label>
+          </div>
+        )}
+        <div className="flex gap-2 pt-2">
+          <button onClick={undo} disabled={historyIdx<=0} className="flex-1 border rounded py-1 text-xs disabled:opacity-50">Undo</button>
+          <button onClick={redo} disabled={historyIdx>=history.length-1} className="flex-1 border rounded py-1 text-xs disabled:opacity-50">Redo</button>
+        </div>
+        <div className="flex gap-2">
+          <button onClick={publish} className="flex-1 bg-black text-white rounded py-2 text-sm">Publish</button>
+        </div>
+        {msg && <div className="text-xs bg-green-50 text-green-700 p-2 rounded">{msg}</div>}
+        {versions.length>0 && (
+          <div>
+            <h4 className="text-xs font-semibold">History ({versions.length})</h4>
+            <div className="max-h-32 overflow-auto space-y-1 mt-1">
+              {versions.map(v=>(
+                <div key={v.id} className="flex justify-between text-[11px] border rounded p-1">
+                  <span>v{v.version} {new Date(v.createdAt).toLocaleString()}</span>
+                  <button onClick={async()=>{ await fetch(`${apiBase}/v1/design/tenant/${tenantId}/restore/${v.version}`,{method:'POST',headers:{'X-Tenant-ID':tenantId}}); load();}} className="text-blue-600">Restore</button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+      {/* Preview */}
+      <div className="flex-1 bg-white rounded-xl border p-4">
+        <div className="flex gap-2 mb-3">
+          <button onClick={()=>setPreviewMode('desktop')} className={`px-3 py-1 rounded text-xs ${previewMode==='desktop'?'bg-black text-white':'border'}`}>Desktop</button>
+          <button onClick={()=>setPreviewMode('mobile')} className={`px-3 py-1 rounded text-xs ${previewMode==='mobile'?'bg-black text-white':'border'}`}>Mobile</button>
+          <span className="text-xs text-gray-500 ml-auto">Draft preview — not yet published until Publish</span>
+        </div>
+        <div className={`mx-auto border rounded-xl overflow-hidden bg-gray-50 ${previewMode==='mobile'?'max-w-[390px]':'max-w-[900px]'}`} style={{fontFamily: draft.fonts?.body}}>
+          <div className="h-32 flex items-center justify-center text-white font-bold text-lg" style={{backgroundColor: draft.colors?.primary, backgroundImage: draft.coverImage?`url(${draft.coverImage})`:undefined, backgroundSize:'cover'}}>
+            <span style={{textShadow:'0 1px 4px rgba(0,0,0,0.5)'}}>{draft.logo? '': 'Your cover / hero'}</span>
+            {draft.logo && <img src={draft.logo} alt="logo" className="h-12 bg-white p-1 rounded"/>}
+          </div>
+          <div className="p-3 space-y-3">
+            {[...(draft.sections||[])].sort((a:Section,b:Section)=>a.order-b.order).filter((s:Section)=>s.enabled).map((s:Section)=>(
+              <div key={s.id} className="bg-white rounded-lg border p-3">
+                <div className="text-xs font-semibold capitalize mb-2">{s.type} — {s.config?.variant as string}</div>
+                {s.type==='categories' && (
+                  <div className={s.config?.variant==='pills'?'flex gap-2 flex-wrap': s.config?.variant==='circular'?'flex gap-3':'grid grid-cols-3 gap-2'}>
+                    {['Starters','Mains','Desserts'].map(c=>(
+                      s.config?.variant==='circular'
+                        ? <div key={c} className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center text-[10px]">{c}</div>
+                        : <div key={c} className="bg-gray-100 rounded p-2 text-xs text-center">{c}</div>
+                    ))}
+                  </div>
+                )}
+                {(s.type==='featured'||s.type==='popular') && (
+                  <div className={s.config?.variant==='list'?'space-y-2': s.config?.variant==='slider'?'flex gap-2 overflow-auto':'grid grid-cols-2 gap-2'}>
+                    {[1,2,3,4].map(i=>(
+                      <div key={i} className={`${s.config?.variant==='large-cards'?'p-4': s.config?.variant==='compact'?'p-2':''} border rounded text-xs ${s.config?.variant==='list'?'flex gap-2':''}`}>
+                        <div className={`bg-gray-100 rounded ${s.config?.variant==='list'?'w-12 h-12':'h-16'} mb-1`}></div>
+                        <div>Product {i}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {s.type==='hero' && <div className={`h-20 rounded flex items-center justify-center text-xs ${s.config?.variant==='text-overlay'?'bg-black text-white': s.config?.variant==='split'?'bg-gradient-to-r from-gray-100 to-gray-200':'bg-gray-100'}`}>Hero variant: {s.config?.variant as string}</div>}
+                {(s.type==='banner'||s.type==='promo') && <div className="h-16 bg-gradient-to-r from-orange-100 to-pink-100 rounded flex items-center justify-center text-xs">Banner / Promo — {s.config?.variant as string}</div>}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

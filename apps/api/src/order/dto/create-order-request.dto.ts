@@ -77,4 +77,11 @@ export class CreateOrderRequestDto {
   @IsString()
   @IsOptional()
   discountCode?: string;
+
+  @IsOptional()
+  isPreorder?: boolean;
+
+  @IsString()
+  @IsOptional()
+  scheduledAt?: string;
 }

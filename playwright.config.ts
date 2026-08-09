@@ -23,19 +23,19 @@ export default defineConfig({
   ],
   webServer: [
     {
-      command: 'pnpm --filter @zayjar/qr-menu dev',
+      command: 'npx --yes pnpm@9.12.3 --filter @zayjar/qr-menu exec next dev -p 3000',
       url: 'http://localhost:3000',
       reuseExistingServer: !process.env.CI,
       timeout: 120000,
     },
     {
-      command: 'pnpm --filter @zayjar/cashier dev',
+      command: 'npx --yes pnpm@9.12.3 --filter @zayjar/cashier exec next dev -p 3002',
       url: 'http://localhost:3002',
       reuseExistingServer: !process.env.CI,
       timeout: 120000,
     },
     {
-      command: 'pnpm --filter @zayjar/backoffice dev',
+      command: 'npx --yes pnpm@9.12.3 --filter @zayjar/backoffice exec next dev -p 3001',
       url: 'http://localhost:3001',
       reuseExistingServer: !process.env.CI,
       timeout: 120000,

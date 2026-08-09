@@ -8,6 +8,10 @@ import { BranchesModule } from './modules/BranchesModule';
 import { TablesModule } from './modules/TablesModule';
 import { CustomersModule } from './modules/CustomersModule';
 import { StaffModule } from './modules/StaffModule';
+import { DesignBuilder } from './DesignBuilder';
+import { MediaLibrary } from './MediaLibrary';
+import { OrdersManager } from './OrdersManager';
+import { DashboardMetrics } from './DashboardMetrics';
 import { clearSession, loadSession } from '../lib/auth';
 
 /**
@@ -18,15 +22,20 @@ import { clearSession, loadSession } from '../lib/auth';
  * shared API client.
  */
 
-type TabId = 'products' | 'categories' | 'branches' | 'tables' | 'customers' | 'users';
+type TabId = 'dashboard'|'products'|'categories'|'branches'|'tables'|'customers'|'users'|'orders'|'design'|'media'|'settings';
 
 const TABS: { id: TabId; label: string }[] = [
+  { id: 'dashboard', label: 'Dashboard' },
   { id: 'products', label: 'Products' },
   { id: 'categories', label: 'Categories' },
   { id: 'branches', label: 'Branches' },
   { id: 'tables', label: 'Tables' },
+  { id: 'orders', label: 'Orders' },
   { id: 'customers', label: 'Customers' },
   { id: 'users', label: 'Staff' },
+  { id: 'design', label: 'Design / Website' },
+  { id: 'media', label: 'Media Library' },
+  { id: 'settings', label: 'Settings' },
 ];
 
 function ShellContent(): React.ReactElement {
@@ -39,10 +48,11 @@ function ShellContent(): React.ReactElement {
     window.location.href = '/login';
   };
 
+  const tenantId = (session as any)?.user?.tenantId || (session as any)?.tenantId || 'demo-tenant';
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="flex items-center justify-between bg-white px-6 py-3 shadow-sm">
-        <h1 className="text-lg font-bold text-gray-900">Zayjar Backoffice</h1>
+        <h1 className="text-lg font-bold text-gray-900">Eleva Backoffice</h1>
         <div className="flex items-center gap-3">
           <span className="text-xs text-gray-500">{email}</span>
           <button
@@ -74,12 +84,17 @@ function ShellContent(): React.ReactElement {
       </nav>
 
       <main className="p-6">
+        {activeTab === 'dashboard' ? <><DashboardMetrics tenantId={tenantId}/><OrdersManager tenantId={tenantId}/></> : null}
         {activeTab === 'products' ? <ProductsModule /> : null}
         {activeTab === 'categories' ? <CategoriesModule /> : null}
         {activeTab === 'branches' ? <BranchesModule /> : null}
         {activeTab === 'tables' ? <TablesModule /> : null}
+        {activeTab === 'orders' ? <OrdersManager tenantId={tenantId}/> : null}
         {activeTab === 'customers' ? <CustomersModule /> : null}
         {activeTab === 'users' ? <StaffModule /> : null}
+        {activeTab === 'design' ? <DesignBuilder tenantId={tenantId}/> : null}
+        {activeTab === 'media' ? <MediaLibrary tenantId={tenantId}/> : null}
+        {activeTab === 'settings' ? <div className="bg-white rounded-xl border p-6"><h3 className="font-bold">Settings</h3><p className="text-sm text-gray-600 mt-2">Tenant: {tenantId}</p><p className="text-xs text-gray-500">Subscription, branches, language (AR/EN) and platform branding managed via Eleva design builder. RTL/LTR verified.</p></div> : null}
       </main>
     </div>
   );

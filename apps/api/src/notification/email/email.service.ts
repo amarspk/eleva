@@ -48,7 +48,7 @@ export class EmailService {
 
   private getEmbeddedTemplate(templateName: string): string {
     const embedded: Record<string, string> = {
-      welcome: `<h1>Welcome to Zayjar, {{companyName}}!</h1><p>Hello {{ownerFirstName}} {{ownerLastName}}, your workspace {{subdomain}}.zayjar.com is {{status}}.</p>`,
+      welcome: `<h1>Welcome to Eleva, {{companyName}}!</h1><p>Hello {{ownerFirstName}} {{ownerLastName}}, your workspace {{subdomain}}.zayjar.com is {{status}}.</p>`,
       invoice: `<h2>Invoice {{invoiceNumber}}</h2><p>Order {{orderNumber}} total \${{total}}. PDF: {{pdfUrl}}</p>`,
       'password-reset': `<h2>Password Reset</h2><p>Hello {{firstName}}, reset link: {{resetUrl}}</p>`,
     };
@@ -148,7 +148,7 @@ export class EmailService {
 
   private getDefaultSubject(templateName: string, variables: Record<string, unknown>): string {
     const subjects: Record<string, string> = {
-      welcome: `Welcome to Zayjar, ${variables.companyName || 'your workspace'}!`,
+      welcome: `Welcome to Eleva, ${variables.companyName || 'your workspace'}!`,
       invoice: `Invoice ${variables.invoiceNumber || ''} - Order ${variables.orderNumber || ''}`,
       'password-reset': 'Password Reset Request - Zayjar',
       'order-status': `Order ${variables.orderNumber || ''} is now ${variables.status || ''}`,

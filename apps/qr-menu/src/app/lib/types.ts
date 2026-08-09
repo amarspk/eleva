@@ -82,6 +82,7 @@ export interface PublicMenuResponse {
   restaurant: PublicRestaurantContext;
   tenant: PublicTenantBranding;
   categories: PublicCategory[];
+  design?: Record<string, unknown> | null;
 }
 
 // ------------------------------------------

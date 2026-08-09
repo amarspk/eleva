@@ -115,6 +115,13 @@ export class OrderService {
       throw new BadRequestException('Tenant context is required for guest checkout.');
     }
 
+    // Preorder validation
+    if (dto.isPreorder && dto.scheduledAt) {
+      const sched = new Date(dto.scheduledAt);
+      if (isNaN(sched.getTime()) || sched.getTime() <= Date.now() + 15*60*1000) {
+        throw new BadRequestException('scheduledAt must be at least 15 minutes in the future');
+      }
+    }
     return dbTenantContext.run({ tenantId: guestTenantId }, async () => {
       if (!dto.qrCodeToken || dto.qrCodeToken.trim().length === 0) {
         throw new BadRequestException('A valid qrCodeToken is required for guest checkout.');
@@ -313,6 +320,9 @@ export class OrderService {
           discountCode,
           total,
           specialNotes: dto.specialNotes || null,
+      isPreorder: !!dto.isPreorder,
+      scheduledAt: dto.scheduledAt ? new Date(dto.scheduledAt) : null,
+      preorderStatus: dto.isPreorder ? 'SCHEDULED' : null,
           orderItems: {
             create: orderItemsToCreate,
           },

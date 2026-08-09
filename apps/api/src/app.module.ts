@@ -9,6 +9,7 @@ import { TenantModule } from './tenant/tenant.module';
 import { BranchModule } from './branch/branch.module';
 import { MenuModule } from './menu/menu.module';
 import { OrderModule } from './order/order.module';
+import { DesignModule } from './design/design.module';
 import { KdsModule } from './kds/kds.module';
 import { RestaurantModule } from './restaurant/restaurant.module';
 import { CustomerModule } from './customer/customer.module';
@@ -32,7 +33,7 @@ import { CorrelationIdMiddleware } from './common/logging/correlation-id.middlew
 import { HttpLoggingMiddleware } from './common/logging/http-logging.middleware';
 
 @Module({
-  imports: [EventEmitterModule.forRoot(), CacheModule, LoggingModule, HealthModule, CsrfModule, SanitizationModule, AuthModule, TenantModule, BranchModule, MenuModule, RestaurantModule, OrderModule, KdsModule, CustomerModule, BillingModule, AdminModule, AssetModule, WebhookModule, DeviceTokenModule, SubscriptionModule, AuditModule, PaymentModule, MediaModule, UserModule],
+  imports: [EventEmitterModule.forRoot(), CacheModule, LoggingModule, HealthModule, CsrfModule, SanitizationModule, AuthModule, TenantModule, BranchModule, MenuModule, RestaurantModule, OrderModule, KdsModule, CustomerModule, BillingModule, AdminModule, AssetModule, WebhookModule, DeviceTokenModule, SubscriptionModule, AuditModule, PaymentModule, MediaModule, UserModule, DesignModule],
   providers: [
     {
       provide: APP_INTERCEPTOR,

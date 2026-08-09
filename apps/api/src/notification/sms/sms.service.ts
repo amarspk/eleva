@@ -112,12 +112,12 @@ export class SmsService {
   // Convenience methods for transactional notifications
 
   async sendOrderStatusSms(to: string, orderNumber: string, status: string, tenantId?: string): Promise<{ success: boolean; provider: string; messageId?: string; attempts: number }> {
-    const message = `Zayjar: Order ${orderNumber} is now ${status}. Thank you!`;
+    const message = `Eleva: Order ${orderNumber} is now ${status}. Thank you!`;
     return this.sendSms(to, message, tenantId);
   }
 
   async sendOtpSms(to: string, otp: string, tenantId?: string): Promise<{ success: boolean; provider: string; messageId?: string; attempts: number }> {
-    const message = `Your Zayjar verification code is ${otp}. Valid for 5 minutes.`;
+    const message = `Your Eleva verification code is ${otp}. Valid for 5 minutes.`;
     return this.sendSms(to, message, tenantId);
   }
 

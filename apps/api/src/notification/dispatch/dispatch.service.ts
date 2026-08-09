@@ -225,7 +225,7 @@ export class DispatchService implements OnModuleDestroy {
       case 'sms': {
         const phone = (payload.phone || payload.customerPhone || '+12025550144') as string;
         const smsMessage =
-          (payload.message || `Zayjar: Event ${event} for order ${payload.orderNumber || payload.id || ''}`) as string;
+          (payload.message || `Eleva: Event ${event} for order ${payload.orderNumber || payload.id || ''}`) as string;
         try {
           const result = await this.smsService.sendSms(phone, smsMessage, tenantId);
           return { success: result.success, provider: result.provider };
@@ -237,7 +237,7 @@ export class DispatchService implements OnModuleDestroy {
 
       case 'push': {
         const userId = (payload.userId || payload.customerId) as string | undefined;
-        const title = (payload.title || `Zayjar: ${event}`) as string;
+        const title = (payload.title || `Eleva: ${event}`) as string;
         const body = (payload.body || payload.message || `Event ${event} occurred`) as string;
         try {
           if (!userId) {

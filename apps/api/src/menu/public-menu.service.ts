@@ -91,6 +91,7 @@ export interface PublicMenuResponse {
   restaurant: PublicRestaurantContext;
   tenant: PublicTenantBranding;
   categories: PublicCategory[];
+  design?: Record<string, unknown> | null;
 }
 
 interface ResolvedTable {
@@ -272,12 +273,21 @@ export class PublicMenuService {
         }))
         .filter((category) => category.products.length > 0);
 
+      // Phase 3: expose published design only (draft is private). Tenant isolation via tenantId.
+      let publishedDesign: Record<string, unknown> | null = null;
+      try {
+        const td: any = await (prisma as any).tenantDesign.findUnique({ where: { tenantId }, select: { published: true } });
+        if (td?.published && typeof td.published === 'object' && Object.keys(td.published as object).length > 0) {
+          publishedDesign = td.published as Record<string, unknown>;
+        }
+      } catch {}
       return {
         table: { number: resolved.table.number },
         branch: { id: resolved.branch.id, name: resolved.branch.name },
         restaurant: { name: resolved.restaurant.name, currency: resolved.restaurant.currency },
         tenant: this.toBranding(tenant),
         categories: mapped,
+        design: publishedDesign,
       };
     });
   }

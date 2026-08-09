@@ -24,7 +24,7 @@ async function bootstrap(): Promise<void> {
   initDatadogTracer();
 
   const logger = getGlobalLogger().child('Bootstrap');
-  logger.log('Starting Zayjar platform API bootstrap sequence...');
+  logger.log('Starting Eleva platform API bootstrap sequence...');
 
   validateEnvironment();
 
@@ -109,7 +109,7 @@ async function bootstrap(): Promise<void> {
   const port = process.env.PORT || 8000;
   await app.listen(port);
 
-  logger.log(`Zayjar API running on port ${port}`);
+  logger.log(`Eleva API running on port ${port}`);
 }
 
 bootstrap();
