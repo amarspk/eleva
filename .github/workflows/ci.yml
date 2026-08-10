@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, phase-3/eleva-builder]
   pull_request:
     branches: [main]
 
@@ -170,7 +170,12 @@ jobs:
   # the stack is provisioned and health-checked by this job itself).
   e2e-live:
     runs-on: ubuntu-latest
-    needs: [test, build]
+    # Depends on build (which depends on code-quality). Deliberately NOT on the
+    # `test` job: the root jest suite carries 5 tracked PRE-EXISTING failures
+    # (identical to main, documented in PROJECT_STATE.md — must not be hidden),
+    # and they would otherwise skip this live verification on every run. The
+    # `test` job still executes and reports its own result independently.
+    needs: [build]
     services:
       postgres:
         image: postgres:15-alpine
