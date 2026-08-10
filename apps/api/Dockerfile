@@ -2,7 +2,12 @@
 # STAGE 1: DEPENDENCIES INSTALLATION
 # ==========================================
 FROM node:20-alpine AS deps
-RUN apk add --no-cache libc6-compat
+# python3/make/g++: argon2@0.45.0 compiles from source via node-gyp at
+# `pnpm install` (its postinstall runs `node-gyp rebuild`); Alpine has no
+# prebuilt argon2 binary, so the toolchain is required in this stage.
+# openssl-dev: lets Prisma's engine postinstall detect libssl properly on
+# Alpine instead of warning "failed to detect the libssl/openssl version".
+RUN apk add --no-cache libc6-compat python3 make g++ openssl-dev
 WORKDIR /app
 
 # Enable pnpm package manager
