@@ -110,6 +110,9 @@ export interface CreateGuestOrderPayload {
   specialNotes?: string;
   items: GuestOrderItemSelection[];
   paymentMethod: 'CASH' | 'CREDIT_CARD' | 'APPLE_PAY' | 'LOCAL_WALLET';
+  // Phase 3 preorder (mirrors CreateOrderRequestDto, isPreorder/scheduledAt)
+  isPreorder?: boolean;
+  scheduledAt?: string;
 }
 
 /**

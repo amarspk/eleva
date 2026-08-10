@@ -175,6 +175,9 @@ describe('RbacPermissionGuard Unit & ABAC Tests', () => {
         orderNumber: 'ORD-123',
         type: 'DINE_IN',
         paymentMethod: null,
+        isPreorder: false,
+        scheduledAt: null,
+        preorderStatus: null,
         status: 'PAID' as any, // Real status in DB is PAID
         subtotal: 10 as any,
         taxAmount: 1 as any,

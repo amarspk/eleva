@@ -5,8 +5,10 @@ import React, { useMemo, useState, useRef, useCallback, useEffect } from 'react'
 import Image from 'next/image';
 import {
   CartItem,
+  CreateGuestOrderPayload,
   GuestOrderConfirmation,
   PublicAddonOption,
+  PublicCategory,
   PublicMenuResponse,
   PublicProduct,
   PublicAddonGroup,
@@ -20,6 +22,23 @@ import { formatPrice } from '../lib/format';
 type AddonGroup = PublicAddonGroup;
 type Size = PublicProductSize;
 type Variant = PublicProductVariant;
+
+// Phase 3: the published TenantDesign payload is free-form JSON from the DB;
+// this structural subset is what DesignSections actually consumes.
+interface DesignSection {
+  id?: string;
+  type: string;
+  enabled?: boolean;
+  order?: number;
+  config?: { variant?: string };
+}
+
+interface TenantDesignPayload {
+  colors?: { primary?: string };
+  sections?: DesignSection[];
+  logo?: string;
+  coverImage?: string;
+}
 
 interface MenuBrowserProps {
   initialData: PublicMenuResponse;
@@ -86,16 +105,16 @@ const ProductGrid = React.memo(function ProductGrid({
 });
 
 
-function DesignSections({ design, categories, primaryColor, currency, onSelect, tenantName, coverImage }: { design: any; categories: any[]; primaryColor: string; currency: string; onSelect: (p:any)=>void; tenantName: string; coverImage?: string }) {
-  const sections: any[] = design?.sections ? [...design.sections].sort((a:any,b:any)=>a.order-b.order).filter((s:any)=>s.enabled) : [];
-  const flatProducts = categories.flatMap((c:any)=> c.products);
+function DesignSections({ design, categories, primaryColor, currency, onSelect, tenantName, coverImage }: { design: TenantDesignPayload | null; categories: PublicCategory[]; primaryColor: string; currency: string; onSelect: (p: PublicProduct) => void; tenantName: string; coverImage?: string }) {
+  const sections: DesignSection[] = design?.sections ? [...design.sections].sort((a: DesignSection, b: DesignSection) => (a.order ?? 0) - (b.order ?? 0)).filter((s: DesignSection) => s.enabled) : [];
+  const flatProducts: PublicProduct[] = categories.flatMap((c: PublicCategory) => c.products);
   // fallback when no design or no sections: render default grid
   if (sections.length === 0) {
     return <main className="px-4 py-4 space-y-8"><ProductGrid categories={categories} primaryColor={primaryColor} currency={currency} onSelect={onSelect} /></main>;
   }
   return (
     <main className="px-4 py-4 space-y-4">
-      {sections.map((sec:any)=>{
+      {sections.map((sec: DesignSection) => {
         const v = sec.config?.variant || 'grid';
         if (sec.type==='hero') {
           if (v==='full-width') return <div key={sec.id} className="h-40 rounded-xl flex items-center justify-center text-white font-bold" style={{ backgroundColor: primaryColor, backgroundImage: coverImage?`url(${coverImage})`:undefined, backgroundSize:'cover' }}><span style={{textShadow:'0 1px 4px rgba(0,0,0,0.6)'}}>{tenantName}</span></div>;
@@ -105,21 +124,21 @@ function DesignSections({ design, categories, primaryColor, currency, onSelect, 
           return <div key={sec.id} className="rounded-xl bg-white border p-4 flex gap-4"><div className="flex-1"><div className="font-bold">{tenantName}</div><div className="text-xs text-gray-500">Welcome</div></div><img src={coverImage||''} alt="hero" className="w-24 h-24 object-cover rounded-lg"/></div>;
         }
         if (sec.type==='categories') {
-          if (v==='circular') return <div key={sec.id} className="flex gap-3 overflow-x-auto pb-2">{categories.map((c:any)=><div key={c.id} className="flex flex-col items-center shrink-0"><div className="w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center text-[10px] border">{c.name.slice(0,3)}</div><span className="text-[10px] mt-1">{c.name}</span></div>)}</div>;
-          if (v==='grid') return <div key={sec.id} className="grid grid-cols-2 gap-2">{categories.map((c:any)=><div key={c.id} className="bg-white border rounded-xl p-3 text-center text-sm font-semibold">{c.name}<div className="text-xs text-gray-400">{c.products.length} items</div></div>)}</div>;
-          if (v==='horizontal') return <div key={sec.id} className="flex gap-2 overflow-x-auto pb-2">{categories.map((c:any)=><div key={c.id} className="shrink-0 bg-white border rounded-full px-4 py-2 text-xs font-semibold whitespace-nowrap">{c.name}</div>)}</div>;
-          if (v==='sidebar') return <div key={sec.id} className="flex gap-3"><div className="w-28 bg-white border rounded-xl p-2 space-y-1 shrink-0">{categories.map((c:any)=><div key={c.id} className="text-xs py-1 border-b last:border-0">{c.name}</div>)}</div><div className="flex-1 text-xs text-gray-500 p-3">Select a category to browse</div></div>;
-          if (v==='image-based') return <div key={sec.id} className="grid grid-cols-2 gap-2">{categories.map((c:any)=><div key={c.id} className="bg-white border rounded-xl overflow-hidden"><div className="h-16 bg-gray-100"/><div className="p-2 text-xs font-semibold">{c.name}</div></div>)}</div>;
-          return <div key={sec.id} className="flex gap-2 overflow-x-auto pb-2">{categories.map((c:any)=><button key={c.id} className="shrink-0 px-3 py-1 rounded-full text-xs font-semibold border">{c.name}</button>)}</div>;
+          if (v==='circular') return <div key={sec.id} className="flex gap-3 overflow-x-auto pb-2">{categories.map((c: PublicCategory) => <div key={c.id} className="flex flex-col items-center shrink-0"><div className="w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center text-[10px] border">{c.name.slice(0,3)}</div><span className="text-[10px] mt-1">{c.name}</span></div>)}</div>;
+          if (v==='grid') return <div key={sec.id} className="grid grid-cols-2 gap-2">{categories.map((c: PublicCategory) => <div key={c.id} className="bg-white border rounded-xl p-3 text-center text-sm font-semibold">{c.name}<div className="text-xs text-gray-400">{c.products.length} items</div></div>)}</div>;
+          if (v==='horizontal') return <div key={sec.id} className="flex gap-2 overflow-x-auto pb-2">{categories.map((c: PublicCategory) => <div key={c.id} className="shrink-0 bg-white border rounded-full px-4 py-2 text-xs font-semibold whitespace-nowrap">{c.name}</div>)}</div>;
+          if (v==='sidebar') return <div key={sec.id} className="flex gap-3"><div className="w-28 bg-white border rounded-xl p-2 space-y-1 shrink-0">{categories.map((c: PublicCategory) => <div key={c.id} className="text-xs py-1 border-b last:border-0">{c.name}</div>)}</div><div className="flex-1 text-xs text-gray-500 p-3">Select a category to browse</div></div>;
+          if (v==='image-based') return <div key={sec.id} className="grid grid-cols-2 gap-2">{categories.map((c: PublicCategory) => <div key={c.id} className="bg-white border rounded-xl overflow-hidden"><div className="h-16 bg-gray-100"/><div className="p-2 text-xs font-semibold">{c.name}</div></div>)}</div>;
+          return <div key={sec.id} className="flex gap-2 overflow-x-auto pb-2">{categories.map((c: PublicCategory) => <button key={c.id} className="shrink-0 px-3 py-1 rounded-full text-xs font-semibold border">{c.name}</button>)}</div>;
         }
         if (sec.type==='featured' || sec.type==='popular') {
           const prods = flatProducts.slice(sec.type==='popular'?4:0, sec.type==='popular'?8:4);
-          if (v==='list') return <div key={sec.id} className="space-y-2"><div className="text-sm font-bold capitalize">{sec.type}</div>{prods.map((pr:any)=><div key={pr.id} onClick={()=>onSelect(pr)} className="bg-white border rounded-xl p-3 flex gap-3 cursor-pointer"><img src={pr.imageUrl||''} alt="" className="w-12 h-12 rounded bg-gray-100 object-cover"/><div className="flex-1"><div className="text-sm font-semibold">{pr.name}</div><div className="text-xs text-gray-500">{pr.description?.slice(0,40)}</div><div className="text-xs font-bold">{formatPrice(Number(pr.basePrice),currency)}</div></div></div>)}</div>;
-          if (v==='large-cards') return <div key={sec.id}><div className="text-sm font-bold capitalize mb-2">{sec.type}</div><div className="grid gap-3">{prods.map((pr:any)=><div key={pr.id} onClick={()=>onSelect(pr)} className="bg-white border rounded-xl p-4 cursor-pointer"><div className="h-28 bg-gray-100 rounded-lg mb-2"/><div className="font-semibold text-sm">{pr.name}</div><div className="text-xs text-gray-500 line-clamp-2">{pr.description}</div><div className="font-bold mt-1">{formatPrice(Number(pr.basePrice),currency)}</div></div>)}</div></div>;
-          if (v==='compact') return <div key={sec.id}><div className="text-sm font-bold capitalize mb-2">{sec.type}</div><div className="grid grid-cols-3 gap-2">{prods.map((pr:any)=><div key={pr.id} onClick={()=>onSelect(pr)} className="bg-white border rounded-lg p-2 cursor-pointer text-center"><div className="h-12 bg-gray-100 rounded mb-1"/><div className="text-[11px] font-semibold line-clamp-1">{pr.name}</div><div className="text-[10px] font-bold">{formatPrice(Number(pr.basePrice),currency)}</div></div>)}</div></div>;
-          if (v==='slider') return <div key={sec.id}><div className="text-sm font-bold capitalize mb-2">{sec.type}</div><div className="flex gap-3 overflow-x-auto pb-2">{prods.map((pr:any)=><div key={pr.id} onClick={()=>onSelect(pr)} className="shrink-0 w-32 bg-white border rounded-xl p-3 cursor-pointer"><div className="h-16 bg-gray-100 rounded mb-2"/><div className="text-xs font-semibold line-clamp-1">{pr.name}</div><div className="text-xs font-bold">{formatPrice(Number(pr.basePrice),currency)}</div></div>)}</div></div>;
-          if (v==='cards') return <div key={sec.id}><div className="text-sm font-bold capitalize mb-2">{sec.type}</div><div className="grid grid-cols-2 gap-3">{prods.map((pr:any)=><div key={pr.id} onClick={()=>onSelect(pr)} className="bg-white border rounded-xl p-3 cursor-pointer shadow-sm"><div className="h-20 bg-gray-100 rounded-lg mb-2"/><div className="text-sm font-semibold">{pr.name}</div><div className="text-xs font-bold">{formatPrice(Number(pr.basePrice),currency)}</div></div>)}</div></div>;
-          return <div key={sec.id}><div className="text-sm font-bold capitalize mb-2">{sec.type}</div><div className="grid grid-cols-2 gap-2">{prods.map((pr:any)=><div key={pr.id} onClick={()=>onSelect(pr)} className="bg-white border rounded-xl p-3 cursor-pointer"><div className="text-sm font-semibold line-clamp-1">{pr.name}</div><div className="text-xs text-gray-500 line-clamp-1">{pr.description}</div><div className="text-xs font-bold mt-1">{formatPrice(Number(pr.basePrice),currency)}</div></div>)}</div></div>;
+          if (v==='list') return <div key={sec.id} className="space-y-2"><div className="text-sm font-bold capitalize">{sec.type}</div>{prods.map((pr: PublicProduct) => <div key={pr.id} onClick={()=>onSelect(pr)} className="bg-white border rounded-xl p-3 flex gap-3 cursor-pointer"><img src={pr.imageUrl||''} alt="" className="w-12 h-12 rounded bg-gray-100 object-cover"/><div className="flex-1"><div className="text-sm font-semibold">{pr.name}</div><div className="text-xs text-gray-500">{pr.description?.slice(0,40)}</div><div className="text-xs font-bold">{formatPrice(Number(pr.basePrice),currency)}</div></div></div>)}</div>;
+          if (v==='large-cards') return <div key={sec.id}><div className="text-sm font-bold capitalize mb-2">{sec.type}</div><div className="grid gap-3">{prods.map((pr: PublicProduct) => <div key={pr.id} onClick={()=>onSelect(pr)} className="bg-white border rounded-xl p-4 cursor-pointer"><div className="h-28 bg-gray-100 rounded-lg mb-2"/><div className="font-semibold text-sm">{pr.name}</div><div className="text-xs text-gray-500 line-clamp-2">{pr.description}</div><div className="font-bold mt-1">{formatPrice(Number(pr.basePrice),currency)}</div></div>)}</div></div>;
+          if (v==='compact') return <div key={sec.id}><div className="text-sm font-bold capitalize mb-2">{sec.type}</div><div className="grid grid-cols-3 gap-2">{prods.map((pr: PublicProduct) => <div key={pr.id} onClick={()=>onSelect(pr)} className="bg-white border rounded-lg p-2 cursor-pointer text-center"><div className="h-12 bg-gray-100 rounded mb-1"/><div className="text-[11px] font-semibold line-clamp-1">{pr.name}</div><div className="text-[10px] font-bold">{formatPrice(Number(pr.basePrice),currency)}</div></div>)}</div></div>;
+          if (v==='slider') return <div key={sec.id}><div className="text-sm font-bold capitalize mb-2">{sec.type}</div><div className="flex gap-3 overflow-x-auto pb-2">{prods.map((pr: PublicProduct) => <div key={pr.id} onClick={()=>onSelect(pr)} className="shrink-0 w-32 bg-white border rounded-xl p-3 cursor-pointer"><div className="h-16 bg-gray-100 rounded mb-2"/><div className="text-xs font-semibold line-clamp-1">{pr.name}</div><div className="text-xs font-bold">{formatPrice(Number(pr.basePrice),currency)}</div></div>)}</div></div>;
+          if (v==='cards') return <div key={sec.id}><div className="text-sm font-bold capitalize mb-2">{sec.type}</div><div className="grid grid-cols-2 gap-3">{prods.map((pr: PublicProduct) => <div key={pr.id} onClick={()=>onSelect(pr)} className="bg-white border rounded-xl p-3 cursor-pointer shadow-sm"><div className="h-20 bg-gray-100 rounded-lg mb-2"/><div className="text-sm font-semibold">{pr.name}</div><div className="text-xs font-bold">{formatPrice(Number(pr.basePrice),currency)}</div></div>)}</div></div>;
+          return <div key={sec.id}><div className="text-sm font-bold capitalize mb-2">{sec.type}</div><div className="grid grid-cols-2 gap-2">{prods.map((pr: PublicProduct) => <div key={pr.id} onClick={()=>onSelect(pr)} className="bg-white border rounded-xl p-3 cursor-pointer"><div className="text-sm font-semibold line-clamp-1">{pr.name}</div><div className="text-xs text-gray-500 line-clamp-1">{pr.description}</div><div className="text-xs font-bold mt-1">{formatPrice(Number(pr.basePrice),currency)}</div></div>)}</div></div>;
         }
         if (sec.type==='banner' || sec.type==='promo') {
           if (v==='split') return <div key={sec.id} className="rounded-xl bg-gradient-to-r from-orange-100 to-pink-100 p-4 flex justify-between items-center"><span className="font-bold text-sm">Special Offer</span><span className="bg-black text-white px-3 py-1 rounded-full text-xs">Order now</span></div>;
@@ -129,14 +148,14 @@ function DesignSections({ design, categories, primaryColor, currency, onSelect, 
         return null;
       })}
       {/* Always render remaining categories not covered by featured/popular as grid as fallback when design has hero but no full menu */}
-      {sections.length>0 && !sections.some((s:any)=>s.type==='featured') && <ProductGrid categories={categories} primaryColor={primaryColor} currency={currency} onSelect={onSelect} />}
+      {sections.length>0 && !sections.some((s: DesignSection) => s.type==='featured') && <ProductGrid categories={categories} primaryColor={primaryColor} currency={currency} onSelect={onSelect} />}
     </main>
   );
 }
 
 export const MenuBrowser: React.FC<MenuBrowserProps> = ({ initialData, token }) => {
   const categories = initialData.categories;
-  const design: any = (initialData as any).design || null;
+  const design = (initialData.design ?? null) as TenantDesignPayload | null;
   const primaryColor = (design?.colors?.primary as string) || initialData.tenant.primaryColor;
   const currency = initialData.restaurant.currency;
 
@@ -294,7 +313,7 @@ export const MenuBrowser: React.FC<MenuBrowserProps> = ({ initialData, token }) 
     setSubmitting(true);
     setCheckoutError(null);
     try {
-      const payload: any = buildCheckoutPayload(cart, {
+      const payload: CreateGuestOrderPayload = buildCheckoutPayload(cart, {
         qrCodeToken: token,
         branchId: initialData.branch.id,
         paymentMethod: 'CASH',
@@ -357,7 +376,7 @@ export const MenuBrowser: React.FC<MenuBrowserProps> = ({ initialData, token }) 
   }
 
   return (
-    <div className="w-full max-w-md mx-auto bg-gray-50 min-h-screen pb-24" style={{ transform: 'translateZ(0)' }}>
+    <div className="w-full max-w-md mx-auto bg-gray-50 min-h-screen pb-24">
       <header className="sticky top-0 bg-white shadow-sm z-30 px-4 py-3">
         {design?.logo && <img src={design.logo} alt="logo" className="h-8 mb-2 object-contain" />}
         <input
