@@ -6,7 +6,11 @@ import { SecretsManagerService } from './common/secrets/secrets-manager.service'
 import { ZayjarLogger, getGlobalLogger } from './common/logging/logger.service';
 import { initDatadogTracer } from './common/logging/datadog-apm';
 
-const REQUIRED_ENV_VARS = ['DATABASE_URL', 'JWT_SECRET', 'JWT_REFRESH_SECRET'];
+// AUDIT-002 Finding #1: STRIPE_WEBHOOK_SECRET is required in production —
+// without it the billing webhook would have to accept unverified payloads
+// (fail-open). Failing the boot keeps that impossible; the webhook endpoint
+// also fails closed per-request (see BillingService.verifyWebhookSignature).
+const REQUIRED_ENV_VARS = ['DATABASE_URL', 'JWT_SECRET', 'JWT_REFRESH_SECRET', 'STRIPE_WEBHOOK_SECRET'];
 
 function validateEnvironment(): void {
   const logger = getGlobalLogger().child('EnvValidation');

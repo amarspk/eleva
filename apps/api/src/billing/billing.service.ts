@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, BadRequestException, ServiceUnavailableException } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { CreateBillingSessionRequestDto } from './dto/create-billing-session-request.dto';
 import { BillingStatusChangedEvent } from './events/billing-status-changed.event';
@@ -492,11 +492,26 @@ export class BillingService {
   /**
    * Verifies Stripe webhook signature if STRIPE_WEBHOOK_SECRET configured
    * Returns event payload or throws BadRequestException
+   *
+   * AUDIT-002 Finding #1: in PRODUCTION the secret is REQUIRED — an
+   * unverified raw-body parse is never acceptable there (a forged webhook
+   * could flip tenant/subscription status). Missing secret in production
+   * fails closed with 503 (ServiceUnavailableException) so Stripe retries
+   * later instead of the event being silently accepted or dropped. The
+   * unverified dev/test fallback exists ONLY outside production.
    */
   verifyWebhookSignature(rawBody: string | Buffer, signature: string | undefined): Record<string, unknown> {
     const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
     if (!webhookSecret) {
+      if (process.env.NODE_ENV === 'production') {
+        this.logger.error(
+          'STRIPE_WEBHOOK_SECRET is not configured in production — refusing to process the Stripe webhook (fail closed).',
+        );
+        throw new ServiceUnavailableException(
+          'Stripe webhook processing is unavailable: STRIPE_WEBHOOK_SECRET is not configured.',
+        );
+      }
       this.logger.warn('STRIPE_WEBHOOK_SECRET not configured, skipping signature verification (dev mode)');
       try {
         if (typeof rawBody === 'string') {return JSON.parse(rawBody) as Record<string, unknown>;}

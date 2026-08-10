@@ -3,7 +3,7 @@ import { BillingService } from './billing.service';
 import { CacheService } from '../common/cache/cache.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { prisma } from '@zayjar/db';
-import { NotFoundException } from '@nestjs/common';
+import { NotFoundException, BadRequestException, ServiceUnavailableException } from '@nestjs/common';
 
 jest.mock('argon2', () => ({
   hash: jest.fn().mockResolvedValue('mock-hash'),
@@ -724,6 +724,76 @@ describe('BillingService Unit Tests - TSK-2.4 + DOC-009 §8.2', () => {
           timestamp: expect.any(Date),
         }),
       );
+    });
+  });
+
+  // ==========================================
+  // AUDIT-002 Finding #1 — production fail-closed webhook signature
+  // ==========================================
+  describe('Stripe webhook signature — production fail-closed (AUDIT-002)', () => {
+    const originalNodeEnv = process.env.NODE_ENV;
+    const originalWebhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+
+    afterEach(() => {
+      if (originalNodeEnv === undefined) {
+        delete process.env.NODE_ENV;
+      } else {
+        process.env.NODE_ENV = originalNodeEnv;
+      }
+      if (originalWebhookSecret === undefined) {
+        delete process.env.STRIPE_WEBHOOK_SECRET;
+      } else {
+        process.env.STRIPE_WEBHOOK_SECRET = originalWebhookSecret;
+      }
+    });
+
+    it('rejects the webhook when STRIPE_WEBHOOK_SECRET is missing in production (fail closed, 503)', () => {
+      process.env.NODE_ENV = 'production';
+      delete process.env.STRIPE_WEBHOOK_SECRET;
+
+      const rawBody = JSON.stringify({ type: 'invoice.payment_succeeded', data: { object: {} } });
+
+      expect(() => service.verifyWebhookSignature(rawBody, undefined)).toThrow(ServiceUnavailableException);
+    });
+
+    it('rejects the webhook on an invalid signature in production (400, never accepted)', () => {
+      process.env.NODE_ENV = 'production';
+      process.env.STRIPE_WEBHOOK_SECRET = 'whsec_test_secret_for_audit002';
+
+      const rawBody = JSON.stringify({ id: 'evt_forged', type: 'invoice.payment_succeeded', data: { object: {} } });
+
+      expect(() => service.verifyWebhookSignature(Buffer.from(rawBody), 't=1,v1=deadbeef')).toThrow(BadRequestException);
+    });
+
+    it('accepts a genuinely valid Stripe signature in production (real constructEvent verification)', () => {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const Stripe = require('stripe');
+      const stripe = new Stripe('sk_test_dummy_key_for_audit002', { apiVersion: '2023-10-16' });
+      const secret = 'whsec_test_secret_for_audit002';
+      const payload = JSON.stringify({
+        id: 'evt_valid_audit002',
+        type: 'invoice.payment_succeeded',
+        data: { object: { id: 'in_1', customer: 'cus_1', subscription: 'sub_1' } },
+      });
+      // generateTestHeaderString produces a REAL HMAC signature over the payload
+      // with the given secret — constructEvent then verifies it cryptographically.
+      const signature = stripe.webhooks.generateTestHeaderString({ payload, secret });
+
+      process.env.NODE_ENV = 'production';
+      process.env.STRIPE_WEBHOOK_SECRET = secret;
+
+      const event = service.verifyWebhookSignature(Buffer.from(payload), signature);
+      expect(event.id).toBe('evt_valid_audit002');
+      expect(event.type).toBe('invoice.payment_succeeded');
+    });
+
+    it('preserves the unverified dev/test fallback outside production (missing secret still parses JSON)', () => {
+      process.env.NODE_ENV = 'development';
+      delete process.env.STRIPE_WEBHOOK_SECRET;
+
+      const rawBody = JSON.stringify({ type: 'invoice.payment_succeeded', data: { object: {} } });
+      const result = service.verifyWebhookSignature(rawBody, undefined);
+      expect(result.type).toBe('invoice.payment_succeeded');
     });
   });
 });
