@@ -627,6 +627,11 @@ model Payment {
 
   @@index([orderId], map: "idx_payments_order")
   @@index([transactionReference], map: "idx_payments_reference")
+  // AUDIT-002 Finding #3: a partial unique index on non-POS
+  // transactionReference (idx_payments_reference_unique) is created in
+  // migration 20260811000000_payment_reference_unique — partial indexes
+  // cannot be expressed in schema.prisma (same convention as the
+  // 20260804000000 partial unique indexes).
   @@map("payments")
 }
 

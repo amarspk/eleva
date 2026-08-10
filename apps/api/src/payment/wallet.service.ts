@@ -2,6 +2,7 @@ import {
   Injectable,
   Logger,
   BadRequestException,
+  ConflictException,
   NotFoundException,
   ServiceUnavailableException,
 } from '@nestjs/common';
@@ -157,14 +158,44 @@ export class WalletService {
       throw new BadRequestException('Order total is not payable.');
     }
 
+    // AUDIT-002 Finding #3: never create a second charge for an order that
+    // already settled. A cross-wallet replay (KNET paid, then a Mada attempt)
+    // must fail here instead of contacting the provider again.
+    const alreadySettled = await dbTenantContext.run({ tenantId }, async () => {
+      const rows = await this.paymentRepository.findMany({ orderId: dto.orderId });
+      return rows.some(
+        (row) =>
+          (row as unknown as { status: string }).status === 'PAID' ||
+          (row as unknown as { status: string }).status === 'REFUNDED',
+      );
+    });
+    if (alreadySettled) {
+      throw new ConflictException(`Order [${dto.orderId}] is already paid.`);
+    }
+
     const gatewayInfo = this.REGIONAL_GATEWAYS[walletType];
     const provider = gatewayInfo ? gatewayInfo.provider : 'stripe';
 
+    // AUDIT-002 Finding #3: deterministic provider-level idempotency key,
+    // derived server-side (JWT tenantId + order UUID + wallet enum). Identical
+    // double-submits therefore reuse the SAME key, and the provider returns
+    // the original charge instead of creating a second one — the only
+    // race-safe guarantee for concurrent duplicate requests.
+    const idempotencyKey = `${tenantId}:${dto.orderId}:${walletType}`;
+
     let result: WalletPaymentResult;
     if (walletType === 'apple_pay' || walletType === 'google_pay') {
-      result = await this.createStripeWalletPayment(dto, walletType, provider, tenantId, userId, orderTotal);
+      result = await this.createStripeWalletPayment(
+        dto,
+        walletType,
+        provider,
+        tenantId,
+        userId,
+        orderTotal,
+        idempotencyKey,
+      );
     } else if (WalletService.TAP_WALLETS.includes(walletType)) {
-      result = await this.createTapPayment(dto, walletType, provider, orderTotal, tenantId);
+      result = await this.createTapPayment(dto, walletType, provider, orderTotal, tenantId, idempotencyKey);
     } else {
       // credit_card / cash are settled at the till, not through a wallet rail.
       result = {
@@ -179,16 +210,56 @@ export class WalletService {
       };
     }
 
+    const transactionReference = `${result.provider}:${result.paymentId}`;
+
+    // AUDIT-002 Finding #3: post-provider deduplication. With the idempotency
+    // key the provider returns the ORIGINAL charge for a replay — if that
+    // charge is already recorded, reuse the existing session instead of
+    // inserting a second row. POS references (deterministic by design) keep
+    // their legacy replay behaviour and are excluded from the DB constraint.
+    const isPosReference = transactionReference.startsWith('pos:');
+    const existingRow = isPosReference
+      ? null
+      : await dbTenantContext.run({ tenantId }, async () => {
+          const matches = await this.paymentRepository.findMany({ transactionReference });
+          return matches[0] ?? null;
+        });
+
+    if (existingRow) {
+      this.logger.log(
+        `Payment [${transactionReference}] already recorded — reusing existing session.`,
+      );
+      return { ...result, amount: orderTotal };
+    }
+
     // Persist the attempt. A payment that is not recorded cannot be
     // reconciled, refunded or audited — this was AUDIT-002's second defect.
     await dbTenantContext.run({ tenantId }, async () => {
-      await this.paymentRepository.create({
-        orderId: dto.orderId,
-        paymentMethod: this.toPaymentMethod(walletType as string),
-        status: 'PENDING',
-        amount: orderTotal,
-        transactionReference: `${result.provider}:${result.paymentId}`,
-      });
+      try {
+        await this.paymentRepository.create({
+          orderId: dto.orderId,
+          paymentMethod: this.toPaymentMethod(walletType as string),
+          status: 'PENDING',
+          amount: orderTotal,
+          transactionReference,
+        });
+      } catch (err) {
+        const prismaError = err as { code?: string };
+        // AUDIT-002 Finding #3: a truly concurrent duplicate request inserted
+        // the same reference between our check and our insert (unique index
+        // idx_payments_reference_unique). Reuse that row — the charge is the
+        // same provider object — instead of surfacing a 500.
+        if (prismaError.code !== 'P2002') {
+          throw err;
+        }
+        const matches = await this.paymentRepository.findMany({ transactionReference });
+        if (!matches[0]) {
+          throw err;
+        }
+        this.logger.warn(
+          `Concurrent duplicate insert for [${transactionReference}] — reusing existing record.`,
+        );
+      }
     });
 
     this.logger.log(
@@ -205,6 +276,7 @@ export class WalletService {
     tenantId: string,
     userId: string,
     amount: number,
+    idempotencyKey: string,
   ): Promise<WalletPaymentResult> {
     const stripeSecretKey = this.assertProviderConfigured(
       process.env.STRIPE_SECRET_KEY,
@@ -217,13 +289,18 @@ export class WalletService {
       const Stripe = require('stripe');
       const stripe = new Stripe(stripeSecretKey, { apiVersion: '2023-10-16' });
 
-      const paymentIntent = await stripe.paymentIntents.create({
-        amount: Math.round(amount * 100), // minor units
-        currency: (dto.currency || 'usd').toLowerCase(),
-        payment_method_types: walletType === 'apple_pay' ? ['card', 'apple_pay'] : ['card', 'google_pay'],
-        metadata: { tenantId, orderId: dto.orderId, walletType, userId },
-        receipt_email: dto.customerEmail,
-      });
+      // AUDIT-002 Finding #3: deterministic Idempotency-Key so identical
+      // double-submits return the original PaymentIntent, never a second one.
+      const paymentIntent = await stripe.paymentIntents.create(
+        {
+          amount: Math.round(amount * 100), // minor units
+          currency: (dto.currency || 'usd').toLowerCase(),
+          payment_method_types: walletType === 'apple_pay' ? ['card', 'apple_pay'] : ['card', 'google_pay'],
+          metadata: { tenantId, orderId: dto.orderId, walletType, userId },
+          receipt_email: dto.customerEmail,
+        },
+        { idempotencyKey },
+      );
 
       return {
         paymentId: paymentIntent.id,
@@ -256,6 +333,7 @@ export class WalletService {
     provider: string,
     amount: number,
     tenantId: string,
+    idempotencyKey: string,
   ): Promise<WalletPaymentResult> {
     const tapSecretKey = this.assertProviderConfigured(
       process.env.TAP_PAYMENTS_SECRET_KEY,
@@ -279,7 +357,10 @@ export class WalletService {
             amount,
             currency,
             source: { id: sourceId },
-            reference: { order: dto.orderId },
+            // AUDIT-002 Finding #3: official Tap idempotency — a reused
+            // `reference.idempotent` within 24h returns the original charge
+            // instead of creating a second one (developers.tap.company/docs/idempotency).
+            reference: { order: dto.orderId, idempotent: idempotencyKey },
             redirect: { url: dto.successUrl },
             customer: dto.customerEmail ? { email: dto.customerEmail } : undefined,
             // AUDIT-002 Finding #2: echoed back on the webhook and used to

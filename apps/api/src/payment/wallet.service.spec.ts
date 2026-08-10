@@ -3,6 +3,7 @@ import { TenantOrderRepository, TenantPaymentRepository } from '@zayjar/db';
 import {
   NotFoundException,
   BadRequestException,
+  ConflictException,
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { createHmac } from 'crypto';
@@ -13,6 +14,24 @@ jest.mock('argon2', () => ({
   verify: jest.fn().mockResolvedValue(true),
   argon2id: 2,
 }));
+
+// AUDIT-002 Finding #3: module-level Stripe mock so the Idempotency-Key
+// argument on paymentIntents.create can be asserted. The `mock` prefix is
+// required for jest.mock factory hoisting.
+const mockStripePaymentIntentsCreate = jest.fn().mockResolvedValue({
+  id: 'pi_idem_1',
+  status: 'requires_payment_method',
+  client_secret: 'cs_idem_1',
+});
+
+jest.mock('stripe', () =>
+  jest.fn().mockReturnValue({
+    paymentIntents: {
+      create: mockStripePaymentIntentsCreate,
+      retrieve: jest.fn().mockResolvedValue({ id: 'pi_idem_1', status: 'succeeded' }),
+    },
+  }),
+);
 
 const TENANT = 'tenant-123';
 const USER = 'user-123';
@@ -452,6 +471,162 @@ describe('WalletService (AUDIT-002 — real payments)', () => {
         }
         process.env.TAP_PAYMENTS_SECRET_KEY = TAP_SECRET;
       }
+    });
+  });
+
+  // ==========================================
+  // AUDIT-002 Finding #3 — wallet payment idempotency
+  // ==========================================
+  describe('createWalletPayment idempotency (AUDIT-002 Finding #3)', () => {
+    beforeEach(() => {
+      mockStripePaymentIntentsCreate.mockClear();
+    });
+
+    const tapFetchMock = () =>
+      jest.spyOn(global, 'fetch').mockResolvedValue({
+        ok: true,
+        status: 200,
+        text: async () =>
+          JSON.stringify({ id: 'chg_idem_1', status: 'INITIATED', transaction: { url: 'https://tap/pay' } }),
+      } as never);
+
+    const tapRequestBodyIdempotent = (fetchSpy: jest.SpyInstance, callIndex: number): string | undefined => {
+      const [, init] = fetchSpy.mock.calls[callIndex];
+      const body = JSON.parse((init as RequestInit).body as string) as {
+        reference: { idempotent?: string };
+      };
+      return body.reference.idempotent;
+    };
+
+    it('Tap double-submit reuses the original charge (same idempotent string, one row)', async () => {
+      process.env.TAP_PAYMENTS_SECRET_KEY = 'sk_test_tap_idem';
+      const fetchSpy = tapFetchMock();
+      // Simulate the real DB: once the first attempt is persisted, a lookup by
+      // transactionReference finds the existing row (dedup reuses it).
+      paymentFindMany.mockImplementation(async (args: Record<string, unknown>) => {
+        if ('transactionReference' in args) {
+          return paymentCreate.mock.calls.length >= 1 ? ([{ id: 'pay-idem-1' }] as never) : ([] as never);
+        }
+        return [] as never;
+      });
+
+      const first = await service.createWalletPayment(dto(), TENANT, USER);
+      const second = await service.createWalletPayment(dto(), TENANT, USER);
+
+      expect(fetchSpy).toHaveBeenCalledTimes(2);
+      // Both provider calls carry the SAME deterministic reference.idempotent,
+      // so Tap returns the original charge instead of creating a second one.
+      expect(tapRequestBodyIdempotent(fetchSpy, 0)).toBe(`${TENANT}:${ORDER_ID}:knet`);
+      expect(tapRequestBodyIdempotent(fetchSpy, 1)).toBe(`${TENANT}:${ORDER_ID}:knet`);
+      // Only ONE row is ever written — the second call reuses the first.
+      expect(paymentCreate).toHaveBeenCalledTimes(1);
+      expect(first.paymentId).toBe('chg_idem_1');
+      expect(second.paymentId).toBe('chg_idem_1');
+    });
+
+    it('Stripe double-submit sends the same Idempotency-Key and writes one row', async () => {
+      process.env.STRIPE_SECRET_KEY = 'sk_test_stripe_idem';
+      paymentFindMany.mockImplementation(async (args: Record<string, unknown>) => {
+        if ('transactionReference' in args) {
+          return paymentCreate.mock.calls.length >= 1 ? ([{ id: 'pay-idem-1' }] as never) : ([] as never);
+        }
+        return [] as never;
+      });
+
+      const first = await service.createWalletPayment(
+        dto({ paymentMethod: PaymentMethodType.APPLE_PAY, walletType: 'apple_pay' }),
+        TENANT,
+        USER,
+      );
+      const second = await service.createWalletPayment(
+        dto({ paymentMethod: PaymentMethodType.APPLE_PAY, walletType: 'apple_pay' }),
+        TENANT,
+        USER,
+      );
+
+      expect(mockStripePaymentIntentsCreate).toHaveBeenCalledTimes(2);
+      for (const call of mockStripePaymentIntentsCreate.mock.calls) {
+        expect(call[1]).toEqual({ idempotencyKey: `${TENANT}:${ORDER_ID}:apple_pay` });
+      }
+      expect(paymentCreate).toHaveBeenCalledTimes(1);
+      expect(first.paymentId).toBe('pi_idem_1');
+      expect(second.paymentId).toBe('pi_idem_1');
+    });
+
+    it('derives a distinct idempotency key per wallet type', async () => {
+      process.env.TAP_PAYMENTS_SECRET_KEY = 'sk_test_tap_idem';
+      const fetchSpy = tapFetchMock();
+
+      await service.createWalletPayment(dto({ walletType: 'knet' }), TENANT, USER);
+      await service.createWalletPayment(dto({ walletType: 'benefit' }), TENANT, USER);
+
+      expect(tapRequestBodyIdempotent(fetchSpy, 0)).toBe(`${TENANT}:${ORDER_ID}:knet`);
+      expect(tapRequestBodyIdempotent(fetchSpy, 1)).toBe(`${TENANT}:${ORDER_ID}:benefit`);
+      expect(tapRequestBodyIdempotent(fetchSpy, 0)).not.toBe(tapRequestBodyIdempotent(fetchSpy, 1));
+    });
+
+    it('refuses to create a charge for an already-paid order (409, provider never called)', async () => {
+      process.env.TAP_PAYMENTS_SECRET_KEY = 'sk_test_tap_idem';
+      const fetchSpy = tapFetchMock();
+      paymentFindMany.mockResolvedValue([{ id: 'p1', status: 'PAID' }] as never);
+
+      await expect(service.createWalletPayment(dto(), TENANT, USER)).rejects.toThrow(ConflictException);
+      expect(fetchSpy).not.toHaveBeenCalled();
+      expect(paymentCreate).not.toHaveBeenCalled();
+    });
+
+    it('refuses an order with a REFUNDED payment too (409)', async () => {
+      paymentFindMany.mockResolvedValue([{ id: 'p1', status: 'REFUNDED' }] as never);
+
+      await expect(service.createWalletPayment(dto(), TENANT, USER)).rejects.toThrow(ConflictException);
+      expect(paymentCreate).not.toHaveBeenCalled();
+    });
+
+    it('reuses the existing row when a concurrent insert wins the race (P2002)', async () => {
+      process.env.TAP_PAYMENTS_SECRET_KEY = 'sk_test_tap_idem';
+      jest.spyOn(global, 'fetch').mockResolvedValue({
+        ok: true,
+        status: 200,
+        text: async () => JSON.stringify({ id: 'chg_race_1', status: 'INITIATED' }),
+      } as never);
+
+      // Call order: settled-guard findMany({orderId}) -> [], dedup
+      // findMany({transactionReference}) -> [], create rejects with P2002,
+      // catch re-reads findMany({transactionReference}) -> existing row.
+      paymentFindMany
+        .mockResolvedValueOnce([] as never)
+        .mockResolvedValueOnce([] as never)
+        .mockResolvedValueOnce([{ id: 'p-race' }] as never);
+      paymentCreate.mockRejectedValueOnce({ code: 'P2002' } as never);
+
+      const result = await service.createWalletPayment(dto(), TENANT, USER);
+
+      expect(result.paymentId).toBe('chg_race_1');
+      expect(paymentCreate).toHaveBeenCalledTimes(1);
+      expect(paymentFindMany).toHaveBeenCalledWith({ transactionReference: 'tap_payments:chg_race_1' });
+    });
+
+    it('keeps the POS path unchanged (no key, replay still records)', async () => {
+      await service.createWalletPayment(
+        dto({ paymentMethod: PaymentMethodType.CASH, walletType: 'cash' }),
+        TENANT,
+        USER,
+      );
+      await service.createWalletPayment(
+        dto({ paymentMethod: PaymentMethodType.CASH, walletType: 'cash' }),
+        TENANT,
+        USER,
+      );
+
+      expect(paymentCreate).toHaveBeenCalledTimes(2);
+      expect(paymentCreate).toHaveBeenNthCalledWith(
+        1,
+        expect.objectContaining({ transactionReference: `pos:pos_cash_${ORDER_ID}` }),
+      );
+      expect(paymentCreate).toHaveBeenNthCalledWith(
+        2,
+        expect.objectContaining({ transactionReference: `pos:pos_cash_${ORDER_ID}` }),
+      );
     });
   });
 });
