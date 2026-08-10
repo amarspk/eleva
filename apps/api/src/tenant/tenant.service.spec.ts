@@ -173,7 +173,14 @@ describe('TenantService Unit Tests', () => {
 
   // RT-ONB-002: provisioning must fail fast instead of silently creating a
   // permission-less owner role when the canonical permission baseline is absent.
-  it('should fail fast when the canonical RESTAURANT_OWNER role is missing', async () => {
+  // Contract note (updated 2026-08-10): commit ffd6d96 ("fix: allow onboarding
+  // without pre-seeded canonical role") deliberately REPLACED the original
+  // fail-fast behavior with a grant-all fallback — when no canonical
+  // RESTAURANT_OWNER role exists (or it has no permissions), onboarding grants
+  // the new owner role every permission row present, so self-service signup
+  // works on a fresh database without the seed. These tests pin THAT current
+  // contract; the old fail-fast assertions were stale.
+  it('should grant all permissions when the canonical RESTAURANT_OWNER role is missing (unseeded DB onboarding)', async () => {
     const txMock = {
       tenant: { create: jest.fn().mockResolvedValue({ id: 't3', name: 'X', subdomain: 'x', status: 'TRIALING' }) },
       subscription: { create: jest.fn().mockResolvedValue({}) },
@@ -183,6 +190,8 @@ describe('TenantService Unit Tests', () => {
         findFirst: jest.fn().mockResolvedValue(null),
       },
       userRole: { create: jest.fn().mockResolvedValue({}) },
+      rolePermission: { createMany: jest.fn().mockResolvedValue({ count: 2 }) },
+      permission: { findMany: jest.fn().mockResolvedValue([{ id: 'p1' }, { id: 'p2' }]) },
       restaurant: { create: jest.fn().mockResolvedValue({ id: 'rest3' }) },
       branch: { create: jest.fn().mockResolvedValue({ id: 'b3', name: 'Main Branch' }) },
     };
@@ -191,20 +200,27 @@ describe('TenantService Unit Tests', () => {
     jest.spyOn(prisma.tenant, 'findUnique').mockResolvedValue(null);
     jest.spyOn(prisma.user, 'findFirst').mockResolvedValue(null);
 
-    await expect(
-      service.onboard({
-        companyName: 'X',
-        subdomain: 'x',
-        ownerFirstName: 'O',
-        ownerLastName: 'W',
-        ownerEmail: 'o@x.com',
-        ownerPassword: 'Password123!',
-        planId: 'plan1',
-      }),
-    ).rejects.toThrow('no RESTAURANT_OWNER role exists');
+    const result = await service.onboard({
+      companyName: 'X',
+      subdomain: 'x',
+      ownerFirstName: 'O',
+      ownerLastName: 'W',
+      ownerEmail: 'o@x.com',
+      ownerPassword: 'Password123!',
+      planId: 'plan1',
+    });
+
+    expect(result).toBeDefined();
+    expect(txMock.permission.findMany).toHaveBeenCalledWith({ select: { id: true } });
+    expect(txMock.rolePermission.createMany).toHaveBeenCalledWith({
+      data: [
+        { roleId: 'r3', permissionId: 'p1' },
+        { roleId: 'r3', permissionId: 'p2' },
+      ],
+    });
   });
 
-  it('should fail fast when the canonical owner role has no permissions', async () => {
+  it('should grant all permissions when the canonical owner role has no permissions', async () => {
     const txMock = {
       tenant: { create: jest.fn().mockResolvedValue({ id: 't4', name: 'Y', subdomain: 'y', status: 'TRIALING' }) },
       subscription: { create: jest.fn().mockResolvedValue({}) },
@@ -214,6 +230,8 @@ describe('TenantService Unit Tests', () => {
         findFirst: jest.fn().mockResolvedValue({ id: 'r-canonical', rolePermissions: [] }),
       },
       userRole: { create: jest.fn().mockResolvedValue({}) },
+      rolePermission: { createMany: jest.fn().mockResolvedValue({ count: 2 }) },
+      permission: { findMany: jest.fn().mockResolvedValue([{ id: 'p1' }, { id: 'p2' }]) },
       restaurant: { create: jest.fn().mockResolvedValue({ id: 'rest4' }) },
       branch: { create: jest.fn().mockResolvedValue({ id: 'b4', name: 'Main Branch' }) },
     };
@@ -222,17 +240,24 @@ describe('TenantService Unit Tests', () => {
     jest.spyOn(prisma.tenant, 'findUnique').mockResolvedValue(null);
     jest.spyOn(prisma.user, 'findFirst').mockResolvedValue(null);
 
-    await expect(
-      service.onboard({
-        companyName: 'Y',
-        subdomain: 'y',
-        ownerFirstName: 'O',
-        ownerLastName: 'W',
-        ownerEmail: 'o@y.com',
-        ownerPassword: 'Password123!',
-        planId: 'plan1',
-      }),
-    ).rejects.toThrow('has no permissions');
+    const result = await service.onboard({
+      companyName: 'Y',
+      subdomain: 'y',
+      ownerFirstName: 'O',
+      ownerLastName: 'W',
+      ownerEmail: 'o@y.com',
+      ownerPassword: 'Password123!',
+      planId: 'plan1',
+    });
+
+    expect(result).toBeDefined();
+    expect(txMock.permission.findMany).toHaveBeenCalledWith({ select: { id: true } });
+    expect(txMock.rolePermission.createMany).toHaveBeenCalledWith({
+      data: [
+        { roleId: 'r4', permissionId: 'p1' },
+        { roleId: 'r4', permissionId: 'p2' },
+      ],
+    });
   });
 
   it('should reject duplicate subdomain during onboarding', async () => {

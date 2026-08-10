@@ -44,6 +44,13 @@ describe('TenantContextMiddleware Unit Tests', () => {
   });
 
   it('should reject requests with 403 if subdomain is unmapped', async () => {
+    // Simulate the database answering "no such subdomain" (cache → null) so
+    // control reaches the tenant fail-safe — the verified runtime contract
+    // (unresolved tenant → 403, §19 row 27) — instead of erroring inside the
+    // real prisma lookup, which has no database in unit context and would be
+    // wrapped as the generic 404. Same pattern as the C-2 apex block below.
+    mockCacheService.get.mockImplementation(() => Promise.resolve(null));
+
     const req = {
       headers: {
         host: 'invalid.localhost',

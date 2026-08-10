@@ -5,15 +5,19 @@ import { HttpLoggingMiddleware } from './common/logging/http-logging.middleware'
 import { SanitizationMiddleware } from './common/sanitization/sanitization.middleware';
 
 /**
- * H-2 (DEPLOY-002) wiring regression guard.
+ * H-2 (DEPLOY-002) wiring regression guard — extended 2026-08-10 to the
+ * current verified contract.
  *
  * Verifies the middleware consumer configuration declaratively: the tenant
- * fail-safe (TenantContextMiddleware) must exempt EXACTLY the infrastructure
- * health path ('health') — no more, no less — while every other middleware
- * segment keeps running unexempted on all routes. This protects the fix's
- * two mandated properties at unit level:
- *   1. '/health' is reachable without tenant resolution (infra probes), and
- *   2. tenant protection for every other endpoint is preserved unchanged.
+ * fail-safe (TenantContextMiddleware) must exempt EXACTLY the infra + public
+ * tenant-free paths — 'health' (infrastructure probes, H-2/DEPLOY-002),
+ * 'api/v1/tenants/plans' + 'api/v1/tenants' (public onboarding/signup and
+ * plan listing — added ea8da7d so self-service signup works without an
+ * existing tenant context), and 'api/v1/auth/login' (added ec48f11 so
+ * Platform Owners with tenantId=null can authenticate) — no more, no less,
+ * while every other middleware segment keeps running unexempted on all
+ * routes. The onboarding/login flows were runtime-verified (RT-ONB-001,
+ * Sprint 2 Task 1); this spec pins their middleware wiring.
  */
 interface MiddlewareSegmentRecord {
   middlewares: unknown[];
@@ -58,10 +62,11 @@ describe('AppModule middleware wiring (H-2/DEPLOY-002)', () => {
     expect(calls[3].middlewares).toEqual([TenantContextMiddleware]);
   });
 
-  it('exempts EXACTLY the health path from the tenant fail-safe, served on all other routes', () => {
+  it('exempts EXACTLY the infra + public tenant-free paths from the tenant fail-safe, served on all other routes', () => {
     const calls = captureWiring();
     const tenantSegment = calls[3];
-    expect(tenantSegment.excluded).toEqual(['health']); // path-exact: no wildcards, no deeper paths
+    // path-exact: no wildcards, no deeper paths
+    expect(tenantSegment.excluded).toEqual(['health', 'api/v1/tenants/plans', 'api/v1/tenants', 'api/v1/auth/login']);
     expect(tenantSegment.routes).toEqual(['*']);
   });
 
@@ -76,6 +81,6 @@ describe('AppModule middleware wiring (H-2/DEPLOY-002)', () => {
   it('is the ONLY exemption in the entire consumer configuration', () => {
     const calls = captureWiring();
     const allExclusions = calls.flatMap((c) => c.excluded);
-    expect(allExclusions).toEqual(['health']);
+    expect(allExclusions).toEqual(['health', 'api/v1/tenants/plans', 'api/v1/tenants', 'api/v1/auth/login']);
   });
 });

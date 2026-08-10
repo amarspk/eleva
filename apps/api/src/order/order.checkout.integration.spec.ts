@@ -402,6 +402,13 @@ describe('Order Checkout HTTP Integration Tests', () => {
     mockRestaurant();
     mockProduct();
 
+    // No X-Tenant-ID → the middleware resolves tenancy from the Host
+    // (custom-domain branch). Simulate the DB answering "no such domain"
+    // (cache → null) so the tenant fail-safe returns 403 — the verified
+    // runtime contract — instead of erroring inside the real prisma lookup
+    // (no database in unit context → generic 404 wrap).
+    mockCacheService.get.mockImplementation(() => Promise.resolve(null));
+
     const res = await request(app.getHttpServer())
       .post('/api/v1/orders/checkout')
       .send(checkoutPayload());
