@@ -1,7 +1,7 @@
 # PROJECT STATE — Zayjar Restaurant SaaS Platform
 
 > **Phase 3 — Eleva Builder / Preorder Integration — Update 2026-08-09 (Asia/Dubai)**
-> **Branch:** `phase-3/eleva-builder` | **Latest commit:** `60db09f69883ff315e7143ab06eacc4e15e2955b` (`feat: complete Phase 3 Eleva builder and preorder integration`) | **Remote:** `origin/phase-3/eleva-builder` verified `60db09f`
+> **Branch:** `phase-3/eleva-builder` | **Latest commit:** `793fbefcf53f7b7d4f6cf51755c4303c396bc419` (`docs: update project state after Phase 3`) | **Remote:** `origin/phase-3/eleva-builder` verified `793fbef`
 > **Phase 3 completed work (committed 60db09f, 35 files, 1018 ins / 186 del):**
 > - Public website consumes `TenantDesign.published` only (`public-menu.service.ts` `select:{published:true}` inside `dbTenantContext.run({tenantId})`, `MenuBrowser.tsx` `DesignSections`); draft never exposed
 > - Design builder: `DesignService/Controller/Module` with draft/published/version, `DesignBuilder.tsx` (logo/cover/colors/fonts/navigation/sections/order/enable/disable/variants, auto-save 900ms, undo/redo 50, desktop/mobile preview, publish, version history restore)
