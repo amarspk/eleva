@@ -204,7 +204,9 @@ jobs:
       REDIS_URL: redis://localhost:6379
       JWT_SECRET: zayjar-e2e-live-jwt-secret-00000000000000000000
       JWT_REFRESH_SECRET: zayjar-e2e-live-jwt-refresh-secret-00000000000000
-      NODE_ENV: development
+      # NOTE: no job-level NODE_ENV — a dev value leaked into `next build` and
+      # broke prerendering (<Html>/useContext errors). NODE_ENV is set per step:
+      # production for the production builds/servers, development for the API boot.
       # qr-menu rewrites /api/* to this base (baked at build time AND read at
       # runtime by resolveServerApiBase); the tenant subdomain is required so
       # TenantContextMiddleware can resolve tenancy from the Host header.
@@ -245,12 +247,16 @@ jobs:
         run: pnpm --filter @zayjar/db run prisma:seed
 
       - name: Build all packages
+        env:
+          NODE_ENV: production
         run: pnpm build
 
       - name: Map tenant subdomain to localhost
         run: echo "127.0.0.1 albaik.localhost" | sudo tee -a /etc/hosts
 
       - name: Boot API (compiled dist, port 8000)
+        env:
+          NODE_ENV: development
         run: |
           nohup node apps/api/dist/main.js > /tmp/zayjar-api.log 2>&1 &
           for i in $(seq 1 30); do
@@ -265,6 +271,8 @@ jobs:
           exit 1
 
       - name: Boot QR menu (production build, port 3000)
+        env:
+          NODE_ENV: production
         run: |
           nohup pnpm --filter @zayjar/qr-menu exec next start -p 3000 > /tmp/zayjar-qr.log 2>&1 &
           for i in $(seq 1 30); do
