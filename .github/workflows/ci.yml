@@ -64,6 +64,21 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Generate Prisma client
+        # Same as the build job: the committed generated client predates
+        # Phase 3 (no isPreorder/TenantDesign), so the tests must run against
+        # a client regenerated from the current schema.
+        run: pnpm --filter @zayjar/db run prisma:generate
+
+      - name: Build workspace dependencies (types, db)
+        # Root `pnpm test` (jest, ts-jest) resolves @zayjar/types and
+        # @zayjar/db from their dist outputs — without these builds every api
+        # suite fails to load ("Cannot find module '@zayjar/types'/'@zayjar/db'").
+        # Repository dependency order: types → db → tests.
+        run: |
+          pnpm --filter @zayjar/types build
+          pnpm --filter @zayjar/db build
+
       - name: Run tests
         run: pnpm test
 
