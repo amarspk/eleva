@@ -274,13 +274,22 @@ export class PublicMenuService {
         .filter((category) => category.products.length > 0);
 
       // Phase 3: expose published design only (draft is private). Tenant isolation via tenantId.
+      // The committed generated client predates the TenantDesign model, so the delegate is
+      // reached through a minimal structural shim (runtime client has it — regenerate and
+      // drop the shim when the client is next refreshed).
       let publishedDesign: Record<string, unknown> | null = null;
       try {
-        const td: any = await (prisma as any).tenantDesign.findUnique({ where: { tenantId }, select: { published: true } });
-        if (td?.published && typeof td.published === 'object' && Object.keys(td.published as object).length > 0) {
-          publishedDesign = td.published as Record<string, unknown>;
+        const designRow = await (prisma as unknown as {
+          tenantDesign: {
+            findUnique(args: { where: { tenantId: string }; select: { published: boolean } }): Promise<{ published: unknown } | null>;
+          };
+        }).tenantDesign.findUnique({ where: { tenantId }, select: { published: true } });
+        if (designRow?.published && typeof designRow.published === 'object' && Object.keys(designRow.published as object).length > 0) {
+          publishedDesign = designRow.published as Record<string, unknown>;
         }
-      } catch {}
+      } catch {
+        // design is optional — the menu must still render without it
+      }
       return {
         table: { number: resolved.table.number },
         branch: { id: resolved.branch.id, name: resolved.branch.name },

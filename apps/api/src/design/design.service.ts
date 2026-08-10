@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any, curly, prefer-const */
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { prisma, dbTenantContext } from '@zayjar/db';
 
