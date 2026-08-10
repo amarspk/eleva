@@ -14,8 +14,8 @@
 > **Known verification gaps (NOT VERIFIED LIVE):** Chromium scroll open/close/qty/remove/place (webServer `npx --yes pnpm` overhead still times out 120s, Next boots via `start_process` but Playwright reuse hangs), live PostgreSQL preorder persistence (`DATABASE_URL=UNSET`), live draft-vs-published, live RTL/LTR — all code paths verified, live browser/DB not proved
 > **Remaining risks:** `featured/popular` use placeholder `flatProducts.slice` (no `Product.isFeatured` — explicitly not invented), Prisma 7 `validate` needs `prisma.config.ts`, 5 pre-existing Jest failures must not be hidden, `.git` snapshot wipe (periodically loses `.git/config`)
 > **Exact next recommended task:** Live browser/DB verification in CI with DB + stable Next, then `featured` product selection design decision
-> **Live browser/database verification:** NOT COMPLETED (code-level verified, infra timeout)
-> **Database verification:** NOT COMPLETED (`DATABASE_URL=UNSET`)
+> **Live browser/database verification:** NOT COMPLETED — re-attempted 2026-08-09: `DATABASE_URL=UNSET` (no PostgreSQL), `psql` not found, live DB unavailable; code-level verified only (preorder 4/4, public-menu 16/16, cart memo+scrollRef)
+> **Database verification:** NOT COMPLETED — re-attempted 2026-08-09: `DATABASE_URL=UNSET`, no live DB to verify `isPreorder/scheduledAt` persistence
 
 
 ---
