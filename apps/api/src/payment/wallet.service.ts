@@ -5,6 +5,7 @@ import {
   NotFoundException,
   ServiceUnavailableException,
 } from '@nestjs/common';
+import { createHmac, timingSafeEqual } from 'crypto';
 import { CreateWalletPaymentRequestDto } from './dto/create-wallet-payment-request.dto';
 import { PaymentMethodType } from '@zayjar/types';
 import { dbTenantContext } from '@zayjar/db';
@@ -163,7 +164,7 @@ export class WalletService {
     if (walletType === 'apple_pay' || walletType === 'google_pay') {
       result = await this.createStripeWalletPayment(dto, walletType, provider, tenantId, userId, orderTotal);
     } else if (WalletService.TAP_WALLETS.includes(walletType)) {
-      result = await this.createTapPayment(dto, walletType, provider, orderTotal);
+      result = await this.createTapPayment(dto, walletType, provider, orderTotal, tenantId);
     } else {
       // credit_card / cash are settled at the till, not through a wallet rail.
       result = {
@@ -254,6 +255,7 @@ export class WalletService {
     walletType: string,
     provider: string,
     amount: number,
+    tenantId: string,
   ): Promise<WalletPaymentResult> {
     const tapSecretKey = this.assertProviderConfigured(
       process.env.TAP_PAYMENTS_SECRET_KEY,
@@ -280,6 +282,9 @@ export class WalletService {
             reference: { order: dto.orderId },
             redirect: { url: dto.successUrl },
             customer: dto.customerEmail ? { email: dto.customerEmail } : undefined,
+            // AUDIT-002 Finding #2: echoed back on the webhook and used to
+            // resolve the tenant before any settlement write.
+            metadata: { udf1: tenantId, udf2: dto.orderId },
           }),
         },
       );
@@ -467,6 +472,116 @@ export class WalletService {
     } finally {
       clearTimeout(timer);
     }
+  }
+
+  /**
+   * ISO-standard decimal places per currency (Tap webhook hashstring
+   * rounding; Tap official docs). Unknown currencies default to 2.
+   */
+  private static readonly CURRENCY_DECIMALS: Record<string, number> = {
+    KWD: 3,
+    BHD: 3,
+    OMR: 3,
+    JOD: 3,
+    AED: 2,
+    SAR: 2,
+    QAR: 2,
+    USD: 2,
+    EUR: 2,
+    GBP: 2,
+    EGP: 2,
+  };
+
+  /**
+   * Computes the official Tap webhook `hashstring`: HMAC-SHA256 (hex) of the
+   * concatenation of posted charge fields —
+   *   x_id{id}x_amount{amount}x_currency{currency}x_gateway_reference{gateway}
+   *   x_payment_reference{payment}x_status{status}x_created{created}
+   * with `amount` rounded to the currency's ISO-standard decimals.
+   * (AUDIT-002 Finding #2; per developers.tap.company/docs/webhook.)
+   */
+  private computeTapHashstring(payload: Record<string, unknown>, secretKey: string): string {
+    const reference = (payload.reference as Record<string, unknown>) ?? {};
+    const transaction = (payload.transaction as Record<string, unknown>) ?? {};
+
+    const id = String(payload.id ?? '');
+    const currency = String(payload.currency ?? '');
+    const decimals = WalletService.CURRENCY_DECIMALS[currency] ?? 2;
+    const amount = Number(payload.amount).toFixed(decimals);
+    const gatewayReference = String(reference.gateway ?? '');
+    const paymentReference = String(reference.payment ?? '');
+    const status = String(payload.status ?? '');
+    const created = String(transaction.created ?? '');
+
+    const toBeHashed =
+      `x_id${id}x_amount${amount}x_currency${currency}` +
+      `x_gateway_reference${gatewayReference}x_payment_reference${paymentReference}` +
+      `x_status${status}x_created${created}`;
+
+    return createHmac('sha256', secretKey).update(toBeHashed).digest('hex');
+  }
+
+  /**
+   * Handles the Tap Payments webhook (server-to-server POST of the raw charge
+   * object for CAPTURED / FAILED transactions only).
+   *
+   * AUDIT-002 Finding #2: the previously implemented `settleFromWebhook` had
+   * zero production callers. This is the verified inbound path:
+   *   1. Fail closed (503) in production when TAP_PAYMENTS_SECRET_KEY is
+   *      missing — mirroring the Stripe webhook behaviour (Finding #1).
+   *   2. Verify the official `hashstring` header (HMAC-SHA256, constant-time)
+   *      BEFORE any state change; forged payloads get 400.
+   *   3. Resolve the tenant ONLY from the verified `metadata.udf1` (written at
+   *      charge creation) and settle via the tenant-scoped
+   *      `settleFromWebhook` — an unscoped write is impossible.
+   * Tap retries twice on failure; a 200 acknowledges the post.
+   */
+  async handleTapWebhook(
+    payload: Record<string, unknown>,
+    hashstringHeader: string | undefined,
+  ): Promise<{ received: boolean }> {
+    const secretKey = process.env.TAP_PAYMENTS_SECRET_KEY;
+    if (!secretKey) {
+      if (process.env.NODE_ENV === 'production') {
+        this.logger.error(
+          'TAP_PAYMENTS_SECRET_KEY is not configured in production — refusing to process the Tap webhook (fail closed).',
+        );
+        throw new ServiceUnavailableException(
+          'Tap webhook processing is unavailable: TAP_PAYMENTS_SECRET_KEY is not configured.',
+        );
+      }
+      this.logger.warn('TAP_PAYMENTS_SECRET_KEY not configured, skipping hashstring verification (dev mode).');
+    } else {
+      if (!hashstringHeader) {
+        throw new BadRequestException('Missing Tap hashstring header');
+      }
+      const computed = this.computeTapHashstring(payload, secretKey);
+      const expected = Buffer.from(computed, 'hex');
+      const provided = Buffer.from(hashstringHeader, 'hex');
+      if (expected.length !== provided.length || !timingSafeEqual(expected, provided)) {
+        this.logger.warn('Tap webhook rejected: hashstring verification failed.');
+        throw new BadRequestException('Tap webhook signature verification failed');
+      }
+    }
+
+    const metadata = payload.metadata as Record<string, unknown> | undefined;
+    const tenantId = metadata?.udf1 ? String(metadata.udf1) : undefined;
+    if (!tenantId) {
+      this.logger.warn('Tap webhook carried no metadata.udf1 — cannot resolve the tenant, skipping settlement.');
+      return { received: true };
+    }
+
+    const chargeId = String(payload.id ?? '');
+    const status = String(payload.status ?? '').toUpperCase();
+    if (status === 'CAPTURED') {
+      await this.settleFromWebhook(chargeId, tenantId, true);
+    } else if (status === 'FAILED' || status === 'DECLINED' || status === 'CANCELLED') {
+      await this.settleFromWebhook(chargeId, tenantId, false);
+    } else {
+      this.logger.log(`Tap webhook status [${status}] for [${chargeId}] — no state change.`);
+    }
+
+    return { received: true };
   }
 
   /**

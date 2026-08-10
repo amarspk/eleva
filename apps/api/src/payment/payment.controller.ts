@@ -1,7 +1,8 @@
-import { Controller, Post, Get, Body, Param, Req, UseGuards, HttpCode, HttpStatus, ForbiddenException } from '@nestjs/common';
+import { Controller, Post, Get, Body, Param, Req, UseGuards, HttpCode, HttpStatus, ForbiddenException, Headers } from '@nestjs/common';
 import { WalletService, VerifyPaymentResult, WalletPaymentResult } from './wallet.service';
 import { CreateWalletPaymentRequestDto } from './dto/create-wallet-payment-request.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { Public } from '../auth/decorators/public.decorator';
 import { AuthenticatedRequest } from '../common/types/request.types';
 
 @Controller('api/v1/payments')
@@ -47,5 +48,23 @@ export class PaymentController {
       throw new ForbiddenException('Tenant context missing');
     }
     return this.walletService.verifyPayment(paymentId, user.tenantId);
+  }
+
+  /**
+   * POST /api/v1/payments/webhooks/tap
+   * Tap Payments webhook (KNET / Benefit / Mada charge events).
+   * Public: Tap cannot present a JWT. The official `hashstring` HMAC-SHA256
+   * header is verified inside WalletService BEFORE any state change
+   * (AUDIT-002 Finding #2); the tenant is resolved from verified
+   * metadata.udf1 only.
+   */
+  @Public()
+  @Post('webhooks/tap')
+  @HttpCode(HttpStatus.OK)
+  async handleTapWebhook(
+    @Body() body: Record<string, unknown>,
+    @Headers('hashstring') hashstring?: string,
+  ): Promise<{ received: boolean }> {
+    return this.walletService.handleTapWebhook(body, hashstring);
   }
 }
