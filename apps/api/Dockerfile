@@ -29,6 +29,10 @@ RUN pnpm install --frozen-lockfile
 # STAGE 2: COMPILE SOURCE BUILDERS
 # ==========================================
 FROM node:20-alpine AS builder
+# Same toolchain as deps: the `pnpm install --prod` below re-runs argon2's
+# node-gyp postinstall, which compiles from source and needs python3/make/g++.
+# openssl-dev keeps Prisma's engine detection working through the build.
+RUN apk add --no-cache libc6-compat python3 make g++ openssl-dev
 WORKDIR /app
 RUN npm install -g pnpm
 
@@ -49,6 +53,10 @@ RUN pnpm --filter @zayjar/db run prisma:generate
 RUN pnpm run build
 
 # Strip development modules to reduce container size
+# CI=true: pnpm otherwise aborts the dev-modules purge with
+# ERR_PNPM_ABORTED_REMOVE_MODULES_DIR_NO_TTY ("set the CI environment
+# variable to 'true', or set confirmModulesPurge to 'false'").
+ENV CI=true
 RUN pnpm install --prod --frozen-lockfile
 
 # ==========================================
