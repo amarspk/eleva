@@ -16,6 +16,9 @@ RUN npm install -g pnpm
 # Copy workspace package manifests
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/api/package.json ./apps/api/
+COPY apps/qr-menu/package.json ./apps/qr-menu/
+COPY apps/backoffice/package.json ./apps/backoffice/
+COPY apps/cashier/package.json ./apps/cashier/
 COPY packages/db/package.json ./packages/db/
 COPY packages/types/package.json ./packages/types/
 
@@ -31,6 +34,9 @@ RUN npm install -g pnpm
 
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/apps/api/node_modules ./apps/api/node_modules
+COPY --from=deps /app/apps/qr-menu/node_modules ./apps/qr-menu/node_modules
+COPY --from=deps /app/apps/backoffice/node_modules ./apps/backoffice/node_modules
+COPY --from=deps /app/apps/cashier/node_modules ./apps/cashier/node_modules
 COPY --from=deps /app/packages/db/node_modules ./packages/db/node_modules
 COPY --from=deps /app/packages/types/node_modules ./packages/types/node_modules
 
