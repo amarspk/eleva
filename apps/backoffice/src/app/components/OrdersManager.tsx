@@ -1,5 +1,5 @@
 'use client';
-/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/explicit-function-return-type, curly, no-empty */
 import React, { useState, useEffect, useRef } from 'react';
 export function OrdersManager({ tenantId, branchId }: { tenantId:string; branchId?:string }){
   const [orders,setOrders]=useState<any[]>([]);

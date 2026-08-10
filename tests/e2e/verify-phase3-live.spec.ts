@@ -27,6 +27,7 @@ let branchId: string;
 let token: string;
 let productId: string;
 let productName: string;
+let products3: Array<{ id: string; name: string }>;
 
 test.beforeAll(async () => {
   const tenant = await prisma.tenant.findUnique({ where: { subdomain: 'albaik' } });
@@ -41,13 +42,21 @@ test.beforeAll(async () => {
       orderBy: { name: 'asc' },
     });
     expect(product, 'seeded active product must exist').not.toBeNull();
-    return { table, product };
+    const three = await prisma.product.findMany({
+      where: { isAvailable: true, deletedAt: null },
+      orderBy: { name: 'asc' },
+      take: 3,
+      select: { id: true, name: true },
+    });
+    expect(three.length).toBe(3);
+    return { table, product, three };
   });
 
   token = ctx.table!.qrCodeToken;
   branchId = ctx.table!.branchId;
   productId = ctx.product!.id;
   productName = ctx.product!.name;
+  products3 = ctx.three!;
 });
 
 test.describe('Phase 3 LIVE — real stack, no mocks', () => {
@@ -238,6 +247,56 @@ test.describe('Phase 3 LIVE — real stack, no mocks', () => {
       expect(serialized).not.toContain(markerDraft);
     } finally {
       // restore pristine state
+      await dbTenantContext.run({ tenantId }, async () => {
+        return prisma.tenantDesign.delete({ where: { tenantId } });
+      });
+    }
+  });
+
+  test('6. live featured section renders EXACTLY the selected products (productIds, order preserved)', async ({ page }) => {
+    const [pA, pB, pC] = products3; // alphabetical by name
+    // deliberately reversed selection order to prove order preservation,
+    // and pC omitted to prove non-selected products are not rendered
+    const featuredConfig = { variant: 'grid', productIds: [pB.id, pA.id] };
+
+    await dbTenantContext.run({ tenantId }, async () => {
+      const existing = await prisma.tenantDesign.findUnique({ where: { tenantId } });
+      const data = {
+        draft: { sections: [] },
+        published: {
+          sections: [
+            { id: 'featured', type: 'featured', enabled: true, order: 0, config: featuredConfig },
+          ],
+        },
+        version: existing ? existing.version + 1 : 1,
+        publishedAt: new Date(),
+      };
+      if (existing) {
+        await prisma.tenantDesign.update({ where: { tenantId }, data });
+      } else {
+        await prisma.tenantDesign.create({ data });
+      }
+    });
+
+    try {
+      await page.goto(`${QR_BASE}/?t=${encodeURIComponent(token)}`);
+      await page.waitForLoadState('domcontentloaded');
+
+      // both selected products are rendered
+      await expect(page.locator(`text=${pB.name}`).first()).toBeVisible({ timeout: 15000 });
+      await expect(page.locator(`text=${pA.name}`).first()).toBeVisible();
+
+      // the non-selected product is NOT rendered anywhere
+      await expect(page.locator(`text=${pC.name}`)).toHaveCount(0);
+
+      // display order follows productIds ([pB, pA]), not alphabetical
+      const boxB = await page.locator(`text=${pB.name}`).first().boundingBox();
+      const boxA = await page.locator(`text=${pA.name}`).first().boundingBox();
+      expect(boxB).not.toBeNull();
+      expect(boxA).not.toBeNull();
+      expect(boxB!.x).toBeLessThan(boxA!.x);
+    } finally {
+      // restore pristine state (no TenantDesign row)
       await dbTenantContext.run({ tenantId }, async () => {
         return prisma.tenantDesign.delete({ where: { tenantId } });
       });

@@ -48,7 +48,7 @@ function ShellContent(): React.ReactElement {
     window.location.href = '/login';
   };
 
-  const tenantId = (session as any)?.user?.tenantId || (session as any)?.tenantId || 'demo-tenant';
+  const tenantId = session?.user?.tenantId || session?.tenantId || 'demo-tenant';
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="flex items-center justify-between bg-white px-6 py-3 shadow-sm">

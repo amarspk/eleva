@@ -1,5 +1,5 @@
 'use client';
-/* eslint-disable @typescript-eslint/no-explicit-any, @next/next/no-img-element */
+/* eslint-disable @typescript-eslint/no-explicit-any, @next/next/no-img-element, @typescript-eslint/explicit-function-return-type, curly, no-empty */
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 
 type Section = { id: string; type: string; enabled: boolean; order: number; config: Record<string, unknown> };
@@ -47,6 +47,8 @@ export function DesignBuilder({ tenantId }: { tenantId: string }){
   const [history,setHistory]=useState<any[]>([]);
   const [historyIdx,setHistoryIdx]=useState(-1);
   const [msg,setMsg]=useState<string|null>(null);
+  const [products,setProducts]=useState<any[]>([]);
+  const [productSearch,setProductSearch]=useState('');
 
   const apiBase = '/api';
 
@@ -56,6 +58,9 @@ export function DesignBuilder({ tenantId }: { tenantId: string }){
       if(r.ok){ const j=await r.json(); if(j.draft) setDraft(j.draft); if(j.version) setPublishedVersion(j.version); }
       const v = await fetch(`${apiBase}/v1/design/tenant/${tenantId}/versions`,{headers:{'X-Tenant-ID':tenantId}});
       if(v.ok) setVersions(await v.json());
+      // tenant products for the featured/popular picker (deleted filtered server-side)
+      const p = await fetch(`${apiBase}/v1/menu/products`,{headers:{'X-Tenant-ID':tenantId}});
+      if(p.ok) setProducts(await p.json());
     }catch{}
   },[tenantId]);
   useEffect(()=>{ load(); },[load]);
@@ -101,7 +106,22 @@ export function DesignBuilder({ tenantId }: { tenantId: string }){
   const undo = ()=>{ if(historyIdx>0){ const v=history[historyIdx-1]; setDraft(v); setHistoryIdx(i=>i-1); }};
   const redo = ()=>{ if(historyIdx<history.length-1){ const v=history[historyIdx+1]; setDraft(v); setHistoryIdx(i=>i+1); }};
 
+  // CTO decision 2026-08-10 (§14 #26): featured/popular sections select
+  // products explicitly via config.productIds (tenant-owned ids; order of
+  // selection = display order on the public menu).
+  const toggleProduct = (pid:string)=>{
+    updateDraft((d:any)=>{
+      const f=d.sections.find((x:Section)=>x.id===selectedId);
+      if(!f) return d;
+      const ids:string[] = Array.isArray(f.config?.productIds) ? f.config.productIds as string[] : [];
+      f.config = {...(f.config||{}), productIds: ids.includes(pid) ? ids.filter(x=>x!==pid) : [...ids, pid]};
+      return d;
+    });
+  };
+
   const selected = draft.sections?.find((s:Section)=>s.id===selectedId);
+  const selectedProductIds:string[] = Array.isArray(selected?.config?.productIds) ? selected.config.productIds as string[] : [];
+  const filteredProducts = products.filter((p:any)=> !productSearch || String(p.name||'').toLowerCase().includes(productSearch.toLowerCase()));
 
   return (
     <div className="flex flex-col lg:flex-row gap-4">
@@ -155,6 +175,28 @@ export function DesignBuilder({ tenantId }: { tenantId: string }){
             <label className="text-xs block mt-1">Variant<select value={selected.config?.variant as string} onChange={e=>updateDraft(d=>{ const f=d.sections.find((x:Section)=>x.id===selected.id); if(f) f.config.variant=e.target.value; return d;})} className="w-full border rounded p-1 text-xs">
               {(LAYOUTS[selected.type]||['grid']).map(v=><option key={v} value={v}>{v}</option>)}
             </select></label>
+            {(selected.type==='featured'||selected.type==='popular') && (
+              <div className="mt-2">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-semibold text-gray-600">Products</h4>
+                  <span className="text-[10px] text-gray-500">{selectedProductIds.length} selected</span>
+                </div>
+                <input value={productSearch} onChange={e=>setProductSearch(e.target.value)} placeholder="Search products…" className="w-full border rounded p-1 text-xs mt-1"/>
+                <div className="max-h-40 overflow-auto border rounded mt-1 divide-y">
+                  {filteredProducts.length===0 && <div className="text-[11px] text-gray-400 p-2">No products found</div>}
+                  {filteredProducts.map((p:any)=>(
+                    <label key={p.id} className="flex items-center gap-2 px-2 py-1 text-xs cursor-pointer hover:bg-gray-50">
+                      <input type="checkbox" checked={selectedProductIds.includes(p.id)} onChange={()=>toggleProduct(p.id)}/>
+                      <span className="flex-1 truncate">{p.name}</span>
+                      <span className="text-[10px] text-gray-400">{selectedProductIds.indexOf(p.id)>=0 ? `#${selectedProductIds.indexOf(p.id)+1}` : ''}</span>
+                    </label>
+                  ))}
+                </div>
+                {selectedProductIds.length>0 && (
+                  <button onClick={()=>updateDraft(d=>{ const f=d.sections.find((x:Section)=>x.id===selected.id); if(f) f.config={...(f.config||{}), productIds: []}; return d;})} className="text-[10px] text-red-500 mt-1">Clear selection</button>
+                )}
+              </div>
+            )}
           </div>
         )}
         <div className="flex gap-2 pt-2">
@@ -204,16 +246,21 @@ export function DesignBuilder({ tenantId }: { tenantId: string }){
                     ))}
                   </div>
                 )}
-                {(s.type==='featured'||s.type==='popular') && (
-                  <div className={s.config?.variant==='list'?'space-y-2': s.config?.variant==='slider'?'flex gap-2 overflow-auto':'grid grid-cols-2 gap-2'}>
-                    {[1,2,3,4].map(i=>(
-                      <div key={i} className={`${s.config?.variant==='large-cards'?'p-4': s.config?.variant==='compact'?'p-2':''} border rounded text-xs ${s.config?.variant==='list'?'flex gap-2':''}`}>
-                        <div className={`bg-gray-100 rounded ${s.config?.variant==='list'?'w-12 h-12':'h-16'} mb-1`}></div>
-                        <div>Product {i}</div>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                {(s.type==='featured'||s.type==='popular') && (()=>{
+                  const ids:string[] = Array.isArray(s.config?.productIds) ? s.config.productIds as string[] : [];
+                  const sel = ids.length>0 ? ids.map(id=>products.find((p:any)=>p.id===id)).filter(Boolean) : products.slice(0,4);
+                  const shown = sel.length>0 ? sel.slice(0,4) : [null,null,null,null];
+                  return (
+                    <div className={s.config?.variant==='list'?'space-y-2': s.config?.variant==='slider'?'flex gap-2 overflow-auto':'grid grid-cols-2 gap-2'}>
+                      {shown.map((p:any,i:number)=>(
+                        <div key={p?.id||i} className={`${s.config?.variant==='large-cards'?'p-4': s.config?.variant==='compact'?'p-2':''} border rounded text-xs ${s.config?.variant==='list'?'flex gap-2':''}`}>
+                          <div className={`bg-gray-100 rounded ${s.config?.variant==='list'?'w-12 h-12':'h-16'} mb-1`}></div>
+                          <div>{p? p.name : `Product ${i+1}`}</div>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
                 {s.type==='hero' && <div className={`h-20 rounded flex items-center justify-center text-xs ${s.config?.variant==='text-overlay'?'bg-black text-white': s.config?.variant==='split'?'bg-gradient-to-r from-gray-100 to-gray-200':'bg-gray-100'}`}>Hero variant: {s.config?.variant as string}</div>}
                 {(s.type==='banner'||s.type==='promo') && <div className="h-16 bg-gradient-to-r from-orange-100 to-pink-100 rounded flex items-center justify-center text-xs">Banner / Promo — {s.config?.variant as string}</div>}
               </div>

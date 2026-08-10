@@ -1,5 +1,5 @@
 import React from 'react';
-export default function ElevaLanding(){
+export default function ElevaLanding(): React.ReactElement {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-black text-white">
       <header className="max-w-6xl mx-auto flex justify-between items-center px-6 py-6">

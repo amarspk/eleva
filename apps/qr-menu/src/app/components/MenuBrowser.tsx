@@ -17,28 +17,13 @@ import {
 } from '../lib/types';
 import { computeCartItemCount, computeCartSubtotal, computeUnitPrice, cartItemKey } from '../lib/pricing';
 import { buildCheckoutPayload, submitGuestOrder } from '../lib/guest-api';
+import { resolveSectionProducts } from '../lib/design-sections';
+import type { DesignSection, TenantDesignPayload } from '../lib/design-sections';
 import { formatPrice } from '../lib/format';
 
 type AddonGroup = PublicAddonGroup;
 type Size = PublicProductSize;
 type Variant = PublicProductVariant;
-
-// Phase 3: the published TenantDesign payload is free-form JSON from the DB;
-// this structural subset is what DesignSections actually consumes.
-interface DesignSection {
-  id?: string;
-  type: string;
-  enabled?: boolean;
-  order?: number;
-  config?: { variant?: string };
-}
-
-interface TenantDesignPayload {
-  colors?: { primary?: string };
-  sections?: DesignSection[];
-  logo?: string;
-  coverImage?: string;
-}
 
 interface MenuBrowserProps {
   initialData: PublicMenuResponse;
@@ -132,7 +117,10 @@ function DesignSections({ design, categories, primaryColor, currency, onSelect, 
           return <div key={sec.id} className="flex gap-2 overflow-x-auto pb-2">{categories.map((c: PublicCategory) => <button key={c.id} className="shrink-0 px-3 py-1 rounded-full text-xs font-semibold border">{c.name}</button>)}</div>;
         }
         if (sec.type==='featured' || sec.type==='popular') {
-          const prods = flatProducts.slice(sec.type==='popular'?4:0, sec.type==='popular'?8:4);
+          // CTO decision 2026-08-10 (§14 #26): explicit config.productIds
+          // selection, order-preserving; legacy slice fallback only for
+          // designs published before the decision.
+          const prods = resolveSectionProducts(sec, flatProducts);
           if (v==='list') return <div key={sec.id} className="space-y-2"><div className="text-sm font-bold capitalize">{sec.type}</div>{prods.map((pr: PublicProduct) => <div key={pr.id} onClick={()=>onSelect(pr)} className="bg-white border rounded-xl p-3 flex gap-3 cursor-pointer"><img src={pr.imageUrl||''} alt="" className="w-12 h-12 rounded bg-gray-100 object-cover"/><div className="flex-1"><div className="text-sm font-semibold">{pr.name}</div><div className="text-xs text-gray-500">{pr.description?.slice(0,40)}</div><div className="text-xs font-bold">{formatPrice(Number(pr.basePrice),currency)}</div></div></div>)}</div>;
           if (v==='large-cards') return <div key={sec.id}><div className="text-sm font-bold capitalize mb-2">{sec.type}</div><div className="grid gap-3">{prods.map((pr: PublicProduct) => <div key={pr.id} onClick={()=>onSelect(pr)} className="bg-white border rounded-xl p-4 cursor-pointer"><div className="h-28 bg-gray-100 rounded-lg mb-2"/><div className="font-semibold text-sm">{pr.name}</div><div className="text-xs text-gray-500 line-clamp-2">{pr.description}</div><div className="font-bold mt-1">{formatPrice(Number(pr.basePrice),currency)}</div></div>)}</div></div>;
           if (v==='compact') return <div key={sec.id}><div className="text-sm font-bold capitalize mb-2">{sec.type}</div><div className="grid grid-cols-3 gap-2">{prods.map((pr: PublicProduct) => <div key={pr.id} onClick={()=>onSelect(pr)} className="bg-white border rounded-lg p-2 cursor-pointer text-center"><div className="h-12 bg-gray-100 rounded mb-1"/><div className="text-[11px] font-semibold line-clamp-1">{pr.name}</div><div className="text-[10px] font-bold">{formatPrice(Number(pr.basePrice),currency)}</div></div>)}</div></div>;

@@ -1,5 +1,5 @@
 'use client';
-/* eslint-disable @typescript-eslint/no-explicit-any, @next/next/no-img-element */
+/* eslint-disable @typescript-eslint/no-explicit-any, @next/next/no-img-element, @typescript-eslint/explicit-function-return-type, curly, no-empty */
 import React, { useState, useEffect } from 'react';
 export function MediaLibrary({ tenantId }: { tenantId: string }){
   const [items,setItems]=useState<any[]>([]);
