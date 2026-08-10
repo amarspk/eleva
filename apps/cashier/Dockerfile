@@ -20,6 +20,10 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/apps/cashier/node_modules ./apps/cashier/node_modules
 COPY --from=deps /app/packages/types/node_modules ./packages/types/node_modules
 COPY . .
+# The frontends import @zayjar/types (shared enums) from its dist output —
+# build it before the app build, otherwise `next build` fails with
+# "Cannot find module '@zayjar/types'".
+RUN pnpm --filter @zayjar/types build
 RUN pnpm --filter @zayjar/cashier build
 
 # ==========================================
