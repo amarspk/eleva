@@ -573,7 +573,7 @@ export class WalletService {
         return {
           status,
           settled: status === 'CAPTURED',
-          failed: status === 'FAILED' || status === 'DECLINED' || status === 'CANCELLED',
+          failed: WalletService.TAP_FAILED_STATUSES.has(status),
         };
       } catch (err) {
         this.logger.error(`Tap verification failed for [${paymentId}]: ${(err as Error).message}`);
@@ -625,6 +625,29 @@ export class WalletService {
     GBP: 2,
     EGP: 2,
   };
+
+  /**
+   * Official Tap charge failure statuses per developers.tap.company
+   * (reference/charges.md): "ABANDONED, CANCELLED, FAILED, DECLINED,
+   * RESTRICTED, VOID, TIMEDOUT, UNKNOWN — Payment failed."
+   *
+   * AUDIT-002 Finding #7: the previous mapping recognized only
+   * FAILED/DECLINED/CANCELLED, so a charge ending in ABANDONED, RESTRICTED,
+   * VOID, TIMEDOUT or UNKNOWN left the Payment row PENDING forever. Shared by
+   * the polling path (fetchProviderStatus) and the webhook path
+   * (handleTapWebhook) so the two can never drift apart. CAPTURED (settled)
+   * and INITIATED (non-terminal) are intentionally NOT in this set.
+   */
+  private static readonly TAP_FAILED_STATUSES = new Set([
+    'FAILED',
+    'DECLINED',
+    'CANCELLED',
+    'ABANDONED',
+    'RESTRICTED',
+    'VOID',
+    'TIMEDOUT',
+    'UNKNOWN',
+  ]);
 
   /**
    * Computes the official Tap webhook `hashstring`: HMAC-SHA256 (hex) of the
@@ -709,7 +732,7 @@ export class WalletService {
     const status = String(payload.status ?? '').toUpperCase();
     if (status === 'CAPTURED') {
       await this.settleFromWebhook(chargeId, tenantId, true);
-    } else if (status === 'FAILED' || status === 'DECLINED' || status === 'CANCELLED') {
+    } else if (WalletService.TAP_FAILED_STATUSES.has(status)) {
       await this.settleFromWebhook(chargeId, tenantId, false);
     } else {
       this.logger.log(`Tap webhook status [${status}] for [${chargeId}] — no state change.`);

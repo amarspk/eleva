@@ -163,6 +163,55 @@ describe('WalletService (AUDIT-002 — real payments)', () => {
       );
       expect(paymentUpdate).not.toHaveBeenCalled();
     });
+
+    // ==========================================
+    // AUDIT-002 Finding #7 — Tap status map (polling path)
+    // ==========================================
+    // Official Tap failure statuses (reference/charges.md): ABANDONED,
+    // CANCELLED, FAILED, DECLINED, RESTRICTED, VOID, TIMEDOUT, UNKNOWN. The
+    // previously missing five must settle the PENDING row to FAILED instead
+    // of leaving it PENDING forever.
+    it.each(['ABANDONED', 'RESTRICTED', 'VOID', 'TIMEDOUT', 'UNKNOWN'])(
+      'settles a Tap charge reported as %s to FAILED (never left PENDING)',
+      async (providerStatus) => {
+        process.env.TAP_PAYMENTS_SECRET_KEY = 'sk_test_tap_status';
+        paymentFindMany.mockResolvedValue([
+          { id: 'p1', orderId: ORDER_ID, status: 'PENDING', amount: '42.55', transactionReference: 'tap_payments:chg_status_1' },
+        ] as never);
+        jest.spyOn(global, 'fetch').mockResolvedValue({
+          ok: true,
+          status: 200,
+          text: async () => JSON.stringify({ id: 'chg_status_1', status: providerStatus }),
+        } as never);
+
+        const result = await service.verifyPayment('chg_status_1', TENANT);
+
+        expect(paymentUpdate).toHaveBeenCalledWith(
+          'p1',
+          expect.objectContaining({ status: 'FAILED', completedAt: null }),
+        );
+        expect(result.status).toBe('FAILED');
+        expect(result.verified).toBe(false);
+      },
+    );
+
+    it('keeps INITIATED non-terminal on the Tap polling path (PENDING preserved)', async () => {
+      process.env.TAP_PAYMENTS_SECRET_KEY = 'sk_test_tap_status';
+      paymentFindMany.mockResolvedValue([
+        { id: 'p1', orderId: ORDER_ID, status: 'PENDING', amount: '42.55', transactionReference: 'tap_payments:chg_init_1' },
+      ] as never);
+      jest.spyOn(global, 'fetch').mockResolvedValue({
+        ok: true,
+        status: 200,
+        text: async () => JSON.stringify({ id: 'chg_init_1', status: 'INITIATED' }),
+      } as never);
+
+      const result = await service.verifyPayment('chg_init_1', TENANT);
+
+      expect(paymentUpdate).not.toHaveBeenCalled();
+      expect(result.status).toBe('PENDING');
+      expect(result.verified).toBe(false);
+    });
   });
 
   // ==========================================
@@ -403,6 +452,37 @@ describe('WalletService (AUDIT-002 — real payments)', () => {
       expect(result.received).toBe(true);
       expect(paymentUpdate).toHaveBeenCalledWith('p2', expect.objectContaining({ status: 'FAILED' }));
     });
+
+    // AUDIT-002 Finding #7 — the remaining official Tap failure statuses
+    // (reference/charges.md) must settle to FAILED through the same path as
+    // FAILED/DECLINED/CANCELLED. Hashstrings are computed with the same
+    // literal official concatenation convention as the fixtures above.
+    it.each(['RESTRICTED', 'VOID', 'TIMEDOUT', 'UNKNOWN'])(
+      'settles a %s webhook as FAILED (same path as FAILED/DECLINED/CANCELLED)',
+      async (webhookStatus) => {
+        paymentFindMany.mockResolvedValue([{ id: 'p2' }] as never);
+        const created = '1698392202999';
+        const id = `chg_audit002_${webhookStatus.toLowerCase()}`;
+        const hash = hmac(
+          `x_id${id}x_amount42.550x_currencyKWD` +
+            `x_gateway_referencekw.knetx_payment_reference${id}` +
+            `x_status${webhookStatus}x_created${created}`,
+        );
+
+        const result = await service.handleTapWebhook(
+          tapPayload({
+            id,
+            status: webhookStatus,
+            reference: { gateway: 'kw.knet', payment: id },
+            transaction: { created },
+          }),
+          hash,
+        );
+
+        expect(result.received).toBe(true);
+        expect(paymentUpdate).toHaveBeenCalledWith('p2', expect.objectContaining({ status: 'FAILED' }));
+      },
+    );
 
     it('ignores an unknown charge id without throwing (200 ack)', async () => {
       paymentFindMany.mockResolvedValue([] as never);
