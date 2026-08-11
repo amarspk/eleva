@@ -12,7 +12,7 @@
 > **Verified tests/results (no invention):** `preorder.spec.ts` 4/4 PASS, `order.service.spec.ts` 27/27 PASS, `public-menu.controller.spec.ts` 16/16 PASS; full `jest --runInBand` 82 passed / 5 failed pre-existing (identical to main) + 1 skipped; `pnpm --filter @zayjar/db build` green; `next dev` boots `✓ Ready in 1.6s` `GET / 200`; **live browser/DB 6/6 PASS (2026-08-10, §19 rows 38+39)**
 > **Known verification gaps (NOT VERIFIED LIVE):** live RTL/LTR only (all other Phase 3 gaps closed 2026-08-10 — §19 rows 38+39)
 > **Remaining risks:** Prisma 7 `validate` needs `prisma.config.ts`, 5 pre-existing Jest failures must not be hidden, `.git` snapshot wipe (periodically loses `.git/config`), GitHub-hosted `e2e-live` run = environment of record (local native run is the documented equivalent, §14 decision-12 pattern; PG 15 vs 17.10 — both Prisma-supported)
-> **Exact next recommended task:** AUDIT-002 (real Tap/Stripe payment verification) — §23 item 23 (AUDIT-001 CSS pipeline verified intact §19 row 45; fully green CI §19 row 44)
+> **Exact next recommended task:** AUDIT-002 Finding #5 (RBAC) — requires explicit approval per one-step-at-a-time protocol
 > **Featured/popular product selection:** ✅ COMPLETED 2026-08-10 — decision §14 #26, implementation + live verification 6/6 (details §19 row 39)
 
 
