@@ -239,6 +239,17 @@ async function main(): Promise<void> {
     // restaurantId, but nothing exposed one (GET /api/v1/restaurants was a hard
     // 404). Mirrored by migration 20260804020000_restaurant_read_permission.
     { id: 'e639eecc-9662-4413-b0fa-7268801aca3f', action: 'read', resource: 'restaurant', description: 'View restaurant brands' },
+    // AUDIT-002 Finding #5 (RBAC). The wallet payment endpoints require the
+    // `payment:create` / `payment:read` permissions (CASL vocabulary, matching
+    // the guard's Subjects union). The owner is linked to EVERY row, so seeded
+    // and onboarded owners gain both automatically. MANAGER/CASHIER receive
+    // `payment:read` via the resource-list filters below ('payment' added to
+    // their lists); `payment:create` is a CASL verb the read/write filters
+    // never match, so it gets explicit rolePermission links for both roles.
+    // KITCHEN_STAFF is deliberately not granted either. Mirrored by migration
+    // 20260811010000_payment_permissions for upgraded databases.
+    { id: '328a0aa5-0576-4750-87bb-01ba2c283f74', action: 'create', resource: 'payment', description: 'Create wallet payments' },
+    { id: 'fec355e8-c91f-45b6-83b7-fbb957c180ae', action: 'read', resource: 'payment', description: 'View wallet payments' },
   ];
 
   const permissions = await Promise.all(
@@ -314,8 +325,10 @@ async function main(): Promise<void> {
     ),
   );
 
-  // Manager: read/write branch, menu, order, customer
-  const managerPermResources = ['branch', 'menu', 'order', 'customer', 'kds'];
+  // Manager: read/write branch, menu, order, customer, payment
+  // (AUDIT-002 Finding #5: 'payment' in the list links payment:read via the
+  // read/write filter; payment:create is linked explicitly below.)
+  const managerPermResources = ['branch', 'menu', 'order', 'customer', 'kds', 'payment'];
   const managerPermissions = allPermissions.filter(
     (p) => managerPermResources.includes(p.resource) && (p.action === 'read' || p.action === 'write'),
   );
@@ -327,8 +340,10 @@ async function main(): Promise<void> {
     ),
   );
 
-  // Cashier: read menu, read/write order, read/write customer
-  const cashierPermResources = ['menu', 'order', 'customer'];
+  // Cashier: read menu, read/write order, read/write customer, payment
+  // (AUDIT-002 Finding #5: 'payment' in the list links payment:read via the
+  // read/write filter; payment:create is linked explicitly below.)
+  const cashierPermResources = ['menu', 'order', 'customer', 'payment'];
   const cashierPermissions = allPermissions.filter(
     (p) => cashierPermResources.includes(p.resource) && (p.action === 'read' || p.action === 'write'),
   );
@@ -352,6 +367,24 @@ async function main(): Promise<void> {
       }),
     ),
   );
+
+  // AUDIT-002 Finding #5 (RBAC): `payment:create` is a CASL verb, so the
+  // read/write resource filters above never link it. Managers and cashiers
+  // process payments at the till (cashier role description: "Can process
+  // orders and payments"), so both get the explicit link; KITCHEN_STAFF
+  // receives neither payment permission.
+  const paymentCreatePermission = allPermissions.find(
+    (p) => p.resource === 'payment' && p.action === 'create',
+  );
+  if (paymentCreatePermission) {
+    await Promise.all(
+      [managerRole, cashierRole].map((role) =>
+        prisma.rolePermission.create({
+          data: { roleId: role.id, permissionId: paymentCreatePermission.id },
+        }),
+      ),
+    );
+  }
 
   console.log('Created role-permission mappings.');
 

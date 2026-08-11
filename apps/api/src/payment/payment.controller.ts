@@ -2,11 +2,13 @@ import { Controller, Post, Get, Body, Param, Req, UseGuards, HttpCode, HttpStatu
 import { WalletService, VerifyPaymentResult, WalletPaymentResult } from './wallet.service';
 import { CreateWalletPaymentRequestDto } from './dto/create-wallet-payment-request.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RbacPermissionGuard } from '../auth/guards/rbac-permission.guard';
+import { RequirePermission } from '../auth/decorators/require-permission.decorator';
 import { Public } from '../auth/decorators/public.decorator';
 import { AuthenticatedRequest } from '../common/types/request.types';
 
 @Controller('api/v1/payments')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RbacPermissionGuard)
 export class PaymentController {
   constructor(private readonly walletService: WalletService) {}
 
@@ -14,8 +16,11 @@ export class PaymentController {
    * POST /api/v1/payments/wallet
    * Creates regional wallet payment session per DOC-009 8.3
    * Supports Apple Pay, Google Pay via Stripe, and KNET, Benefit, Mada via Tap Payments
-   * Tenant isolation via JWT tenantId
+   * Tenant isolation via JWT tenantId.
+   * AUDIT-002 Finding #5 (RBAC): requires the `payment:create` permission
+   * (OWNER / MANAGER / CASHIER; KITCHEN_STAFF is denied).
    */
+  @RequirePermission('create', 'Payment')
   @Post('wallet')
   @HttpCode(HttpStatus.CREATED)
   async createWalletPayment(
@@ -36,7 +41,11 @@ export class PaymentController {
    * Verifies a payment against the PROVIDER and reconciles the stored record.
    * An id unknown to this tenant returns 404 — it is never reported as
    * settled (AUDIT-002).
+   * AUDIT-002 Finding #5 (RBAC): requires the `payment:read` permission
+   * (OWNER / MANAGER / CASHIER; KITCHEN_STAFF is denied). Tenant ownership
+   * of the payment is enforced in WalletService via dbTenantContext.
    */
+  @RequirePermission('read', 'Payment')
   @Get('wallet/:paymentId/verify')
   @HttpCode(HttpStatus.OK)
   async verifyPayment(

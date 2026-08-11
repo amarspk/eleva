@@ -26,6 +26,13 @@ export type Subjects =
   // `/restaurants/:id` looked the restaurant id up in the BRANCHES table and
   // returned 404 for a valid brand (runtime-proven).
   | 'Restaurant'
+  // AUDIT-002 Finding #5 (RBAC): the wallet payment endpoints require
+  // `payment:create` / `payment:read` permissions. The route params are
+  // `:paymentId` (not `:id`), so the guard's entity re-resolution is
+  // intentionally skipped and tenant authorization stays in WalletService
+  // via dbTenantContext — the subject only needs to exist for `can()` to
+  // match (no tenantRepositoryRegistry entry required).
+  | 'Payment'
   | 'all';
 
 export type AppAbility = MongoAbility<[Action, Subjects]>;

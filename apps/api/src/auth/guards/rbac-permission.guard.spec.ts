@@ -63,6 +63,70 @@ describe('RbacPermissionGuard Unit & ABAC Tests', () => {
   });
 
   // ==========================================
+  // AUDIT-002 Finding #5 — Payment RBAC
+  // ==========================================
+  it('RBAC: RESTAURANT_OWNER can create and read Payment', () => {
+    const owner = {
+      id: 'owner-1',
+      email: 'owner@zayjar.com',
+      tenantId: 't1',
+      roles: ['RESTAURANT_OWNER'],
+      permissions: ['payment:create', 'payment:read'],
+    };
+
+    const ability = factory.createForUser(owner);
+
+    expect(ability.can('create', 'Payment')).toBe(true);
+    expect(ability.can('read', 'Payment')).toBe(true);
+    expect(ability.can('delete', 'Payment')).toBe(false);
+  });
+
+  it('RBAC: MANAGER with payment:create/payment:read can create and read Payment', () => {
+    const manager = {
+      id: 'manager-1',
+      email: 'manager@zayjar.com',
+      tenantId: 't1',
+      roles: ['MANAGER'],
+      permissions: ['payment:create', 'payment:read'],
+    };
+
+    const ability = factory.createForUser(manager);
+
+    expect(ability.can('create', 'Payment')).toBe(true);
+    expect(ability.can('read', 'Payment')).toBe(true);
+  });
+
+  it('RBAC: CASHIER with payment:create/payment:read can create and read Payment', () => {
+    const cashier = {
+      id: 'cashier-1',
+      email: 'cashier@zayjar.com',
+      tenantId: 't1',
+      roles: ['CASHIER'],
+      permissions: ['payment:create', 'payment:read'],
+    };
+
+    const ability = factory.createForUser(cashier);
+
+    expect(ability.can('create', 'Payment')).toBe(true);
+    expect(ability.can('read', 'Payment')).toBe(true);
+  });
+
+  it('RBAC: KITCHEN_STAFF without payment permissions cannot create or read Payment', () => {
+    const kitchen = {
+      id: 'kitchen-1',
+      email: 'kitchen@zayjar.com',
+      tenantId: 't1',
+      roles: ['KITCHEN_STAFF'],
+      permissions: ['order:read', 'kds:write'],
+    };
+
+    const ability = factory.createForUser(kitchen);
+
+    expect(ability.can('create', 'Payment')).toBe(false);
+    expect(ability.can('read', 'Payment')).toBe(false);
+  });
+
+  // ==========================================
   // ABAC Tests: Cashier
   // ==========================================
   it('ABAC: Cashier should be allowed to update non-PAID orders', () => {
