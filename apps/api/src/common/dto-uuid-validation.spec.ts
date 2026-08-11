@@ -36,7 +36,6 @@ describe('DTO UUID validation (no 500s from malformed ids)', () => {
       const props = await errorsFor(CreateWalletPaymentRequestDto as never, {
         orderId: 'not-a-uuid',
         paymentMethod: PaymentMethodType.LOCAL_WALLET,
-        amount: 10,
       });
       expect(props).toContain('orderId');
     });
@@ -45,9 +44,43 @@ describe('DTO UUID validation (no 500s from malformed ids)', () => {
       const props = await errorsFor(CreateWalletPaymentRequestDto as never, {
         orderId: VALID_UUID,
         paymentMethod: PaymentMethodType.LOCAL_WALLET,
-        amount: 10,
       });
       expect(props).not.toContain('orderId');
+    });
+  });
+
+  // ==========================================
+  // AUDIT-002 Finding #6 — no client-supplied amount
+  // ==========================================
+  describe('CreateWalletPaymentRequestDto amount (AUDIT-002 Finding #6)', () => {
+    it('declares no amount field at all (zero validators on the DTO)', async () => {
+      const dto = new CreateWalletPaymentRequestDto();
+      expect(Object.prototype.hasOwnProperty.call(dto, 'amount')).toBe(false);
+    });
+
+    it('accepts a payload WITHOUT amount', async () => {
+      const props = await errorsFor(CreateWalletPaymentRequestDto as never, {
+        orderId: VALID_UUID,
+        paymentMethod: PaymentMethodType.LOCAL_WALLET,
+      });
+      expect(props).not.toContain('amount');
+    });
+
+    it('rejects a payload WITH amount under forbidNonWhitelisted (HTTP-edge contract)', async () => {
+      // The real ValidationPipe uses whitelist + forbidNonWhitelisted
+      // (main.ts), so a client-sent `amount` is an unknown property and must
+      // be rejected. class-validator's `forbidNonWhitelisted` reports it as a
+      // validation error.
+      const dto = plainToInstance(CreateWalletPaymentRequestDto, {
+        orderId: VALID_UUID,
+        paymentMethod: PaymentMethodType.LOCAL_WALLET,
+        amount: 0.01,
+      });
+      const errors = await validate(dto as object, {
+        whitelist: true,
+        forbidNonWhitelisted: true,
+      });
+      expect(errors.map((e) => e.property)).toContain('amount');
     });
   });
 

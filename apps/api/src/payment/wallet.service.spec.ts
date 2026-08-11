@@ -93,12 +93,13 @@ describe('WalletService (AUDIT-002 — real payments)', () => {
       .mockResolvedValue({ id: 'pay-1' } as never);
   });
 
+  // AUDIT-002 Finding #6: the DTO no longer accepts `amount` — the charge
+  // amount is server-derived from order.total only.
   const dto = (over: Record<string, unknown> = {}) =>
     ({
       orderId: ORDER_ID,
       paymentMethod: PaymentMethodType.LOCAL_WALLET,
       walletType: 'knet',
-      amount: 42.55,
       currency: 'KWD',
       ...over,
     }) as never;
@@ -191,19 +192,27 @@ describe('WalletService (AUDIT-002 — real payments)', () => {
       );
     });
 
-    it('persists the ORDER total, not the client-supplied amount', async () => {
+    it('derives the charged amount EXCLUSIVELY from the order total (no client amount input exists)', async () => {
       process.env.TAP_PAYMENTS_SECRET_KEY = 'sk_test_tap';
-      jest.spyOn(global, 'fetch').mockResolvedValue({
+      const fetchSpy = jest.spyOn(global, 'fetch').mockResolvedValue({
         ok: true,
         status: 200,
         text: async () => JSON.stringify({ id: 'chg_real_2', status: 'INITIATED' }),
       } as never);
 
-      // Client attempts to pay 0.01 for a 42.55 order.
-      const result = await service.createWalletPayment(dto({ amount: 0.01 }), TENANT, USER);
+      // AUDIT-002 Finding #6: the DTO carries no `amount` field at all (removed
+      // from CreateWalletPaymentRequestDto), so the request cannot influence
+      // the charge. The 42.55 order total is the ONLY amount source.
+      const result = await service.createWalletPayment(dto(), TENANT, USER);
 
+      // 1. The persisted payment record stores the server-derived order total.
       expect(paymentCreate).toHaveBeenCalledWith(expect.objectContaining({ amount: 42.55 }));
+      // 2. The returned payment amount is the server-derived order total.
       expect(result.amount).toBe(42.55);
+      // 3. The PROVIDER (Tap) charge body carries the server-derived order total.
+      const [, init] = fetchSpy.mock.calls[0];
+      const body = JSON.parse((init as RequestInit).body as string) as { amount: number };
+      expect(body.amount).toBe(42.55);
     });
   });
 
