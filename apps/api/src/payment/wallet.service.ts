@@ -10,7 +10,12 @@ import { createHmac, timingSafeEqual } from 'crypto';
 import { CreateWalletPaymentRequestDto } from './dto/create-wallet-payment-request.dto';
 import { PaymentMethodType } from '@zayjar/types';
 import { dbTenantContext } from '@zayjar/db';
-import { TenantOrderRepository, TenantPaymentRepository } from '@zayjar/db';
+import {
+  TenantBranchRepository,
+  TenantOrderRepository,
+  TenantPaymentRepository,
+  TenantRestaurantRepository,
+} from '@zayjar/db';
 
 /**
  * Normalised result of a provider-side status lookup.
@@ -51,6 +56,8 @@ export class WalletService {
   private readonly logger = new Logger(WalletService.name);
   private readonly orderRepository = new TenantOrderRepository();
   private readonly paymentRepository = new TenantPaymentRepository();
+  private readonly branchRepository = new TenantBranchRepository();
+  private readonly restaurantRepository = new TenantRestaurantRepository();
 
   // Regional payment gateways per DOC-009 8.3
   private readonly REGIONAL_GATEWAYS: Record<string, { provider: string; countries: string[] }> = {
@@ -158,6 +165,40 @@ export class WalletService {
       throw new BadRequestException('Order total is not payable.');
     }
 
+    // AUDIT-002 Finding #4: the charge currency is resolved SERVER-SIDE from
+    // the tenant-owned order's restaurant (Order → Branch → Restaurant.currency)
+    // — never from the client. Both lookups use the same tenant-scoped
+    // repository pattern as the order lookup (mirrors order.service.ts
+    // checkout), so a branch/restaurant that is not owned by this tenant
+    // resolves to null and cannot be reached.
+    const branch = await dbTenantContext.run({ tenantId }, async () => {
+      return this.branchRepository.findById((order as unknown as { branchId: string }).branchId);
+    });
+    if (!branch) {
+      throw new NotFoundException(`The order branch could not be resolved under tenant context.`);
+    }
+
+    const restaurant = await dbTenantContext.run({ tenantId }, async () => {
+      return this.restaurantRepository.findById(
+        (branch as unknown as { restaurantId: string }).restaurantId,
+      );
+    });
+    if (!restaurant) {
+      throw new NotFoundException(`The order restaurant could not be resolved under tenant context.`);
+    }
+
+    const restaurantCurrency = (restaurant as unknown as { currency: string }).currency;
+
+    // AUDIT-002 Finding #4: the client MAY supply a currency, but it can only
+    // confirm the restaurant's authoritative currency (case-insensitive
+    // comparison) — it can never override it. Any mismatch is rejected with
+    // 400 BEFORE any provider call.
+    if (dto.currency && dto.currency.toUpperCase() !== restaurantCurrency.toUpperCase()) {
+      throw new BadRequestException(
+        `Currency [${dto.currency}] does not match the restaurant currency [${restaurantCurrency}].`,
+      );
+    }
+
     // AUDIT-002 Finding #3: never create a second charge for an order that
     // already settled. A cross-wallet replay (KNET paid, then a Mada attempt)
     // must fail here instead of contacting the provider again.
@@ -193,9 +234,18 @@ export class WalletService {
         userId,
         orderTotal,
         idempotencyKey,
+        restaurantCurrency,
       );
     } else if (WalletService.TAP_WALLETS.includes(walletType)) {
-      result = await this.createTapPayment(dto, walletType, provider, orderTotal, tenantId, idempotencyKey);
+      result = await this.createTapPayment(
+        dto,
+        walletType,
+        provider,
+        orderTotal,
+        tenantId,
+        idempotencyKey,
+        restaurantCurrency,
+      );
     } else {
       // credit_card / cash are settled at the till, not through a wallet rail.
       result = {
@@ -203,7 +253,7 @@ export class WalletService {
         provider: 'pos',
         walletType,
         amount: orderTotal,
-        currency: dto.currency || 'USD',
+        currency: restaurantCurrency,
         status: 'pending',
         successUrl: dto.successUrl,
         cancelUrl: dto.cancelUrl,
@@ -277,6 +327,7 @@ export class WalletService {
     userId: string,
     amount: number,
     idempotencyKey: string,
+    currency: string,
   ): Promise<WalletPaymentResult> {
     const stripeSecretKey = this.assertProviderConfigured(
       process.env.STRIPE_SECRET_KEY,
@@ -294,7 +345,9 @@ export class WalletService {
       const paymentIntent = await stripe.paymentIntents.create(
         {
           amount: Math.round(amount * 100), // minor units
-          currency: (dto.currency || 'usd').toLowerCase(),
+          // AUDIT-002 Finding #4: the charge currency is the server-resolved
+          // Restaurant.currency; Stripe requires lowercase ISO codes.
+          currency: currency.toLowerCase(),
           payment_method_types: walletType === 'apple_pay' ? ['card', 'apple_pay'] : ['card', 'google_pay'],
           metadata: { tenantId, orderId: dto.orderId, walletType, userId },
           receipt_email: dto.customerEmail,
@@ -307,7 +360,7 @@ export class WalletService {
         provider,
         walletType,
         amount,
-        currency: dto.currency || 'USD',
+        currency,
         status: paymentIntent.status,
         clientSecret: paymentIntent.client_secret,
         successUrl: dto.successUrl,
@@ -334,6 +387,7 @@ export class WalletService {
     amount: number,
     tenantId: string,
     idempotencyKey: string,
+    currency: string,
   ): Promise<WalletPaymentResult> {
     const tapSecretKey = this.assertProviderConfigured(
       process.env.TAP_PAYMENTS_SECRET_KEY,
@@ -341,7 +395,6 @@ export class WalletService {
       walletType,
     );
 
-    const currency = dto.currency || 'KWD';
     const sourceId = walletType === 'knet' ? 'src_kw.knet' : walletType === 'benefit' ? 'src_bh.benefit' : 'src_sa.mada';
 
     try {

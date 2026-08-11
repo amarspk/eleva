@@ -1,5 +1,10 @@
 import { WalletService } from './wallet.service';
-import { TenantOrderRepository, TenantPaymentRepository } from '@zayjar/db';
+import {
+  TenantBranchRepository,
+  TenantOrderRepository,
+  TenantPaymentRepository,
+  TenantRestaurantRepository,
+} from '@zayjar/db';
 import {
   NotFoundException,
   BadRequestException,
@@ -52,11 +57,13 @@ const ORDER_ID = 'aaaaaaaa-1111-4aaa-8aaa-aaaaaaaaaaaa';
 describe('WalletService (AUDIT-002 — real payments)', () => {
   let service: WalletService;
   let orderFindById: jest.SpyInstance;
+  let branchFindById: jest.SpyInstance;
+  let restaurantFindById: jest.SpyInstance;
   let paymentCreate: jest.SpyInstance;
   let paymentFindMany: jest.SpyInstance;
   let paymentUpdate: jest.SpyInstance;
 
-  const order = { id: ORDER_ID, total: '42.55', tenantId: TENANT };
+  const order = { id: ORDER_ID, total: '42.55', tenantId: TENANT, branchId: 'branch-1' };
 
   beforeEach(() => {
     service = new WalletService();
@@ -67,6 +74,14 @@ describe('WalletService (AUDIT-002 — real payments)', () => {
     orderFindById = jest
       .spyOn(TenantOrderRepository.prototype, 'findById')
       .mockResolvedValue(order as never);
+    // AUDIT-002 Finding #4: default fixture — KWD restaurant reachable via the
+    // order's branch (Order → Branch → Restaurant.currency).
+    branchFindById = jest
+      .spyOn(TenantBranchRepository.prototype, 'findById')
+      .mockResolvedValue({ id: 'branch-1', restaurantId: 'rest-1' } as never);
+    restaurantFindById = jest
+      .spyOn(TenantRestaurantRepository.prototype, 'findById')
+      .mockResolvedValue({ id: 'rest-1', currency: 'KWD' } as never);
     paymentCreate = jest
       .spyOn(TenantPaymentRepository.prototype, 'create')
       .mockResolvedValue({ id: 'pay-1' } as never);
@@ -627,6 +642,148 @@ describe('WalletService (AUDIT-002 — real payments)', () => {
         2,
         expect.objectContaining({ transactionReference: `pos:pos_cash_${ORDER_ID}` }),
       );
+    });
+  });
+
+  // ==========================================
+  // AUDIT-002 Finding #4 — currency source
+  // ==========================================
+  describe('createWalletPayment currency source (AUDIT-002 Finding #4)', () => {
+    const tapFetch = () =>
+      jest.spyOn(global, 'fetch').mockResolvedValue({
+        ok: true,
+        status: 200,
+        text: async () =>
+          JSON.stringify({ id: 'chg_cur_1', status: 'INITIATED', transaction: { url: 'https://tap/pay' } }),
+      } as never);
+
+    const tapRequestBody = (fetchSpy: jest.SpyInstance, callIndex: number): Record<string, unknown> => {
+      const [, init] = fetchSpy.mock.calls[callIndex];
+      return JSON.parse((init as RequestInit).body as string) as Record<string, unknown>;
+    };
+
+    beforeEach(() => {
+      mockStripePaymentIntentsCreate.mockClear();
+    });
+
+    it('uses Restaurant.currency when the client omits currency (Tap receives KWD)', async () => {
+      process.env.TAP_PAYMENTS_SECRET_KEY = 'sk_test_tap_cur';
+      const fetchSpy = tapFetch();
+
+      const result = await service.createWalletPayment(dto({ currency: undefined }), TENANT, USER);
+
+      expect(tapRequestBody(fetchSpy, 0).currency).toBe('KWD');
+      expect(result.currency).toBe('KWD');
+    });
+
+    it('uses Restaurant.currency when the client omits currency (Stripe receives KWD, lowercased per Stripe API)', async () => {
+      process.env.STRIPE_SECRET_KEY = 'sk_test_stripe_cur';
+
+      await service.createWalletPayment(
+        dto({ paymentMethod: PaymentMethodType.APPLE_PAY, walletType: 'apple_pay', currency: undefined }),
+        TENANT,
+        USER,
+      );
+
+      // Stripe requires lowercase ISO codes (existing convention preserved).
+      expect(mockStripePaymentIntentsCreate.mock.calls[0][0].currency).toBe('kwd');
+    });
+
+    it('accepts a matching uppercase currency and charges Restaurant.currency', async () => {
+      process.env.TAP_PAYMENTS_SECRET_KEY = 'sk_test_tap_cur';
+      const fetchSpy = tapFetch();
+
+      const result = await service.createWalletPayment(dto({ currency: 'KWD' }), TENANT, USER);
+
+      expect(tapRequestBody(fetchSpy, 0).currency).toBe('KWD');
+      expect(result.currency).toBe('KWD');
+    });
+
+    it('accepts a case-insensitive match and uses the CANONICAL Restaurant.currency (client kwd never overrides)', async () => {
+      process.env.TAP_PAYMENTS_SECRET_KEY = 'sk_test_tap_cur';
+      const fetchSpy = tapFetch();
+
+      const result = await service.createWalletPayment(dto({ currency: 'kwd' }), TENANT, USER);
+
+      // The provider receives the canonical 'KWD', NOT the client's 'kwd'.
+      expect(tapRequestBody(fetchSpy, 0).currency).toBe('KWD');
+      expect(result.currency).toBe('KWD');
+    });
+
+    it('rejects a mismatching currency with 400 (SAR vs KWD restaurant) before any provider call', async () => {
+      process.env.TAP_PAYMENTS_SECRET_KEY = 'sk_test_tap_cur';
+      const fetchSpy = tapFetch();
+
+      await expect(service.createWalletPayment(dto({ currency: 'SAR' }), TENANT, USER)).rejects.toThrow(
+        BadRequestException,
+      );
+      expect(fetchSpy).not.toHaveBeenCalled();
+      expect(paymentCreate).not.toHaveBeenCalled();
+    });
+
+    it('rejects any arbitrary unsupported currency with 400 (never falls through to a provider)', async () => {
+      await expect(service.createWalletPayment(dto({ currency: 'XYZ' }), TENANT, USER)).rejects.toThrow(
+        BadRequestException,
+      );
+      expect(paymentCreate).not.toHaveBeenCalled();
+    });
+
+    it('rejects a mismatching currency on the POS rail too (400)', async () => {
+      await expect(
+        service.createWalletPayment(
+          dto({ paymentMethod: PaymentMethodType.CASH, walletType: 'cash', currency: 'USD' }),
+          TENANT,
+          USER,
+        ),
+      ).rejects.toThrow(BadRequestException);
+      expect(paymentCreate).not.toHaveBeenCalled();
+    });
+
+    it('uses Restaurant.currency on the POS result (no hardcoded USD fallback)', async () => {
+      const result = await service.createWalletPayment(
+        dto({ paymentMethod: PaymentMethodType.CASH, walletType: 'cash', currency: undefined }),
+        TENANT,
+        USER,
+      );
+
+      expect(result.currency).toBe('KWD');
+    });
+
+    it('resolves the restaurant ONLY from the tenant-scoped order branch (server-side, never client-supplied)', async () => {
+      process.env.TAP_PAYMENTS_SECRET_KEY = 'sk_test_tap_cur';
+      const fetchSpy = tapFetch();
+      // A different tenant's restaurant for the SAME order branch id would not
+      // be reachable — the lookup is tenant-scoped by the repository.
+      branchFindById.mockResolvedValueOnce(null as never);
+
+      await expect(service.createWalletPayment(dto(), TENANT, USER)).rejects.toThrow(NotFoundException);
+      expect(fetchSpy).not.toHaveBeenCalled();
+      expect(paymentCreate).not.toHaveBeenCalled();
+    });
+
+    it('rejects when the restaurant cannot be resolved under the tenant context', async () => {
+      process.env.TAP_PAYMENTS_SECRET_KEY = 'sk_test_tap_cur';
+      const fetchSpy = tapFetch();
+      restaurantFindById.mockResolvedValueOnce(null as never);
+
+      await expect(service.createWalletPayment(dto(), TENANT, USER)).rejects.toThrow(NotFoundException);
+      expect(fetchSpy).not.toHaveBeenCalled();
+      expect(paymentCreate).not.toHaveBeenCalled();
+    });
+
+    it('keeps the order-derived amount intact when currency is server-resolved', async () => {
+      process.env.TAP_PAYMENTS_SECRET_KEY = 'sk_test_tap_cur';
+      jest.spyOn(global, 'fetch').mockResolvedValue({
+        ok: true,
+        status: 200,
+        text: async () => JSON.stringify({ id: 'chg_cur_2', status: 'INITIATED' }),
+      } as never);
+
+      const result = await service.createWalletPayment(dto({ currency: undefined }), TENANT, USER);
+
+      // Order total 42.55 is still the charged amount (Finding #2 contract).
+      expect(result.amount).toBe(42.55);
+      expect(paymentCreate).toHaveBeenCalledWith(expect.objectContaining({ amount: 42.55 }));
     });
   });
 });
