@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { UserService } from './user.service';
 import { UserController } from './user.controller';
 import { AuthModule } from '../auth/auth.module';
+import { NotificationModule } from '../notification/notification.module';
 
 /**
  * Staff user management (AUDIT-004).
@@ -13,7 +14,9 @@ import { AuthModule } from '../auth/auth.module';
  * controller.
  */
 @Module({
-  imports: [AuthModule],
+  // AUDIT-005: NotificationModule provides EmailService for the staff-user
+  // verification email (exported provider pattern).
+  imports: [AuthModule, NotificationModule],
   controllers: [UserController],
   providers: [UserService],
   exports: [UserService],

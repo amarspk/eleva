@@ -101,6 +101,11 @@ export class TenantService {
     // 3. Hash the owner's password securely using Argon2id
     const hashedPassword = await this.authService.hashPassword(dto.ownerPassword);
 
+    // AUDIT-005: one-time email-verification token for the new owner. Only the
+    // SHA-256 hash + expiry are stored; the raw token is used once for the
+    // emailed link and never persisted or logged.
+    const emailVerification = this.authService.createEmailVerification();
+
     // 4. Execute the complete onboarding scope inside a single relational database transaction
     return prisma.$transaction(async (tx) => {
       // A. Create Tenant profile
@@ -124,6 +129,8 @@ export class TenantService {
       });
 
       // C. Register default Restaurant Owner user account
+      // AUDIT-005: emailVerified defaults to false; the verification token
+      // hash + expiry are stamped at creation (one-time, expiring).
       const owner = await tx.user.create({
         data: {
           tenantId: tenant.id,
@@ -131,6 +138,8 @@ export class TenantService {
           lastName: dto.ownerLastName,
           email: dto.ownerEmail.toLowerCase(),
           passwordHash: hashedPassword,
+          emailVerificationTokenHash: emailVerification.tokenHash,
+          emailVerificationTokenExpiry: emailVerification.expiresAt,
         },
       });
 
@@ -257,6 +266,18 @@ export class TenantService {
             this.logger.warn(`Failed to send welcome email to [${dto.ownerEmail}]: ${(err as Error).message}`);
           });
       }
+
+      // AUDIT-005: verification-link dispatch (fire-and-forget, same pattern
+      // as the welcome email above). Never awaited: it must not hold the DB
+      // transaction open across the SMTP send (see the Argon2id note above).
+      // sendVerificationEmail swallows dispatch failures internally (logged),
+      // so it can never reject or break the onboarding transaction.
+      this.authService.sendVerificationEmail(
+        dto.ownerEmail,
+        dto.ownerFirstName,
+        emailVerification.rawToken,
+        tenant.id,
+      );
 
       return result;
     });

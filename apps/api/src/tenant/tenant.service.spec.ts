@@ -14,6 +14,13 @@ describe('TenantService Unit Tests', () => {
 
   const mockAuthService = {
     hashPassword: jest.fn().mockResolvedValue('mock-argon2-hash'),
+    // AUDIT-005: one-time email-verification token helpers used by onboarding.
+    createEmailVerification: jest.fn().mockReturnValue({
+      rawToken: 'raw-verify-token',
+      tokenHash: 'a'.repeat(64),
+      expiresAt: new Date('2026-08-13T00:00:00Z'),
+    }),
+    sendVerificationEmail: jest.fn().mockResolvedValue(undefined),
   };
 
   beforeEach(async () => {
@@ -70,6 +77,25 @@ describe('TenantService Unit Tests', () => {
     expect((result.owner as Record<string, string>).id).toBe('u1');
     expect((result.branch as Record<string, string>).id).toBe('b1');
     expect(mockAuthService.hashPassword).toHaveBeenCalledWith('Password123!');
+    // AUDIT-005: owner account is created with emailVerified defaulting to
+    // false and only the verification token HASH + expiry stored...
+    expect(txMock.user.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          email: 'owner@gourmet.com',
+          emailVerificationTokenHash: 'a'.repeat(64),
+          emailVerificationTokenExpiry: new Date('2026-08-13T00:00:00Z'),
+        }),
+      }),
+    );
+    // ...and the verification email dispatched fire-and-forget with the raw
+    // token travelling ONLY inside the link.
+    expect(mockAuthService.sendVerificationEmail).toHaveBeenCalledWith(
+      'owner@gourmet.com',
+      'John',
+      'raw-verify-token',
+      't1',
+    );
     // RT-ONB-002: the new owner role inherits the canonical seeded
     // RESTAURANT_OWNER permission set (same permissionIds, new role id target),
     // excluding the just-created role from the lookup.

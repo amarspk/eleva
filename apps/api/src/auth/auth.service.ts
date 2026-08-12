@@ -4,12 +4,17 @@ import {
   Logger,
   NotFoundException,
   ServiceUnavailableException,
+  BadRequestException,
+  Inject,
+  Optional,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as argon2 from 'argon2';
+import { createHash, randomBytes } from 'crypto';
 import { JWT_CONFIG } from './config/jwt.config';
 import { CacheService } from '../common/cache/cache.service';
-import { prisma } from '@zayjar/db';
+import { EmailService } from '../notification/email/email.service';
+import { prisma, dbTenantContext } from '@zayjar/db';
 
 export interface UserProfile {
   id: string;
@@ -58,9 +63,16 @@ export class AuthService {
    */
   private static readonly USER_REVOCATION_TTL_SECONDS = 3600;
 
+  // AUDIT-005 — one-time token lifetimes.
+  /** Password-reset tokens expire after 1 hour (approved scope). */
+  private static readonly RESET_TOKEN_TTL_MS = 60 * 60 * 1000;
+  /** Email-verification tokens expire after 24 hours (documented in the template). */
+  private static readonly VERIFY_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
+
   constructor(
     private readonly jwtService: JwtService,
     private readonly cacheService: CacheService,
+    @Optional() @Inject(EmailService) private readonly emailService?: EmailService,
   ) {}
 
   /**
@@ -455,6 +467,212 @@ export class AuthService {
    * Real DB login with tenant isolation, password verification, and MFA check per DOC-003 3.2.1
    * Previously mocked, now implements secure credential validation.
    */
+  // ==========================================
+  // AUDIT-005 — password reset + email verification
+  // ==========================================
+  // Security contract (approved scope): tokens are cryptographically random,
+  // ONLY their SHA-256 hashes are stored, they expire, they are one-time use,
+  // the raw token is never persisted or logged, forgot-password never reveals
+  // account existence, and a successful reset revokes all existing sessions.
+
+  private generateSecureToken(): string {
+    return randomBytes(32).toString('hex');
+  }
+
+  private hashToken(token: string): string {
+    return createHash('sha256').update(token).digest('hex');
+  }
+
+  /**
+   * Builds the action URL for a token. `RESET_URL_BASE` (documented in
+   * .env.example) is authoritative when set; otherwise the verified tenant
+   * subdomain convention (`https://<subdomain>.zayjar.com`) is used. Returns
+   * null when neither is available (no invented URL).
+   */
+  private async buildActionUrl(
+    kind: 'reset-password' | 'verify-email',
+    tenantId: string | null,
+    token: string,
+  ): Promise<string | null> {
+    const base = process.env.RESET_URL_BASE;
+    if (base) {
+      return `${base.replace(/\/+$/, '')}/${kind}?token=${encodeURIComponent(token)}`;
+    }
+    if (!tenantId) {
+      return null;
+    }
+    const tenant = await prisma.tenant.findUnique({
+      where: { id: tenantId },
+      select: { subdomain: true },
+    });
+    if (!tenant?.subdomain) {
+      return null;
+    }
+    return `https://${tenant.subdomain}.zayjar.com/${kind}?token=${encodeURIComponent(token)}`;
+  }
+
+  /**
+   * POST /api/v1/auth/forgot-password — always returns the SAME generic
+   * response whether or not the email exists (no account enumeration). An
+   * email is only dispatched when the account exists; nothing is revealed
+   * otherwise.
+   */
+  async requestPasswordReset(email: string): Promise<{ message: string }> {
+    const normalized = email.toLowerCase().trim();
+    const generic = {
+      message: 'If an account exists for that email, a password reset link has been sent.',
+    };
+
+    return dbTenantContext.run({ isPlatformOwner: true }, async () => {
+      const user = await prisma.user.findFirst({
+        where: { email: normalized, deletedAt: null },
+        select: { id: true, firstName: true, tenantId: true },
+      });
+
+      if (!user) {
+        this.logger.log(`Password reset requested for unknown email [${normalized}] — generic response returned.`);
+        return generic;
+      }
+
+      const rawToken = this.generateSecureToken();
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          resetTokenHash: this.hashToken(rawToken),
+          resetTokenExpiry: new Date(Date.now() + AuthService.RESET_TOKEN_TTL_MS),
+        },
+      });
+
+      const resetUrl = await this.buildActionUrl('reset-password', user.tenantId, rawToken);
+      if (!resetUrl) {
+        this.logger.warn(
+          `Password reset for user [${user.id}]: RESET_URL_BASE is unset and no tenant subdomain is available — no email sent.`,
+        );
+        return generic;
+      }
+
+      if (this.emailService) {
+        await this.emailService
+          .sendPasswordResetEmail(normalized, {
+            firstName: user.firstName,
+            email: normalized,
+            resetUrl,
+          })
+          .catch((err) =>
+            this.logger.warn(`Failed to send password-reset email to [${normalized}]: ${(err as Error).message}`),
+          );
+      }
+      return generic;
+    });
+  }
+
+  /**
+   * POST /api/v1/auth/reset-password — validates the one-time token
+   * (SHA-256 match, expiry, unused), rehashes the new password with Argon2id,
+   * clears the token fields and revokes every existing session.
+   */
+  async resetPassword(token: string, password: string): Promise<{ message: string }> {
+    const tokenHash = this.hashToken(token);
+
+    return dbTenantContext.run({ isPlatformOwner: true }, async () => {
+      const user = await prisma.user.findFirst({
+        where: { resetTokenHash: tokenHash, deletedAt: null },
+        select: { id: true, resetTokenExpiry: true },
+      });
+      if (!user) {
+        throw new BadRequestException('The reset link is invalid or has expired.');
+      }
+      if (!user.resetTokenExpiry || user.resetTokenExpiry.getTime() < Date.now()) {
+        throw new BadRequestException('The reset link has expired.');
+      }
+
+      const passwordHash = await this.hashPassword(password);
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { passwordHash, resetTokenHash: null, resetTokenExpiry: null },
+      });
+
+      // Fail-closed: throws ServiceUnavailableException when the session store
+      // cannot persist the revocation marker (no silent fail-open).
+      await this.revokeAllUserTokens(user.id);
+
+      this.logger.log(`Password reset completed for user [${user.id}] — all sessions revoked.`);
+      return { message: 'Your password has been reset. Please sign in with your new password.' };
+    });
+  }
+
+  /**
+   * POST /api/v1/auth/verify-email — marks the account's email as verified
+   * using the one-time verification token (SHA-256 match, expiry, unused).
+   */
+  async verifyEmail(token: string): Promise<{ message: string }> {
+    const tokenHash = this.hashToken(token);
+
+    return dbTenantContext.run({ isPlatformOwner: true }, async () => {
+      const user = await prisma.user.findFirst({
+        where: { emailVerificationTokenHash: tokenHash, deletedAt: null },
+        select: { id: true, emailVerificationTokenExpiry: true },
+      });
+      if (!user) {
+        throw new BadRequestException('The verification link is invalid or has expired.');
+      }
+      if (!user.emailVerificationTokenExpiry || user.emailVerificationTokenExpiry.getTime() < Date.now()) {
+        throw new BadRequestException('The verification link has expired.');
+      }
+
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          emailVerified: true,
+          emailVerificationTokenHash: null,
+          emailVerificationTokenExpiry: null,
+        },
+      });
+
+      this.logger.log(`Email verified for user [${user.id}].`);
+      return { message: 'Your email has been verified.' };
+    });
+  }
+
+  /**
+   * Generates a one-time email-verification token. The RAW token is returned
+   * exactly once (for the emailed link) and MUST never be persisted; only the
+   * SHA-256 hash + expiry are stored on the user row.
+   */
+  createEmailVerification(): { rawToken: string; tokenHash: string; expiresAt: Date } {
+    const rawToken = this.generateSecureToken();
+    return {
+      rawToken,
+      tokenHash: this.hashToken(rawToken),
+      expiresAt: new Date(Date.now() + AuthService.VERIFY_TOKEN_TTL_MS),
+    };
+  }
+
+  /**
+   * Builds the verification URL and dispatches the verification email
+   * (fire-and-forget, welcome-email convention). Raw token appears only in
+   * the emailed link.
+   */
+  async sendVerificationEmail(
+    to: string,
+    firstName: string,
+    rawToken: string,
+    tenantId: string | null,
+  ): Promise<void> {
+    try {
+      const verifyUrl = await this.buildActionUrl('verify-email', tenantId, rawToken);
+      if (!verifyUrl) {
+        this.logger.warn(
+          `Verification email for [${to}]: RESET_URL_BASE is unset and no tenant subdomain is available — no email sent.`,
+        );
+        return;
+      }
+      await this.emailService?.sendEmailVerificationEmail(to, { firstName, verifyUrl });
+    } catch (err) {
+      this.logger.warn(`Failed to send verification email to [${to}]: ${(err as Error).message}`);
+    }
+  }
+
   async validateLogin(
     email: string,
     password: string,

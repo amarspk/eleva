@@ -51,6 +51,7 @@ export class EmailService {
       welcome: `<h1>Welcome to Eleva, {{companyName}}!</h1><p>Hello {{ownerFirstName}} {{ownerLastName}}, your workspace {{subdomain}}.zayjar.com is {{status}}.</p>`,
       invoice: `<h2>Invoice {{invoiceNumber}}</h2><p>Order {{orderNumber}} total \${{total}}. PDF: {{pdfUrl}}</p>`,
       'password-reset': `<h2>Password Reset</h2><p>Hello {{firstName}}, reset link: {{resetUrl}}</p>`,
+      'verify-email': `<h2>Verify Your Email</h2><p>Hello {{firstName}}, confirm your email address: {{verifyUrl}}</p>`,
     };
     return embedded[templateName] || `<p>Template ${templateName}: ${JSON.stringify({})}</p>`;
   }
@@ -151,6 +152,7 @@ export class EmailService {
       welcome: `Welcome to Eleva, ${variables.companyName || 'your workspace'}!`,
       invoice: `Invoice ${variables.invoiceNumber || ''} - Order ${variables.orderNumber || ''}`,
       'password-reset': 'Password Reset Request - Zayjar',
+      'verify-email': 'Verify Your Email',
       'order-status': `Order ${variables.orderNumber || ''} is now ${variables.status || ''}`,
     };
     return subjects[templateName] || `Zayjar Notification - ${templateName}`;
@@ -234,5 +236,22 @@ export class EmailService {
     error?: string;
   }> {
     return this.sendEmail(to, 'password-reset', variables);
+  }
+
+  // AUDIT-005: one-time email-verification link (sent during onboarding and
+  // staff-user creation). The raw token is embedded in `verifyUrl` only.
+  async sendEmailVerificationEmail(to: string, variables: { firstName: string; verifyUrl: string }): Promise<{
+    success: boolean;
+    blocked?: boolean;
+    reason?: string;
+    mocked?: boolean;
+    to?: string;
+    subject?: string;
+    template?: string;
+    messageId?: string;
+    failover?: boolean;
+    error?: string;
+  }> {
+    return this.sendEmail(to, 'verify-email', variables);
   }
 }

@@ -5,9 +5,12 @@ import {
   ConflictException,
   BadRequestException,
   ForbiddenException,
+  Inject,
+  Optional,
 } from '@nestjs/common';
 import { prisma } from '@zayjar/db';
 import { AuthService } from '../auth/auth.service';
+import { EmailService } from '../notification/email/email.service';
 import { CreateUserRequestDto } from './dto/create-user-request.dto';
 import { UpdateUserRequestDto } from './dto/update-user-request.dto';
 
@@ -141,7 +144,10 @@ export class UserService {
     userBranches: { where: { branch: { deletedAt: null } } },
   } as const;
 
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    @Optional() @Inject(EmailService) private readonly emailService?: EmailService,
+  ) {}
 
   /**
    * Maps a persisted user row to its public representation.
@@ -379,6 +385,11 @@ export class UserService {
     // (65 MB / 3 passes) and must not hold a DB transaction open.
     const passwordHash = await this.authService.hashPassword(dto.password);
 
+    // AUDIT-005: one-time email-verification token for the new staff user.
+    // Only the SHA-256 hash + expiry are stored; the raw token is used once
+    // for the emailed link and never persisted or logged.
+    const emailVerification = this.authService.createEmailVerification();
+
     const roleNames = dto.roles ?? [];
     const branchIds = dto.branchIds ?? [];
 
@@ -416,6 +427,10 @@ export class UserService {
           passwordHash,
           phoneNumber: dto.phoneNumber ?? null,
           isActive: dto.isActive ?? true,
+          // AUDIT-005: emailVerified defaults false; verification token hash +
+          // expiry stamped at creation (one-time, expiring).
+          emailVerificationTokenHash: emailVerification.tokenHash,
+          emailVerificationTokenExpiry: emailVerification.expiresAt,
           ...(roleIds.length > 0
             ? { userRoles: { create: roleIds.map((roleId) => ({ roleId })) } }
             : {}),
@@ -429,6 +444,18 @@ export class UserService {
         },
       });
     });
+
+    // AUDIT-005: verification-link dispatch (fire-and-forget, welcome-email
+    // convention — never awaited so the SMTP send cannot delay the API
+    // response). The raw token appears only inside the emailed link.
+    // sendVerificationEmail swallows dispatch failures internally (logged),
+    // so it can never reject.
+    this.authService.sendVerificationEmail(
+      created.email,
+      created.firstName,
+      emailVerification.rawToken,
+      tenantId,
+    );
 
     this.logger.log(`Created staff user [${created.id}] for tenant [${tenantId}]`);
     return this.findOne(created.id, tenantId);

@@ -55,7 +55,13 @@ function makeTx(overrides: Record<string, unknown> = {}): Record<string, unknown
 
 describe('UserService (AUDIT-004 — staff user management)', () => {
   let service: UserService;
-  let authService: { hashPassword: jest.Mock; revokeAllUserTokens: jest.Mock };
+  let authService: {
+    hashPassword: jest.Mock;
+    revokeAllUserTokens: jest.Mock;
+    // AUDIT-005: one-time email-verification helpers used by createUser.
+    createEmailVerification: jest.Mock;
+    sendVerificationEmail: jest.Mock;
+  };
 
   const baseUserRow = {
     id: USER_ID,
@@ -80,6 +86,13 @@ describe('UserService (AUDIT-004 — staff user management)', () => {
     authService = {
       hashPassword: jest.fn().mockResolvedValue('argon2-hash'),
       revokeAllUserTokens: jest.fn().mockResolvedValue(undefined),
+      // AUDIT-005: one-time email-verification token helpers used by createUser.
+      createEmailVerification: jest.fn().mockReturnValue({
+        rawToken: 'raw-verify-token',
+        tokenHash: 'b'.repeat(64),
+        expiresAt: new Date('2026-08-13T00:00:00Z'),
+      }),
+      sendVerificationEmail: jest.fn().mockResolvedValue(undefined),
     };
     service = new UserService(authService as unknown as AuthService);
     jest.restoreAllMocks();
@@ -181,6 +194,17 @@ describe('UserService (AUDIT-004 — staff user management)', () => {
     expect(createArgs.data.email).toBe('sara@albaik.com');
     // Tenant comes from the verified context, never the payload.
     expect(createArgs.data.tenantId).toBe(TENANT_A);
+    // AUDIT-005: only the verification token HASH + expiry are stored...
+    expect(createArgs.data.emailVerificationTokenHash).toBe('b'.repeat(64));
+    expect(createArgs.data.emailVerificationTokenExpiry).toEqual(new Date('2026-08-13T00:00:00Z'));
+    expect(createArgs.data).not.toHaveProperty('emailVerificationTokenHash', 'raw-verify-token');
+    // ...and the verification email is dispatched fire-and-forget afterwards.
+    expect(authService.sendVerificationEmail).toHaveBeenCalledWith(
+      'sara@albaik.com',
+      'Sara',
+      'raw-verify-token',
+      TENANT_A,
+    );
   });
 
   it('rejects a duplicate email within the tenant with 409', async () => {

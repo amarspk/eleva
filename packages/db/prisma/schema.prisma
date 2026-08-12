@@ -199,6 +199,17 @@ model User {
   mfaSecret    String?   @db.VarChar(128)
   mfaEnabled   Boolean   @default(false)
   lastLoginAt  DateTime? @db.Timestamptz
+  // AUDIT-005 — password reset + email verification (20260812000000).
+  // Only SHA-256 hashes of the one-time tokens are ever stored; the raw
+  // tokens exist solely in the emailed links. `emailVerified` is recorded
+  // from day one so the mandatory pre-launch login-enforcement gate
+  // (emailVerified === true required in production) can be enabled without
+  // a schema change.
+  resetTokenHash              String?   @db.VarChar(64)
+  resetTokenExpiry            DateTime? @db.Timestamptz
+  emailVerified               Boolean   @default(false)
+  emailVerificationTokenHash  String?   @db.VarChar(64)
+  emailVerificationTokenExpiry DateTime? @db.Timestamptz
   createdAt    DateTime  @default(now()) @db.Timestamptz
   updatedAt    DateTime  @updatedAt @db.Timestamptz
   deletedAt    DateTime? @db.Timestamptz

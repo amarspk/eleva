@@ -20,6 +20,9 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { LoginDto } from '@zayjar/types';
 import { MfaVerifyRequestDto } from './dto/mfa-verify-request.dto';
+import { ForgotPasswordRequestDto } from './dto/forgot-password-request.dto';
+import { ResetPasswordRequestDto } from './dto/reset-password-request.dto';
+import { VerifyEmailRequestDto } from './dto/verify-email-request.dto';
 import { RateLimitGuard, RateLimit } from '../common/rate-limit/rate-limit.guard';
 import { CsrfService } from '../common/csrf/csrf.service';
 import { AuthenticatedRequest, AuthenticatedUser } from '../common/types/request.types';
@@ -117,6 +120,49 @@ export class AuthController {
         mfaEnabled: userProfile.mfaEnabled,
       },
     };
+  }
+
+  /**
+   * POST /api/v1/auth/forgot-password (AUDIT-005)
+   * Public, rate-limited (auth tier). Always returns the SAME generic
+   * response — never reveals whether an account exists. An email is only
+   * dispatched when the account exists.
+   */
+  @Public()
+  @Post('forgot-password')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(RateLimitGuard)
+  @RateLimit('auth')
+  async forgotPassword(@Body() dto: ForgotPasswordRequestDto): Promise<{ message: string }> {
+    return this.authService.requestPasswordReset(dto.email);
+  }
+
+  /**
+   * POST /api/v1/auth/reset-password (AUDIT-005)
+   * Public, rate-limited (auth tier). Validates the one-time token, rehashes
+   * the new password (Argon2id), clears the token and revokes all sessions.
+   */
+  @Public()
+  @Post('reset-password')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(RateLimitGuard)
+  @RateLimit('auth')
+  async resetPassword(@Body() dto: ResetPasswordRequestDto): Promise<{ message: string }> {
+    return this.authService.resetPassword(dto.token, dto.password);
+  }
+
+  /**
+   * POST /api/v1/auth/verify-email (AUDIT-005)
+   * Public, rate-limited (auth tier). One-time expiring verification token
+   * marks the account's email as verified.
+   */
+  @Public()
+  @Post('verify-email')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(RateLimitGuard)
+  @RateLimit('auth')
+  async verifyEmail(@Body() dto: VerifyEmailRequestDto): Promise<{ message: string }> {
+    return this.authService.verifyEmail(dto.token);
   }
 
   @Public()

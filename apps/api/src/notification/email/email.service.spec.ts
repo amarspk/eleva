@@ -108,6 +108,35 @@ describe('EmailService Unit Tests - DOC-008 7.2 Transactional Email', () => {
     expect(result.to).not.toContain('evil');
   });
 
+  // AUDIT-005 — transactional email dispatch for password reset + email
+  // verification (raw tokens travel only inside the emailed links).
+  it('should send password reset email (AUDIT-005) via the mocked path', async () => {
+    const to = 'owner@gourmet.com';
+    const result = await service.sendPasswordResetEmail(to, {
+      firstName: 'John',
+      email: to,
+      resetUrl: 'https://gourmet.zayjar.com/reset-password?token=raw-secret-token',
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.to).toBe(to);
+    expect(result.template).toBe('password-reset');
+    expect(result.mocked).toBe(true);
+  });
+
+  it('should send email verification email (AUDIT-005) via the mocked path', async () => {
+    const to = 'sara@albaik.com';
+    const result = await service.sendEmailVerificationEmail(to, {
+      firstName: 'Sara',
+      verifyUrl: 'https://gourmet.zayjar.com/verify-email?token=raw-verify-token',
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.to).toBe(to);
+    expect(result.template).toBe('verify-email');
+    expect(result.mocked).toBe(true);
+  });
+
   it('should implement failover routing when primary provider fails', async () => {
     // Set API key to trigger real SendGrid path, but without module installed it will fail and go to failover
     process.env.SENDGRID_API_KEY = 'test_key';
