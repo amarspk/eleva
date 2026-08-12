@@ -5,6 +5,7 @@ import { AppModule } from './app.module';
 import { SecretsManagerService } from './common/secrets/secrets-manager.service';
 import { ZayjarLogger, getGlobalLogger } from './common/logging/logger.service';
 import { initDatadogTracer } from './common/logging/datadog-apm';
+import { createApiSecurityHeadersMiddleware } from './common/security/security-headers.middleware';
 
 // AUDIT-002 Finding #1: STRIPE_WEBHOOK_SECRET is required in production —
 // without it the billing webhook would have to accept unverified payloads
@@ -38,6 +39,13 @@ async function bootstrap(): Promise<void> {
   const app: NestExpressApplication = await NestFactory.create(AppModule, {
     logger: new ZayjarLogger('NestJS'),
   });
+
+  // AUDIT-020: application-level protection must survive direct pod/Render/
+  // port-forward access that bypasses nginx. This reviewed middleware is
+  // intentionally registered before body parsing, CORS and static uploads; it
+  // does not consume the body or alter Access-Control-* / Set-Cookie behavior.
+  app.getHttpAdapter().getInstance().disable('x-powered-by');
+  app.use(createApiSecurityHeadersMiddleware());
 
   app.use(require('express').json({
     limit: '10mb',

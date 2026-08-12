@@ -94,6 +94,7 @@ Resources:
             Compress: true
             CachePolicyId: !Ref ImageCachePolicy
             OriginRequestPolicyId: b689b0a8-53d0-40ab-baf2-68738e2966ac
+            ResponseHeadersPolicyId: !Ref ImageResponseHeadersPolicy
 
         # ── Custom error responses ──────────────
         CustomErrorResponses:
@@ -148,14 +149,33 @@ Resources:
     Properties:
       ResponseHeadersPolicyConfig:
         Name: !Sub '${Environment}-zayjar-immutable-cache'
-        Comment: Sets Cache-Control: public, max-age=31536000, immutable for images
+        Comment: Immutable cross-origin media with the AUDIT-020 security baseline
+        SecurityHeadersConfig:
+          ContentTypeOptions:
+            Override: true
+          FrameOptions:
+            FrameOption: DENY
+            Override: true
+          ReferrerPolicy:
+            ReferrerPolicy: no-referrer
+            Override: true
+          StrictTransportSecurity:
+            AccessControlMaxAgeSec: 31536000
+            IncludeSubdomains: false
+            Preload: false
+            Override: true
+          XSSProtection:
+            Protection: false
+            Override: true
         CustomHeadersConfig:
           Items:
-            - Key: Cache-Control
+            - Header: Cache-Control
               Value: 'public, max-age=31536000, immutable'
               Override: true
-            - Key: X-Content-Type-Options
-              Value: nosniff
+            # Product/logo/cover media is consumed by QR, backoffice and cashier
+            # hosts that can differ from cdn.zayjar.com.
+            - Header: Cross-Origin-Resource-Policy
+              Value: cross-origin
               Override: true
 
 Conditions:

@@ -1,5 +1,13 @@
+import securityHeaderConfig from '../../config/security-headers.cjs';
+
+const { buildNextSecurityHeaders } = securityHeaderConfig;
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  poweredByHeader: false,
+  async headers() {
+    return buildNextSecurityHeaders('qr-menu', process.env.NODE_ENV === 'production');
+  },
   images: {
     // Tenant product/branding imagery is served over HTTPS from the platform
     // media service (and tenant-configured CDNs); localhost is allowed for
