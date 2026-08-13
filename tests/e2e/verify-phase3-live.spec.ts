@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { prisma, dbTenantContext } from '@zayjar/db';
+import { DesignService } from '../../apps/api/src/design/design.service';
 
 /**
  * LIVE Phase 3 verification — real Chromium → real Next (production build) →
@@ -253,7 +254,114 @@ test.describe('Phase 3 LIVE — real stack, no mocks', () => {
     }
   });
 
-  test('6. live featured section renders EXACTLY the selected products (productIds, order preserved)', async ({ page }) => {
+  test('6. real PostgreSQL serializes concurrent design saves and preserves publish/restore integrity', async () => {
+    const designService = new DesignService();
+    const drafts = Array.from({ length: 12 }, (_, index) => ({
+      colors: { primary: `#${String(index + 1).padStart(6, '0')}` },
+      sections: [{ id: `concurrent-${index + 1}`, type: 'hero', enabled: true, order: 0, config: {} }],
+    }));
+
+    const clearDesignState = () => dbTenantContext.run({ tenantId }, async () => {
+      const versions = await prisma.tenantDesignVersion.findMany({ where: { tenantId }, select: { id: true } });
+      for (const version of versions) {
+        await prisma.tenantDesignVersion.delete({ where: { id: version.id } });
+      }
+      const design = await prisma.tenantDesign.findUnique({ where: { tenantId }, select: { tenantId: true } });
+      if (design) { await prisma.tenantDesign.delete({ where: { tenantId } }); }
+    });
+    const dropFailureTrigger = () => dbTenantContext.run({ isPlatformOwner: true }, async () => {
+      await prisma.$executeRaw`DROP TRIGGER IF EXISTS a2_fail_design_version ON "tenant_design_versions"`;
+      await prisma.$executeRaw`DROP FUNCTION IF EXISTS a2_fail_design_version_write()`;
+    });
+
+    await dropFailureTrigger();
+    await clearDesignState();
+
+    try {
+      await Promise.all(drafts.map((draft) => designService.saveDraft(tenantId, draft)));
+
+      const afterSaves = await dbTenantContext.run({ tenantId }, async () => ({
+        row: await prisma.tenantDesign.findUnique({ where: { tenantId } }),
+        versions: await prisma.tenantDesignVersion.findMany({
+          where: { tenantId },
+          orderBy: { version: 'asc' },
+        }),
+      }));
+      expect(afterSaves.row).not.toBeNull();
+      expect(afterSaves.row!.version).toBe(12);
+      expect(afterSaves.row!.published).toEqual({});
+      expect(afterSaves.versions.map((entry) => entry.version)).toEqual(
+        Array.from({ length: 12 }, (_, index) => index + 1),
+      );
+      expect(new Set(afterSaves.versions.map((entry) => `${entry.tenantId}:${entry.version}`)).size).toBe(12);
+      expect(afterSaves.row!.draft).toEqual(afterSaves.versions[11].data);
+      expect(JSON.stringify(await designService.getPublishedDesign(tenantId))).not.toContain('concurrent-');
+
+      // Force only the history insert to fail after TenantDesign.update has run.
+      // PostgreSQL must roll the row mutation back with the failed version write.
+      await dbTenantContext.run({ isPlatformOwner: true }, async () => {
+        await prisma.$executeRaw`
+          CREATE FUNCTION a2_fail_design_version_write() RETURNS trigger AS $$
+          BEGIN
+            IF NEW.data->>'rollbackMarker' = 'force-version-failure' THEN
+              RAISE EXCEPTION 'forced A2 version write failure';
+            END IF;
+            RETURN NEW;
+          END;
+          $$ LANGUAGE plpgsql
+        `;
+        await prisma.$executeRaw`
+          CREATE TRIGGER a2_fail_design_version
+          BEFORE INSERT ON "tenant_design_versions"
+          FOR EACH ROW EXECUTE FUNCTION a2_fail_design_version_write()
+        `;
+      });
+      try {
+        await expect(designService.saveDraft(tenantId, {
+          rollbackMarker: 'force-version-failure',
+          sections: [],
+        })).rejects.toThrow('forced A2 version write failure');
+        const afterRollback = await dbTenantContext.run({ tenantId }, async () => ({
+          row: await prisma.tenantDesign.findUnique({ where: { tenantId } }),
+          versionCount: await prisma.tenantDesignVersion.count({ where: { tenantId } }),
+        }));
+        expect(afterRollback.row!.version).toBe(12);
+        expect(afterRollback.row!.draft).toEqual(afterSaves.row!.draft);
+        expect(afterRollback.versionCount).toBe(12);
+      } finally {
+        await dropFailureTrigger();
+      }
+
+      await designService.publish(tenantId);
+      const afterPublish = await dbTenantContext.run({ tenantId }, async () => ({
+        row: await prisma.tenantDesign.findUnique({ where: { tenantId } }),
+        version: await prisma.tenantDesignVersion.findFirst({ where: { tenantId, version: 13 } }),
+      }));
+      expect(afterPublish.row!.version).toBe(13);
+      expect(afterPublish.row!.published).toEqual(afterSaves.row!.draft);
+      expect(afterPublish.version!.data).toEqual(afterSaves.row!.draft);
+
+      await designService.restore(tenantId, 1);
+      const afterRestore = await dbTenantContext.run({ tenantId }, async () => ({
+        row: await prisma.tenantDesign.findUnique({ where: { tenantId } }),
+        versions: await prisma.tenantDesignVersion.findMany({
+          where: { tenantId },
+          orderBy: { version: 'asc' },
+        }),
+      }));
+      expect(afterRestore.row!.version).toBe(14);
+      expect(afterRestore.row!.draft).toEqual(afterRestore.versions[0].data);
+      expect(afterRestore.row!.published).toEqual(afterSaves.row!.draft);
+      expect(afterRestore.versions.map((entry) => entry.version)).toEqual(
+        Array.from({ length: 14 }, (_, index) => index + 1),
+      );
+    } finally {
+      await dropFailureTrigger();
+      await clearDesignState();
+    }
+  });
+
+  test('7. live featured section renders EXACTLY the selected products (productIds, order preserved)', async ({ page }) => {
     const [pA, pB, pC] = products3; // alphabetical by name
     // deliberately reversed selection order to prove order preservation,
     // and pC omitted to prove non-selected products are not rendered

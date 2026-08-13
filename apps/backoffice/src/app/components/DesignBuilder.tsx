@@ -24,13 +24,25 @@ const LAYOUTS: Record<string, string[]> = {
 
 const FONTS = ['Inter','Poppins','Cairo','Amiri','Tajawal','Outfit'];
 
-function useAutoSave(value: unknown, onSave: (v: unknown)=>void, delay=900){
-  const ref = useRef<NodeJS.Timeout|null>(null);
+type SaveState = 'loading'|'dirty'|'saving'|'saved'|'error';
+
+export async function requireSuccessfulResponse(response: Response, operation: string): Promise<Response> {
+  if(response.ok) return response;
+  const payload = await response.json().catch(()=>null) as { message?: string|string[] }|null;
+  const detail = Array.isArray(payload?.message) ? payload?.message.join(', ') : payload?.message;
+  throw new Error(detail || `${operation} failed (HTTP ${response.status})`);
+}
+
+function useAutoSave(value: unknown, onSave: (v: unknown)=>void|Promise<void>, delay=900, enabled=true){
+  const timerRef = useRef<NodeJS.Timeout|null>(null);
+  const onSaveRef = useRef(onSave);
+  useEffect(()=>{ onSaveRef.current=onSave; },[onSave]);
   useEffect(()=>{
-    if(ref.current) clearTimeout(ref.current);
-    ref.current = setTimeout(()=>onSave(value), delay);
-    return ()=>{ if(ref.current) clearTimeout(ref.current); };
-  },[value, onSave, delay]);
+    if(timerRef.current) clearTimeout(timerRef.current);
+    if(!enabled) return;
+    timerRef.current = setTimeout(()=>{ void onSaveRef.current(value); }, delay);
+    return ()=>{ if(timerRef.current) clearTimeout(timerRef.current); };
+  },[value, delay, enabled]);
 }
 
 export function DesignBuilder({ tenantId }: { tenantId: string }){
@@ -41,49 +53,101 @@ export function DesignBuilder({ tenantId }: { tenantId: string }){
   ]});
   const [previewMode,setPreviewMode]=useState<'desktop'|'mobile'>('desktop');
   const [selectedId,setSelectedId]=useState<string>('hero');
-  const [saving,setSaving]=useState(false);
-  const [publishedVersion,setPublishedVersion]=useState(1);
+  const [saveState,setSaveState]=useState<SaveState>('loading');
+  const [currentVersion,setCurrentVersion]=useState(0);
+  const [loaded,setLoaded]=useState(false);
+  const [publishing,setPublishing]=useState(false);
+  const [restoringVersion,setRestoringVersion]=useState<number|null>(null);
   const [versions,setVersions]=useState<any[]>([]);
   const [history,setHistory]=useState<any[]>([]);
   const [historyIdx,setHistoryIdx]=useState(-1);
   const [msg,setMsg]=useState<string|null>(null);
   const [products,setProducts]=useState<any[]>([]);
   const [productSearch,setProductSearch]=useState('');
+  const revisionRef=useRef(0);
+  const latestSaveRequestRef=useRef(0);
+  const messageTimerRef=useRef<NodeJS.Timeout|null>(null);
 
   const apiBase = '/api';
+  const showMessage=useCallback((message:string,clearAfterMs?:number)=>{
+    if(messageTimerRef.current) clearTimeout(messageTimerRef.current);
+    setMsg(message);
+    if(clearAfterMs) messageTimerRef.current=setTimeout(()=>setMsg(null),clearAfterMs);
+  },[]);
+  useEffect(()=>()=>{ if(messageTimerRef.current) clearTimeout(messageTimerRef.current); },[]);
 
   const load = useCallback(async()=>{
+    setSaveState('loading');
     try{
       const r = await fetch(`${apiBase}/v1/design/tenant/${tenantId}?preview=true`,{headers:{'X-Tenant-ID':tenantId}});
-      if(r.ok){ const j=await r.json(); if(j.draft) setDraft(j.draft); if(j.version) setPublishedVersion(j.version); }
+      await requireSuccessfulResponse(r,'Load design');
+      const j=await r.json();
+      if(j.draft) setDraft(j.draft);
+      if(typeof j.version==='number') setCurrentVersion(j.version);
+      revisionRef.current=0;
+      setSaveState('saved');
+
       const v = await fetch(`${apiBase}/v1/design/tenant/${tenantId}/versions`,{headers:{'X-Tenant-ID':tenantId}});
       if(v.ok) setVersions(await v.json());
       // tenant products for the featured/popular picker (deleted filtered server-side)
       const p = await fetch(`${apiBase}/v1/menu/products`,{headers:{'X-Tenant-ID':tenantId}});
       if(p.ok) setProducts(await p.json());
-    }catch{}
-  },[tenantId]);
-  useEffect(()=>{ load(); },[load]);
+    }catch(err){
+      setSaveState('error');
+      showMessage(err instanceof Error?err.message:'Load design failed');
+    }finally{
+      setLoaded(true);
+    }
+  },[tenantId,showMessage]);
+  useEffect(()=>{ void load(); },[load]);
 
   const pushHistory = (next:any)=>{
     setHistory(h=>{ const n=h.slice(0,historyIdx+1); n.push(JSON.parse(JSON.stringify(next))); if(n.length>50) n.shift(); return n; });
     setHistoryIdx(i=> Math.min(i+1,49));
   };
 
-  const saveDraft = useCallback(async (next:any)=>{
-    setSaving(true);
+  const saveDraft = useCallback(async (next:any):Promise<boolean>=>{
+    const revision=revisionRef.current;
+    const requestId=++latestSaveRequestRef.current;
+    setSaveState('saving');
     try{
-      await fetch(`${apiBase}/v1/design/tenant/${tenantId}/draft`,{method:'PUT',headers:{'Content-Type':'application/json','X-Tenant-ID':tenantId},body:JSON.stringify(next)});
-      // also persist to tenant branding for qr-menu SSR
+      const response=await fetch(`${apiBase}/v1/design/tenant/${tenantId}/draft`,{method:'PUT',headers:{'Content-Type':'application/json','X-Tenant-ID':tenantId},body:JSON.stringify(next)});
+      await requireSuccessfulResponse(response,'Auto-save');
+      const saved=await response.json().catch(()=>null) as {version?:number}|null;
+      // also persist to tenant branding for qr-menu SSR (legacy best-effort path;
+      // A4 owns its API-client/contract remediation).
       await fetch(`${apiBase}/v1/tenants/${tenantId}`,{method:'PUT',headers:{'Content-Type':'application/json','X-Tenant-ID':tenantId},body:JSON.stringify({primaryColor:next.colors?.primary, branding: next})}).catch(()=>{});
-      setMsg('Auto-saved'); setTimeout(()=>setMsg(null),1500);
-    }finally{ setSaving(false); }
-  },[tenantId]);
+      if(requestId===latestSaveRequestRef.current && revision===revisionRef.current){
+        if(saved?.version) setCurrentVersion(saved.version);
+        setSaveState('saved');
+        showMessage('Auto-saved',1500);
+      }
+      return true;
+    }catch(err){
+      if(requestId===latestSaveRequestRef.current && revision===revisionRef.current){
+        setSaveState('error');
+        showMessage(err instanceof Error?err.message:'Auto-save failed');
+      }
+      return false;
+    }
+  },[tenantId,showMessage]);
 
-  useAutoSave(draft, (v)=>{ saveDraft(v as any); }, 900);
+  useAutoSave(draft, async(v)=>{ await saveDraft(v as any); }, 900, loaded&&saveState==='dirty');
+
+  const markDraftChanged=(next:any)=>{
+    if(publishing||restoringVersion!==null) return;
+    revisionRef.current+=1;
+    setSaveState('dirty');
+    setDraft(next);
+  };
 
   const updateDraft = (fn:(d:any)=>any)=>{
-    setDraft((prev:any)=>{ const next=fn(JSON.parse(JSON.stringify(prev))); pushHistory(next); return next; });
+    if(publishing||restoringVersion!==null) return;
+    const next=fn(JSON.parse(JSON.stringify(draft)));
+    pushHistory(next);
+    revisionRef.current+=1;
+    setSaveState('dirty');
+    setDraft(next);
   };
 
   const move = (id:string,dir:number)=>{
@@ -99,12 +163,52 @@ export function DesignBuilder({ tenantId }: { tenantId: string }){
   };
 
   const publish = async()=>{
-    await fetch(`${apiBase}/v1/design/tenant/${tenantId}/publish`,{method:'POST',headers:{'X-Tenant-ID':tenantId}});
-    setMsg('Published!'); setTimeout(()=>setMsg(null),2000); load();
+    if(publishing||restoringVersion!==null) return;
+    setPublishing(true);
+    try{
+      if(saveState!=='saved'){
+        const saved=await saveDraft(draft);
+        if(!saved) return;
+      }
+      const response=await fetch(`${apiBase}/v1/design/tenant/${tenantId}/publish`,{method:'POST',headers:{'X-Tenant-ID':tenantId}});
+      await requireSuccessfulResponse(response,'Publish');
+      const published=await response.json().catch(()=>null) as {version?:number}|null;
+      if(published?.version) setCurrentVersion(published.version);
+      setSaveState('saved');
+      showMessage('Published!',2000);
+      await load();
+    }catch(err){
+      setSaveState('error');
+      showMessage(err instanceof Error?err.message:'Publish failed');
+    }finally{
+      setPublishing(false);
+    }
   };
 
-  const undo = ()=>{ if(historyIdx>0){ const v=history[historyIdx-1]; setDraft(v); setHistoryIdx(i=>i-1); }};
-  const redo = ()=>{ if(historyIdx<history.length-1){ const v=history[historyIdx+1]; setDraft(v); setHistoryIdx(i=>i+1); }};
+  const restoreVersion=async(version:number)=>{
+    if(restoringVersion!==null||publishing) return;
+    setRestoringVersion(version);
+    try{
+      if(saveState!=='saved'){
+        const saved=await saveDraft(draft);
+        if(!saved) return;
+      }
+      const response=await fetch(`${apiBase}/v1/design/tenant/${tenantId}/restore/${version}`,{method:'POST',headers:{'X-Tenant-ID':tenantId}});
+      await requireSuccessfulResponse(response,'Restore');
+      const restored=await response.json().catch(()=>null) as {version?:number}|null;
+      if(restored?.version) setCurrentVersion(restored.version);
+      showMessage(`Restored v${version}`,2000);
+      await load();
+    }catch(err){
+      setSaveState('error');
+      showMessage(err instanceof Error?err.message:'Restore failed');
+    }finally{
+      setRestoringVersion(null);
+    }
+  };
+
+  const undo = ()=>{ if(historyIdx>0){ const v=history[historyIdx-1]; markDraftChanged(v); setHistoryIdx(i=>i-1); }};
+  const redo = ()=>{ if(historyIdx<history.length-1){ const v=history[historyIdx+1]; markDraftChanged(v); setHistoryIdx(i=>i+1); }};
 
   // CTO decision 2026-08-10 (§14 #26): featured/popular sections select
   // products explicitly via config.productIds (tenant-owned ids; order of
@@ -129,7 +233,7 @@ export function DesignBuilder({ tenantId }: { tenantId: string }){
       <div className="w-full lg:w-[340px] bg-white rounded-xl border p-4 space-y-4 shrink-0">
         <div className="flex items-center justify-between">
           <h3 className="font-bold">Eleva Website Builder</h3>
-          <span className="text-xs text-gray-500">{saving?'Saving…':'Saved'} v{publishedVersion}</span>
+          <span className="text-xs text-gray-500">{{loading:'Loading…',dirty:'Unsaved changes',saving:'Saving…',saved:`Saved v${currentVersion}`,error:'Save failed'}[saveState]}</span>
         </div>
         {/* Colors */}
         <div>
@@ -204,9 +308,9 @@ export function DesignBuilder({ tenantId }: { tenantId: string }){
           <button onClick={redo} disabled={historyIdx>=history.length-1} className="flex-1 border rounded py-1 text-xs disabled:opacity-50">Redo</button>
         </div>
         <div className="flex gap-2">
-          <button onClick={publish} className="flex-1 bg-black text-white rounded py-2 text-sm">Publish</button>
+          <button onClick={()=>void publish()} disabled={publishing||restoringVersion!==null} className="flex-1 bg-black disabled:opacity-50 text-white rounded py-2 text-sm">{publishing?'Publishing…':'Publish'}</button>
         </div>
-        {msg && <div className="text-xs bg-green-50 text-green-700 p-2 rounded">{msg}</div>}
+        {msg && <div className={`text-xs p-2 rounded ${saveState==='error'?'bg-red-50 text-red-700':'bg-green-50 text-green-700'}`}>{msg}</div>}
         {versions.length>0 && (
           <div>
             <h4 className="text-xs font-semibold">History ({versions.length})</h4>
@@ -214,7 +318,7 @@ export function DesignBuilder({ tenantId }: { tenantId: string }){
               {versions.map(v=>(
                 <div key={v.id} className="flex justify-between text-[11px] border rounded p-1">
                   <span>v{v.version} {new Date(v.createdAt).toLocaleString()}</span>
-                  <button onClick={async()=>{ await fetch(`${apiBase}/v1/design/tenant/${tenantId}/restore/${v.version}`,{method:'POST',headers:{'X-Tenant-ID':tenantId}}); load();}} className="text-blue-600">Restore</button>
+                  <button onClick={()=>void restoreVersion(v.version)} disabled={restoringVersion!==null||publishing} className="text-blue-600 disabled:opacity-50">{restoringVersion===v.version?'Restoring…':'Restore'}</button>
                 </div>
               ))}
             </div>
