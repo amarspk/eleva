@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, within } from '@testing-library/react';
 import { MenuBrowser } from './MenuBrowser';
 import type { PublicMenuResponse } from '../lib/types';
 
@@ -84,6 +84,23 @@ const defaultProps = {
   token: 'qr-test-token',
 };
 
+function withFeatured(productIds: string[]): PublicMenuResponse {
+  return {
+    ...sampleMenuResponse,
+    design: {
+      sections: [
+        {
+          id: 'featured',
+          type: 'featured',
+          enabled: true,
+          order: 0,
+          config: { variant: 'grid', productIds },
+        },
+      ],
+    },
+  };
+}
+
 beforeEach(() => {
   (global.fetch as jest.Mock).mockClear();
 });
@@ -119,6 +136,54 @@ it('filters products by category', () => {
   fireEvent.click(foodButtons[0]);
   expect(screen.queryByText('Coca-Cola')).toBeNull();
   expect(screen.getByText('Burger')).toBeTruthy();
+});
+
+it('keeps featured products in configured order while rendering the full catalog', () => {
+  render(<MenuBrowser {...defaultProps} initialData={withFeatured(['prod-3', 'prod-1'])} />);
+
+  const featured = screen.getByTestId('featured-section');
+  expect(within(featured).getByText('Burger')).toBeTruthy();
+  expect(within(featured).getByText('Coca-Cola')).toBeTruthy();
+  const featuredText = featured.textContent ?? '';
+  expect(featuredText.indexOf('Burger')).toBeLessThan(featuredText.indexOf('Coca-Cola'));
+  expect(within(featured).queryByText('Pepsi')).toBeNull();
+
+  // Pepsi is active but not curated; it remains in the ordinary catalog.
+  expect(screen.getByText('Pepsi')).toBeTruthy();
+});
+
+it('keeps a non-featured product reachable through category navigation', () => {
+  render(<MenuBrowser {...defaultProps} initialData={withFeatured(['prod-3'])} />);
+
+  fireEvent.click(screen.getByRole('button', { name: 'Drinks' }));
+
+  expect(screen.getByText('Pepsi')).toBeTruthy();
+  expect(screen.getByText('Coca-Cola')).toBeTruthy();
+  expect(screen.queryByText('Burger')).toBeNull();
+});
+
+it('keeps a non-featured product reachable through search', () => {
+  render(<MenuBrowser {...defaultProps} initialData={withFeatured(['prod-3'])} />);
+
+  fireEvent.change(screen.getByPlaceholderText(/search/i), { target: { value: 'pepsi' } });
+
+  expect(screen.getByText('Pepsi')).toBeTruthy();
+  expect(screen.queryByText('Burger')).toBeNull();
+  expect(screen.queryByText('Coca-Cola')).toBeNull();
+});
+
+it('skips unknown curated ids without substituting ordinary catalog products', () => {
+  render(
+    <MenuBrowser
+      {...defaultProps}
+      initialData={withFeatured(['foreign-tenant-product', 'prod-3', 'unknown-product'])}
+    />,
+  );
+
+  const featured = screen.getByTestId('featured-section');
+  expect(within(featured).getByText('Burger')).toBeTruthy();
+  expect(within(featured).queryByText('Coca-Cola')).toBeNull();
+  expect(within(featured).queryByText('Pepsi')).toBeNull();
 });
 
 it('displays product prices', () => {

@@ -361,10 +361,10 @@ test.describe('Phase 3 LIVE — real stack, no mocks', () => {
     }
   });
 
-  test('7. live featured section renders EXACTLY the selected products (productIds, order preserved)', async ({ page }) => {
+  test('7. live featured section stays curated while the full catalog remains discoverable', async ({ page }) => {
     const [pA, pB, pC] = products3; // alphabetical by name
-    // deliberately reversed selection order to prove order preservation,
-    // and pC omitted to prove non-selected products are not rendered
+    // Deliberately reversed selection order proves curated ordering. pC is
+    // omitted from Featured but must remain reachable in the full catalog.
     const featuredConfig = { variant: 'grid', productIds: [pB.id, pA.id] };
 
     await dbTenantContext.run({ tenantId }, async () => {
@@ -390,16 +390,19 @@ test.describe('Phase 3 LIVE — real stack, no mocks', () => {
       await page.goto(`${QR_BASE}/?t=${encodeURIComponent(token)}`);
       await page.waitForLoadState('domcontentloaded');
 
-      // both selected products are rendered
-      await expect(page.locator(`text=${pB.name}`).first()).toBeVisible({ timeout: 15000 });
-      await expect(page.locator(`text=${pA.name}`).first()).toBeVisible();
+      const featured = page.getByTestId('featured-section');
 
-      // the non-selected product is NOT rendered anywhere
-      await expect(page.locator(`text=${pC.name}`)).toHaveCount(0);
+      // Featured contains exactly the selected tenant products.
+      await expect(featured.getByText(pB.name, { exact: true })).toBeVisible({ timeout: 15000 });
+      await expect(featured.getByText(pA.name, { exact: true })).toBeVisible();
+      await expect(featured.getByText(pC.name, { exact: true })).toHaveCount(0);
 
-      // display order follows productIds ([pB, pA]), not alphabetical
-      const boxB = await page.locator(`text=${pB.name}`).first().boundingBox();
-      const boxA = await page.locator(`text=${pA.name}`).first().boundingBox();
+      // The non-featured active product remains reachable in the full catalog.
+      await expect(page.getByText(pC.name, { exact: true }).first()).toBeVisible();
+
+      // Curated display order follows productIds ([pB, pA]), not alphabetical.
+      const boxB = await featured.getByText(pB.name, { exact: true }).boundingBox();
+      const boxA = await featured.getByText(pA.name, { exact: true }).boundingBox();
       expect(boxB).not.toBeNull();
       expect(boxA).not.toBeNull();
       expect(boxB!.x).toBeLessThan(boxA!.x);

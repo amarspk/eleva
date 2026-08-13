@@ -15,6 +15,7 @@ jest.mock('@zayjar/db', () => ({
     restaurant: { findFirst: jest.fn() },
     tenant: { findUnique: jest.fn() },
     category: { findMany: jest.fn() },
+    tenantDesign: { findUnique: jest.fn() },
   },
   dbTenantContext: {
     run: jest.fn((_ctx: unknown, fn: () => Promise<unknown>) => fn()),
@@ -27,6 +28,7 @@ const mockPrisma = prisma as unknown as {
   restaurant: { findFirst: jest.Mock };
   tenant: { findUnique: jest.Mock };
   category: { findMany: jest.Mock };
+  tenantDesign: { findUnique: jest.Mock };
 };
 
 const TENANT_ID = 'tenant-uuid-1';
@@ -65,6 +67,7 @@ describe('PublicMenu (QR guest surface)', () => {
     mockPrisma.restaurant.findFirst.mockResolvedValue(RESTAURANT_ROW);
     mockPrisma.tenant.findUnique.mockResolvedValue(TENANT_ROW);
     mockPrisma.category.findMany.mockResolvedValue([]);
+    mockPrisma.tenantDesign.findUnique.mockResolvedValue(null);
   });
 
   describe('getTableContext (service)', () => {
@@ -180,6 +183,30 @@ describe('PublicMenu (QR guest surface)', () => {
       const args = mockPrisma.category.findMany.mock.calls[0][0];
       expect(args.take).toBe(100);
       expect(args.select.products.take).toBe(200);
+    });
+
+    it('keeps the full catalog tenant-scoped and limited to active products', async () => {
+      await service.getPublicMenu(VALID_TOKEN, TENANT_ID);
+
+      const args = mockPrisma.category.findMany.mock.calls[0][0];
+      expect(args.where).toEqual({ restaurantId: 'rest-1', isActive: true, deletedAt: null });
+      expect(args.select.products.where).toEqual({ isAvailable: true, deletedAt: null });
+    });
+
+    it('returns only the published design projection to public menu clients', async () => {
+      mockPrisma.tenantDesign.findUnique.mockResolvedValue({
+        published: { sections: [{ id: 'published-featured', type: 'featured' }] },
+        draft: { sections: [{ id: 'private-draft', type: 'featured' }] },
+      });
+
+      const result = await service.getPublicMenu(VALID_TOKEN, TENANT_ID);
+
+      expect(mockPrisma.tenantDesign.findUnique).toHaveBeenCalledWith({
+        where: { tenantId: TENANT_ID },
+        select: { published: true },
+      });
+      expect(JSON.stringify(result.design)).toContain('published-featured');
+      expect(JSON.stringify(result.design)).not.toContain('private-draft');
     });
 
     it('maps the menu into the guest DTO shape with numeric prices and addon options', async () => {

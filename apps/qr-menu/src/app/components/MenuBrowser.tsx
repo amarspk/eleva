@@ -126,7 +126,7 @@ function DesignSections({ design, categories, primaryColor, currency, onSelect, 
           if (v==='compact') return <div key={sec.id}><div className="text-sm font-bold capitalize mb-2">{sec.type}</div><div className="grid grid-cols-3 gap-2">{prods.map((pr: PublicProduct) => <div key={pr.id} onClick={()=>onSelect(pr)} className="bg-white border rounded-lg p-2 cursor-pointer text-center"><div className="h-12 bg-gray-100 rounded mb-1"/><div className="text-[11px] font-semibold line-clamp-1">{pr.name}</div><div className="text-[10px] font-bold">{formatPrice(Number(pr.basePrice),currency)}</div></div>)}</div></div>;
           if (v==='slider') return <div key={sec.id}><div className="text-sm font-bold capitalize mb-2">{sec.type}</div><div className="flex gap-3 overflow-x-auto pb-2">{prods.map((pr: PublicProduct) => <div key={pr.id} onClick={()=>onSelect(pr)} className="shrink-0 w-32 bg-white border rounded-xl p-3 cursor-pointer"><div className="h-16 bg-gray-100 rounded mb-2"/><div className="text-xs font-semibold line-clamp-1">{pr.name}</div><div className="text-xs font-bold">{formatPrice(Number(pr.basePrice),currency)}</div></div>)}</div></div>;
           if (v==='cards') return <div key={sec.id}><div className="text-sm font-bold capitalize mb-2">{sec.type}</div><div className="grid grid-cols-2 gap-3">{prods.map((pr: PublicProduct) => <div key={pr.id} onClick={()=>onSelect(pr)} className="bg-white border rounded-xl p-3 cursor-pointer shadow-sm"><div className="h-20 bg-gray-100 rounded-lg mb-2"/><div className="text-sm font-semibold">{pr.name}</div><div className="text-xs font-bold">{formatPrice(Number(pr.basePrice),currency)}</div></div>)}</div></div>;
-          return <div key={sec.id}><div className="text-sm font-bold capitalize mb-2">{sec.type}</div><div className="grid grid-cols-2 gap-2">{prods.map((pr: PublicProduct) => <div key={pr.id} onClick={()=>onSelect(pr)} className="bg-white border rounded-xl p-3 cursor-pointer"><div className="text-sm font-semibold line-clamp-1">{pr.name}</div><div className="text-xs text-gray-500 line-clamp-1">{pr.description}</div><div className="text-xs font-bold mt-1">{formatPrice(Number(pr.basePrice),currency)}</div></div>)}</div></div>;
+          return <div key={sec.id} data-testid={`${sec.type}-section`}><div className="text-sm font-bold capitalize mb-2">{sec.type}</div><div className="grid grid-cols-2 gap-2">{prods.map((pr: PublicProduct) => <div key={pr.id} onClick={()=>onSelect(pr)} className="bg-white border rounded-xl p-3 cursor-pointer"><div className="text-sm font-semibold line-clamp-1">{pr.name}</div><div className="text-xs text-gray-500 line-clamp-1">{pr.description}</div><div className="text-xs font-bold mt-1">{formatPrice(Number(pr.basePrice),currency)}</div></div>)}</div></div>;
         }
         if (sec.type==='banner' || sec.type==='promo') {
           if (v==='split') return <div key={sec.id} className="rounded-xl bg-gradient-to-r from-orange-100 to-pink-100 p-4 flex justify-between items-center"><span className="font-bold text-sm">Special Offer</span><span className="bg-black text-white px-3 py-1 rounded-full text-xs">Order now</span></div>;
@@ -135,8 +135,9 @@ function DesignSections({ design, categories, primaryColor, currency, onSelect, 
         }
         return null;
       })}
-      {/* Always render remaining categories not covered by featured/popular as grid as fallback when design has hero but no full menu */}
-      {sections.length>0 && !sections.some((s: DesignSection) => s.type==='featured') && <ProductGrid categories={categories} primaryColor={primaryColor} currency={currency} onSelect={onSelect} />}
+      {/* Curated sections are promotional views, not a replacement catalog. Keep
+          every active tenant product reachable through the filtered full menu. */}
+      <ProductGrid categories={categories} primaryColor={primaryColor} currency={currency} onSelect={onSelect} />
     </main>
   );
 }
