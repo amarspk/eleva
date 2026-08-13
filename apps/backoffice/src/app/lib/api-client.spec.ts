@@ -1,7 +1,7 @@
 /**
  * @jest-environment jsdom
  */
-import { ApiError, apiRequest, resolveCsrfToken } from './api-client';
+import { ApiError, apiErrorMessage, apiRequest, resolveCsrfToken } from './api-client';
 
 /**
  * AUDIT-014 — shared API client.
@@ -147,5 +147,29 @@ describe('apiRequest error handling', () => {
     await expect(
       apiRequest('/x', { method: 'DELETE', fetchImpl: fetchImpl as unknown as typeof fetch }),
     ).resolves.toBeUndefined();
+  });
+
+  it('clears a rejected session and centralizes the operator-facing 401 message', async () => {
+    const fetchImpl = mockFetch(401, { message: 'Unauthorized' });
+    let caught: unknown;
+    try {
+      await apiRequest('/x', { fetchImpl: fetchImpl as unknown as typeof fetch });
+    } catch (error) {
+      caught = error;
+    }
+
+    expect(STORE.accessToken).toBeUndefined();
+    expect(apiErrorMessage(caught, 'Load failed')).toBe('Your session has expired. Sign in again.');
+  });
+
+  it('normalizes transport failures as ApiError instead of leaking raw fetch failures', async () => {
+    const fetchImpl = jest.fn().mockRejectedValue(new TypeError('network offline'));
+    await expect(
+      apiRequest('/x', { fetchImpl: fetchImpl as unknown as typeof fetch }),
+    ).rejects.toMatchObject({
+      name: 'ApiError',
+      status: 0,
+      message: 'Unable to reach the API. network offline',
+    });
   });
 });

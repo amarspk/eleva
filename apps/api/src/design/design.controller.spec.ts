@@ -305,17 +305,17 @@ describe('DesignController A1 — HTTP authorization boundary', () => {
   it('serves an authenticated tenant its own design', async () => {
     currentUser = ownerA;
     await request(app.getHttpServer())
-      .get(`/design/tenant/${TENANT_A}?preview=true`)
+      .get(`/api/v1/design/tenant/${TENANT_A}?preview=true`)
       .expect(200);
     expect(service.getDesign).toHaveBeenCalledWith(TENANT_A, true);
   });
 
   it('returns 404 for Tenant A targeting Tenant B and vice versa', async () => {
     currentUser = ownerA;
-    await request(app.getHttpServer()).get(`/design/tenant/${TENANT_B}`).expect(404);
+    await request(app.getHttpServer()).get(`/api/v1/design/tenant/${TENANT_B}`).expect(404);
 
     currentUser = ownerB;
-    await request(app.getHttpServer()).put(`/design/tenant/${TENANT_A}/draft`).send(DRAFT).expect(404);
+    await request(app.getHttpServer()).put(`/api/v1/design/tenant/${TENANT_A}/draft`).send(DRAFT).expect(404);
 
     expect(service.getDesign).not.toHaveBeenCalled();
     expect(service.saveDraft).not.toHaveBeenCalled();
@@ -323,15 +323,15 @@ describe('DesignController A1 — HTTP authorization boundary', () => {
 
   it('returns 403 when a role without tenant:update attempts a design mutation', async () => {
     currentUser = kitchenA;
-    await request(app.getHttpServer()).put(`/design/tenant/${TENANT_A}/draft`).send(DRAFT).expect(403);
+    await request(app.getHttpServer()).put(`/api/v1/design/tenant/${TENANT_A}/draft`).send(DRAFT).expect(403);
     expect(service.saveDraft).not.toHaveBeenCalled();
   });
 
   it('allows PLATFORM_OWNER to preview and mutate platform design', async () => {
     currentUser = platformOwner;
-    await request(app.getHttpServer()).get('/design/platform/preview').expect(200);
-    await request(app.getHttpServer()).put('/design/platform/draft').send(DRAFT).expect(200);
-    await request(app.getHttpServer()).post('/design/platform/publish').expect(201);
+    await request(app.getHttpServer()).get('/api/v1/design/platform/preview').expect(200);
+    await request(app.getHttpServer()).put('/api/v1/design/platform/draft').send(DRAFT).expect(200);
+    await request(app.getHttpServer()).post('/api/v1/design/platform/publish').expect(201);
 
     expect(service.getPlatformPreview).toHaveBeenCalledTimes(1);
     expect(service.savePlatformDraft).toHaveBeenCalledWith(DRAFT);
@@ -340,15 +340,15 @@ describe('DesignController A1 — HTTP authorization boundary', () => {
 
   it('denies tenant users private platform preview and mutations', async () => {
     currentUser = ownerA;
-    await request(app.getHttpServer()).get('/design/platform/preview').expect(403);
-    await request(app.getHttpServer()).put('/design/platform/draft').send(DRAFT).expect(403);
-    await request(app.getHttpServer()).post('/design/platform/publish').expect(403);
+    await request(app.getHttpServer()).get('/api/v1/design/platform/preview').expect(403);
+    await request(app.getHttpServer()).put('/api/v1/design/platform/draft').send(DRAFT).expect(403);
+    await request(app.getHttpServer()).post('/api/v1/design/platform/publish').expect(403);
   });
 
   it('keeps public platform access published-only even with preview=true', async () => {
     currentUser = undefined;
     await request(app.getHttpServer())
-      .get('/design/platform?preview=true')
+      .get('/api/v1/design/platform?preview=true')
       .expect(200)
       .expect({ marker: 'platform-published' });
 
@@ -359,7 +359,7 @@ describe('DesignController A1 — HTTP authorization boundary', () => {
   it('keeps the public tenant endpoint on the published-only service path', async () => {
     currentUser = undefined;
     await request(app.getHttpServer())
-      .get(`/design/public/${TENANT_A}`)
+      .get(`/api/v1/design/public/${TENANT_A}`)
       .expect(200)
       .expect({ marker: 'tenant-published' });
 

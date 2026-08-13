@@ -70,8 +70,16 @@ export class AppModule implements NestModule {
       //
       // A1: the public platform-design endpoint is also tenant-free. It returns
       // only the published projection; draft preview and both mutations remain
-      // JWT-protected and PLATFORM_OWNER-only in DesignController.
-      .exclude('health', 'api/v1/tenants/plans', 'api/v1/tenants', 'api/v1/auth/login', 'design/platform')
+      // JWT-protected and PLATFORM_OWNER-only in DesignController. A4 adds the
+      // standard /api/v1 alias, so both exact public paths are exempted.
+      .exclude(
+        'health',
+        'api/v1/tenants/plans',
+        'api/v1/tenants',
+        'api/v1/auth/login',
+        'design/platform',
+        'api/v1/design/platform',
+      )
       .forRoutes('*');
   }
 }

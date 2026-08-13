@@ -1,4 +1,4 @@
-import { loadSession, readCsrfCookie, resolveApiBase } from './auth';
+import { clearSession, loadSession, readCsrfCookie, resolveApiBase } from './auth';
 
 /**
  * Shared REST client for the Backoffice (AUDIT-014).
@@ -71,6 +71,28 @@ function extractMessage(body: unknown, status: number): string {
 }
 
 /**
+ * Gives every Backoffice workflow the same operator-facing failure text.
+ * Components still decide where to render the message, but auth, RBAC, HTTP,
+ * and transport failures are interpreted in one place instead of being
+ * swallowed or reimplemented per screen.
+ */
+export function apiErrorMessage(error: unknown, fallback: string): string {
+  if (error instanceof ApiError) {
+    if (error.isAuthError) {
+      return 'Your session has expired. Sign in again.';
+    }
+    if (error.isForbidden && error.message === `Request failed (HTTP ${error.status}).`) {
+      return 'You do not have permission to perform this action.';
+    }
+    return error.message;
+  }
+  if (error instanceof Error && error.message.length > 0) {
+    return error.message;
+  }
+  return fallback;
+}
+
+/**
  * Resolves the CSRF token: the session copy first (written at login), then the
  * cookie the backend sets alongside it. Returning '' rather than throwing keeps
  * read-only calls working even if the cookie was cleared.
@@ -125,13 +147,19 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
     }
   }
 
-  const response = await fetchImpl(`${resolveApiBase()}${path}`, {
-    method,
-    headers,
-    credentials: 'include',
-    signal,
-    body: body === undefined ? undefined : JSON.stringify(body),
-  });
+  let response: Response;
+  try {
+    response = await fetchImpl(`${resolveApiBase()}${path}`, {
+      method,
+      headers,
+      credentials: 'include',
+      signal,
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
+  } catch (error) {
+    const detail = error instanceof Error && error.message.length > 0 ? ` ${error.message}` : '';
+    throw new ApiError(0, `Unable to reach the API.${detail}`, null);
+  }
 
   if (response.status === 204) {
     return undefined as T;
@@ -140,7 +168,14 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
   const payload: unknown = await response.json().catch(() => null);
 
   if (!response.ok) {
-    throw new ApiError(response.status, extractMessage(payload, response.status), payload);
+    const error = new ApiError(response.status, extractMessage(payload, response.status), payload);
+    if (error.isAuthError) {
+      // A rejected access token must not remain available to later requests.
+      // The screen renders the centralized expiry message and the existing
+      // route guard sends the next navigation through /login.
+      clearSession();
+    }
+    throw error;
   }
 
   return payload as T;

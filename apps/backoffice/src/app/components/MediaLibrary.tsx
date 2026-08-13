@@ -1,34 +1,102 @@
 'use client';
-/* eslint-disable @typescript-eslint/no-explicit-any, @next/next/no-img-element, @typescript-eslint/explicit-function-return-type, curly, no-empty */
-import React, { useState, useEffect } from 'react';
-export function MediaLibrary({ tenantId }: { tenantId: string }){
-  const [items,setItems]=useState<any[]>([]);
-  const [uploading,setUploading]=useState(false);
-  const load=async()=>{
-    try{
-      const r=await fetch(`/api/v1/media?tenantId=${tenantId}`,{headers:{'X-Tenant-ID':tenantId}});
-      if(r.ok) setItems(await r.json());
-    }catch{}
-  };
-  useEffect(()=>{ load(); },[]);
-  const onFile=async(e:React.ChangeEvent<HTMLInputElement>)=>{
-    const f=e.target.files?.[0]; if(!f) return;
+
+/* eslint-disable @next/next/no-img-element */
+import React, { useState } from 'react';
+import { apiErrorMessage } from '../lib/api-client';
+import { assetsApi, uploadPresignedAsset } from '../lib/resources';
+
+interface UploadedAsset {
+  id: string;
+  originalName: string;
+  originalUrl: string;
+}
+
+export function MediaLibrary({ tenantId }: { tenantId: string }): React.ReactElement {
+  const [items, setItems] = useState<UploadedAsset[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState('');
+  const [message, setMessage] = useState('');
+
+  const onFile = async (event: React.ChangeEvent<HTMLInputElement>): Promise<void> => {
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
+    if (!tenantId) {
+      setError('Tenant context is required to upload assets.');
+      return;
+    }
+
     setUploading(true);
-    try{
-      const pres=await fetch('/api/v1/media/presigned-url',{method:'POST',headers:{'Content-Type':'application/json','X-Tenant-ID':tenantId},body:JSON.stringify({originalName:f.name,mimeType:f.type,fileSize:f.size})});
-      if(pres.ok){ setTimeout(load,800); }
-    }finally{ setUploading(false); }
+    setError('');
+    setMessage('');
+    try {
+      // tenantId deliberately does not appear in the DTO. The authenticated
+      // asset endpoint derives it from the verified JWT, preserving A1.
+      const target = await assetsApi.createPresignedUrl({
+        fileName: file.name,
+        contentType: file.type,
+        fileSize: file.size,
+        folder: 'branding',
+      });
+      await uploadPresignedAsset(target, file);
+      setItems((current) => [
+        { id: target.key, originalName: file.name, originalUrl: target.publicUrl },
+        ...current.filter((item) => item.id !== target.key),
+      ]);
+      setMessage(`${file.name} uploaded successfully.`);
+    } catch (uploadError) {
+      setError(apiErrorMessage(uploadError, 'Unable to upload asset.'));
+    } finally {
+      setUploading(false);
+      event.target.value = '';
+    }
   };
+
   return (
-    <div className="bg-white rounded-xl border p-4">
-      <h3 className="font-bold mb-3">Media Library (IndexedDB + S3)</h3>
-      <label className="border-2 border-dashed rounded-lg p-6 flex flex-col items-center cursor-pointer">
-        <span className="text-sm">{uploading?'Uploading…':'Click to upload logo / cover / product image'}</span>
-        <input type="file" accept="image/*" className="hidden" onChange={onFile}/>
+    <div className="rounded-xl border bg-white p-4">
+      <h3 className="mb-3 font-bold">Media Library</h3>
+      <label
+        className={`flex flex-col items-center rounded-lg border-2 border-dashed p-6 ${
+          uploading ? 'cursor-wait opacity-60' : 'cursor-pointer'
+        }`}
+      >
+        <span className="text-sm">
+          {uploading ? 'Uploading…' : 'Click to upload logo / cover / product image'}
+        </span>
+        <input
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          className="hidden"
+          onChange={(event) => void onFile(event)}
+          disabled={uploading}
+          aria-label="Upload media asset"
+        />
       </label>
-      <div className="grid grid-cols-3 md:grid-cols-6 gap-2 mt-4">
-        {items.map((m:any)=>(<div key={m.id} className="border rounded overflow-hidden"><img src={m.thumbnailUrl||m.originalUrl} alt={m.originalName} className="h-20 w-full object-cover"/><div className="text-[10px] p-1 truncate">{m.originalName}</div></div>))}
-        {items.length===0 && <p className="text-xs text-gray-500 col-span-6">No media yet — uploads are stored via presigned S3 + Sharp WebP, persisted in IndexedDB for offline.</p>}
+
+      {error ? (
+        <div role="alert" className="mt-3 rounded bg-red-50 p-2 text-xs text-red-700">
+          {error}
+        </div>
+      ) : null}
+      {message ? (
+        <div role="status" className="mt-3 rounded bg-green-50 p-2 text-xs text-green-700">
+          {message}
+        </div>
+      ) : null}
+
+      <div className="mt-4 grid grid-cols-3 gap-2 md:grid-cols-6">
+        {items.map((item) => (
+          <div key={item.id} className="overflow-hidden rounded border">
+            <img src={item.originalUrl} alt={item.originalName} className="h-20 w-full object-cover" />
+            <div className="truncate p-1 text-[10px]">{item.originalName}</div>
+          </div>
+        ))}
+        {items.length === 0 ? (
+          <p className="col-span-6 text-xs text-gray-500">
+            No assets uploaded in this session. Uploads use the authenticated presigned asset flow.
+          </p>
+        ) : null}
       </div>
     </div>
   );

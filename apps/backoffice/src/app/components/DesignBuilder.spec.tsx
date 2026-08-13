@@ -1,8 +1,14 @@
 import React from 'react';
 import { act, fireEvent, render, screen } from '@testing-library/react';
-import { DesignBuilder, requireSuccessfulResponse } from './DesignBuilder';
+import { DesignBuilder } from './DesignBuilder';
 
 const fetchMock = global.fetch as jest.Mock;
+const sessionStore: Record<string, string> = {
+  accessToken: 'a4-access-token',
+  csrfToken: 'a4-csrf-token',
+  tenantId: 'tenant-a',
+  user: JSON.stringify({ id: 'user-a', tenantId: 'tenant-a', email: 'owner@example.com' }),
+};
 
 function response(body: unknown, ok = true, status = ok ? 200 : 500): Response {
   return { ok, status, json: jest.fn().mockResolvedValue(body) } as unknown as Response;
@@ -49,6 +55,14 @@ function mockLoadedDesign(options: {
 describe('DesignBuilder save/publish integrity UI', () => {
   beforeEach(() => {
     fetchMock.mockReset();
+    (window.localStorage.getItem as jest.Mock).mockImplementation((key: string) => sessionStore[key] ?? null);
+    (window.localStorage.removeItem as jest.Mock).mockImplementation((key: string) => {
+      delete sessionStore[key];
+    });
+    sessionStore.accessToken = 'a4-access-token';
+    sessionStore.csrfToken = 'a4-csrf-token';
+    sessionStore.tenantId = 'tenant-a';
+    sessionStore.user = JSON.stringify({ id: 'user-a', tenantId: 'tenant-a', email: 'owner@example.com' });
   });
 
   afterEach(() => {
@@ -160,8 +174,29 @@ describe('DesignBuilder save/publish integrity UI', () => {
     expect(loadCallsAfterRestore).toBe(loadCallsBeforeRestore);
   });
 
-  it('rejects non-2xx API responses with their server message', async () => {
-    await expect(requireSuccessfulResponse(response({ message: ['one', 'two'] }, false, 409), 'Save'))
-      .rejects.toThrow('one, two');
+  it('uses the standard design route with bearer and CSRF headers', async () => {
+    jest.useFakeTimers();
+    mockLoadedDesign();
+    render(<DesignBuilder tenantId="tenant-a" />);
+    await screen.findByText('Saved v1');
+
+    const designGet = fetchMock.mock.calls.find(([url]) =>
+      String(url).includes('/api/v1/design/tenant/tenant-a?preview=true'),
+    );
+    expect(designGet?.[1].headers.Authorization).toBe('Bearer a4-access-token');
+    expect(designGet?.[1].headers['X-Tenant-ID']).toBe('tenant-a');
+
+    fireEvent.change(screen.getByLabelText('Primary'), { target: { value: '#445566' } });
+    await act(async () => {
+      jest.advanceTimersByTime(900);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    const draftPut = fetchMock.mock.calls.find(([url, init]) =>
+      String(url).endsWith('/api/v1/design/tenant/tenant-a/draft') && init?.method === 'PUT',
+    );
+    expect(draftPut?.[1].headers.Authorization).toBe('Bearer a4-access-token');
+    expect(draftPut?.[1].headers['X-CSRF-Token']).toBe('a4-csrf-token');
   });
 });

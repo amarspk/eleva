@@ -309,3 +309,122 @@ export function unwrapUsers(
 ): StaffUserRecord[] {
   return Array.isArray(payload) ? payload : payload.data ?? [];
 }
+
+// ---------------------------------------------------------------- Phase 3 workflows (A4)
+
+export interface DesignSection {
+  id: string;
+  type: string;
+  enabled: boolean;
+  order: number;
+  config: Record<string, unknown>;
+}
+
+export interface DesignData {
+  colors?: { primary?: string; secondary?: string };
+  fonts?: { heading?: string; body?: string };
+  logo?: string | null;
+  coverImage?: string | null;
+  sections?: DesignSection[];
+  [key: string]: unknown;
+}
+
+export interface TenantDesignResponse {
+  draft: DesignData;
+  published: DesignData;
+  version: number;
+  publishedAt: string | null;
+}
+
+export interface DesignVersion {
+  id: string;
+  version: number;
+  createdAt: string;
+}
+
+/**
+ * The Phase 3 controller is exposed under the standard API namespace. The
+ * backend retains its original `/design` alias for compatibility, but the
+ * Backoffice must use the route that is carried by the existing `/api/*`
+ * reverse proxy in local and production environments.
+ */
+export const designsApi = {
+  get: (tenantId: string): Promise<TenantDesignResponse> =>
+    api.get<TenantDesignResponse>(`/api/v1/design/tenant/${tenantId}?preview=true`),
+  versions: (tenantId: string): Promise<DesignVersion[]> =>
+    api.get<DesignVersion[]>(`/api/v1/design/tenant/${tenantId}/versions`),
+  saveDraft: (tenantId: string, draft: DesignData): Promise<{ version?: number }> =>
+    api.put<{ version?: number }>(`/api/v1/design/tenant/${tenantId}/draft`, draft),
+  publish: (tenantId: string): Promise<{ version?: number }> =>
+    api.post<{ version?: number }>(`/api/v1/design/tenant/${tenantId}/publish`),
+  restore: (tenantId: string, version: number): Promise<{ version?: number }> =>
+    api.post<{ version?: number }>(`/api/v1/design/tenant/${tenantId}/restore/${version}`),
+};
+
+export interface OrderSummary {
+  id: string;
+  orderNumber: string;
+  branchId?: string | null;
+  paymentMethod?: string | null;
+  total: string | number;
+  createdAt: string;
+  status: string;
+  isPreorder?: boolean;
+  scheduledAt?: string | null;
+  specialNotes?: string | null;
+  orderItems?: Array<{ quantity: number; productId?: string | null }>;
+  items?: Array<{ quantity: number; productId?: string | null }>;
+}
+
+export type OrderListResponse = OrderSummary[] | { data: OrderSummary[] };
+
+export const ordersApi = {
+  list: (branchId?: string): Promise<OrderListResponse> =>
+    api.get<OrderListResponse>(`/api/v1/orders${buildQuery({ branchId })}`),
+};
+
+export function unwrapOrders(payload: OrderListResponse): OrderSummary[] {
+  return Array.isArray(payload) ? payload : payload.data ?? [];
+}
+
+/** Request/response contract of POST /api/v1/assets/presigned-url. */
+export interface CreatePresignedAssetRequest {
+  contentType: string;
+  fileSize: number;
+  fileName: string;
+  folder?: string;
+}
+
+export interface PresignedAssetResponse {
+  presignedUrl: string;
+  publicUrl: string;
+  key: string;
+  expiresIn: number;
+  contentType: string;
+}
+
+export const assetsApi = {
+  createPresignedUrl: (body: CreatePresignedAssetRequest): Promise<PresignedAssetResponse> =>
+    api.post<PresignedAssetResponse>('/api/v1/assets/presigned-url', body),
+};
+
+/**
+ * The signed URL is an S3/storage-provider URL, not a Zayjar API route. Sending
+ * the staff bearer or tenant headers to it would leak credentials, so only the
+ * presign operation above uses the authenticated client; the returned URL gets
+ * the file bytes and content type required by the backend contract.
+ */
+export async function uploadPresignedAsset(
+  target: PresignedAssetResponse,
+  file: File,
+  fetchImpl: typeof fetch = fetch,
+): Promise<void> {
+  const response = await fetchImpl(target.presignedUrl, {
+    method: 'PUT',
+    headers: { 'Content-Type': target.contentType },
+    body: file,
+  });
+  if (!response.ok) {
+    throw new Error(`Asset upload failed (HTTP ${response.status}).`);
+  }
+}

@@ -20,7 +20,9 @@ import { Public } from '../auth/decorators/public.decorator';
 import { RequirePermission } from '../auth/decorators/require-permission.decorator';
 import { AuthenticatedRequest } from '../common/types/request.types';
 
-@Controller('design')
+// Keep the original route for public compatibility while exposing the
+// Backoffice workflow through the standard /api/v1 reverse-proxy namespace.
+@Controller(['design', 'api/v1/design'])
 @UseGuards(JwtAuthGuard, RbacPermissionGuard)
 export class DesignController {
   constructor(private readonly designService: DesignService) {}

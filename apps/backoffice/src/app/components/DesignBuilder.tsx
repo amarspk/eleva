@@ -1,6 +1,8 @@
 'use client';
 /* eslint-disable @typescript-eslint/no-explicit-any, @next/next/no-img-element, @typescript-eslint/explicit-function-return-type, curly, no-empty */
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { apiErrorMessage } from '../lib/api-client';
+import { designsApi, productsApi } from '../lib/resources';
 
 type Section = { id: string; type: string; enabled: boolean; order: number; config: Record<string, unknown> };
 
@@ -25,13 +27,6 @@ const LAYOUTS: Record<string, string[]> = {
 const FONTS = ['Inter','Poppins','Cairo','Amiri','Tajawal','Outfit'];
 
 type SaveState = 'loading'|'dirty'|'saving'|'saved'|'error';
-
-export async function requireSuccessfulResponse(response: Response, operation: string): Promise<Response> {
-  if(response.ok) return response;
-  const payload = await response.json().catch(()=>null) as { message?: string|string[] }|null;
-  const detail = Array.isArray(payload?.message) ? payload?.message.join(', ') : payload?.message;
-  throw new Error(detail || `${operation} failed (HTTP ${response.status})`);
-}
 
 function useAutoSave(value: unknown, onSave: (v: unknown)=>void|Promise<void>, delay=900, enabled=true){
   const timerRef = useRef<NodeJS.Timeout|null>(null);
@@ -68,7 +63,6 @@ export function DesignBuilder({ tenantId }: { tenantId: string }){
   const latestSaveRequestRef=useRef(0);
   const messageTimerRef=useRef<NodeJS.Timeout|null>(null);
 
-  const apiBase = '/api';
   const showMessage=useCallback((message:string,clearAfterMs?:number)=>{
     if(messageTimerRef.current) clearTimeout(messageTimerRef.current);
     setMsg(message);
@@ -79,22 +73,20 @@ export function DesignBuilder({ tenantId }: { tenantId: string }){
   const load = useCallback(async()=>{
     setSaveState('loading');
     try{
-      const r = await fetch(`${apiBase}/v1/design/tenant/${tenantId}?preview=true`,{headers:{'X-Tenant-ID':tenantId}});
-      await requireSuccessfulResponse(r,'Load design');
-      const j=await r.json();
-      if(j.draft) setDraft(j.draft);
-      if(typeof j.version==='number') setCurrentVersion(j.version);
+      const [design, versionHistory, tenantProducts] = await Promise.all([
+        designsApi.get(tenantId),
+        designsApi.versions(tenantId),
+        productsApi.list(),
+      ]);
+      setDraft(design.draft);
+      setCurrentVersion(design.version);
+      setVersions(versionHistory);
+      setProducts(tenantProducts);
       revisionRef.current=0;
       setSaveState('saved');
-
-      const v = await fetch(`${apiBase}/v1/design/tenant/${tenantId}/versions`,{headers:{'X-Tenant-ID':tenantId}});
-      if(v.ok) setVersions(await v.json());
-      // tenant products for the featured/popular picker (deleted filtered server-side)
-      const p = await fetch(`${apiBase}/v1/menu/products`,{headers:{'X-Tenant-ID':tenantId}});
-      if(p.ok) setProducts(await p.json());
     }catch(err){
       setSaveState('error');
-      showMessage(err instanceof Error?err.message:'Load design failed');
+      showMessage(apiErrorMessage(err,'Load design failed'));
     }finally{
       setLoaded(true);
     }
@@ -111,12 +103,7 @@ export function DesignBuilder({ tenantId }: { tenantId: string }){
     const requestId=++latestSaveRequestRef.current;
     setSaveState('saving');
     try{
-      const response=await fetch(`${apiBase}/v1/design/tenant/${tenantId}/draft`,{method:'PUT',headers:{'Content-Type':'application/json','X-Tenant-ID':tenantId},body:JSON.stringify(next)});
-      await requireSuccessfulResponse(response,'Auto-save');
-      const saved=await response.json().catch(()=>null) as {version?:number}|null;
-      // also persist to tenant branding for qr-menu SSR (legacy best-effort path;
-      // A4 owns its API-client/contract remediation).
-      await fetch(`${apiBase}/v1/tenants/${tenantId}`,{method:'PUT',headers:{'Content-Type':'application/json','X-Tenant-ID':tenantId},body:JSON.stringify({primaryColor:next.colors?.primary, branding: next})}).catch(()=>{});
+      const saved=await designsApi.saveDraft(tenantId,next);
       if(requestId===latestSaveRequestRef.current && revision===revisionRef.current){
         if(saved?.version) setCurrentVersion(saved.version);
         setSaveState('saved');
@@ -126,7 +113,7 @@ export function DesignBuilder({ tenantId }: { tenantId: string }){
     }catch(err){
       if(requestId===latestSaveRequestRef.current && revision===revisionRef.current){
         setSaveState('error');
-        showMessage(err instanceof Error?err.message:'Auto-save failed');
+        showMessage(apiErrorMessage(err,'Auto-save failed'));
       }
       return false;
     }
@@ -170,16 +157,14 @@ export function DesignBuilder({ tenantId }: { tenantId: string }){
         const saved=await saveDraft(draft);
         if(!saved) return;
       }
-      const response=await fetch(`${apiBase}/v1/design/tenant/${tenantId}/publish`,{method:'POST',headers:{'X-Tenant-ID':tenantId}});
-      await requireSuccessfulResponse(response,'Publish');
-      const published=await response.json().catch(()=>null) as {version?:number}|null;
+      const published=await designsApi.publish(tenantId);
       if(published?.version) setCurrentVersion(published.version);
       setSaveState('saved');
       showMessage('Published!',2000);
       await load();
     }catch(err){
       setSaveState('error');
-      showMessage(err instanceof Error?err.message:'Publish failed');
+      showMessage(apiErrorMessage(err,'Publish failed'));
     }finally{
       setPublishing(false);
     }
@@ -193,15 +178,13 @@ export function DesignBuilder({ tenantId }: { tenantId: string }){
         const saved=await saveDraft(draft);
         if(!saved) return;
       }
-      const response=await fetch(`${apiBase}/v1/design/tenant/${tenantId}/restore/${version}`,{method:'POST',headers:{'X-Tenant-ID':tenantId}});
-      await requireSuccessfulResponse(response,'Restore');
-      const restored=await response.json().catch(()=>null) as {version?:number}|null;
+      const restored=await designsApi.restore(tenantId,version);
       if(restored?.version) setCurrentVersion(restored.version);
       showMessage(`Restored v${version}`,2000);
       await load();
     }catch(err){
       setSaveState('error');
-      showMessage(err instanceof Error?err.message:'Restore failed');
+      showMessage(apiErrorMessage(err,'Restore failed'));
     }finally{
       setRestoringVersion(null);
     }

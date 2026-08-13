@@ -1,31 +1,78 @@
 'use client';
-/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import React, { useEffect, useState } from 'react';
-export function DashboardMetrics({ tenantId }:{tenantId:string}): React.ReactElement {
-  const [stats,setStats]=useState<any>({orders:0,revenue:0,products:0,branches:0});
-  useEffect(()=>{
-    (async(): Promise<void> => {
-      try{
-        const [o,p,b]=await Promise.all([
-          fetch('/api/v1/orders',{headers:{'X-Tenant-ID':tenantId}}).then(r=>r.ok?r.json():[]),
-          fetch('/api/v1/products',{headers:{'X-Tenant-ID':tenantId}}).then(r=>r.ok?r.json():[]),
-          fetch('/api/v1/branches',{headers:{'X-Tenant-ID':tenantId}}).then(r=>r.ok?r.json():[]),
+import { apiErrorMessage } from '../lib/api-client';
+import { branchesApi, ordersApi, productsApi, unwrapOrders } from '../lib/resources';
+
+interface DashboardStats {
+  orders: number;
+  revenue: number;
+  products: number;
+  branches: number;
+}
+
+const EMPTY_STATS: DashboardStats = { orders: 0, revenue: 0, products: 0, branches: 0 };
+
+export function DashboardMetrics({ tenantId }: { tenantId: string }): React.ReactElement {
+  const [stats, setStats] = useState<DashboardStats>(EMPTY_STATS);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    let active = true;
+
+    const load = async (): Promise<void> => {
+      try {
+        const [ordersPayload, products, branches] = await Promise.all([
+          ordersApi.list(),
+          productsApi.list(),
+          branchesApi.list(),
         ]);
-        const orders=Array.isArray(o)?o:(o.data||[]);
-        const revenue=orders.reduce((s:any,x:any)=>s+Number(x.total||0),0);
-        setStats({orders:orders.length,revenue,products: Array.isArray(p)?p.length:(p.data?.length||0),branches: Array.isArray(b)?b.length:(b.data?.length||0)});
-      }catch{ /* metrics are best-effort; the dashboard still renders */ }
-    })();
-  },[tenantId]);
-  const cards=[{k:'Orders',v:stats.orders},{k:'Revenue',v: stats.revenue.toFixed(2)},{k:'Products',v:stats.products},{k:'Branches',v:stats.branches}];
+        const orders = unwrapOrders(ordersPayload);
+        const revenue = orders.reduce((sum, order) => sum + Number(order.total || 0), 0);
+        if (active) {
+          setStats({
+            orders: orders.length,
+            revenue,
+            products: products.length,
+            branches: branches.length,
+          });
+          setError('');
+        }
+      } catch (loadError) {
+        if (active) {
+          setError(apiErrorMessage(loadError, 'Unable to load dashboard metrics.'));
+        }
+      }
+    };
+
+    void load();
+    return (): void => {
+      active = false;
+    };
+  }, [tenantId]);
+
+  const cards = [
+    { key: 'Orders', value: stats.orders },
+    { key: 'Revenue', value: stats.revenue.toFixed(2) },
+    { key: 'Products', value: stats.products },
+    { key: 'Branches', value: stats.branches },
+  ];
+
   return (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-      {cards.map(c=>(
-        <div key={c.k} className="bg-white border rounded-xl p-4">
-          <div className="text-xs text-gray-500">{c.k}</div>
-          <div className="text-xl font-bold">{c.v}</div>
+    <section aria-label="Dashboard metrics" className="mb-4">
+      {error ? (
+        <div role="alert" className="mb-3 rounded bg-red-50 p-2 text-xs text-red-700">
+          {error}
         </div>
-      ))}
-    </div>
+      ) : null}
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        {cards.map((card) => (
+          <div key={card.key} className="rounded-xl border bg-white p-4">
+            <div className="text-xs text-gray-500">{card.key}</div>
+            <div className="text-xl font-bold">{card.value}</div>
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }
