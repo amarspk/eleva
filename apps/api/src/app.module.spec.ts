@@ -16,8 +16,10 @@ import { SanitizationMiddleware } from './common/sanitization/sanitization.middl
  * existing tenant context), 'api/v1/auth/login' (added ec48f11 so Platform
  * Owners with tenantId=null can authenticate), and A1's exact public
  * 'design/platform' published projection plus A4's standard API alias
- * 'api/v1/design/platform' — no more, no less. Draft preview and platform
- * mutations are deeper, protected routes and are not exempted.
+ * 'api/v1/design/platform', plus AUDIT-011's platform-level documentation
+ * routes (`api/docs`, `api/docs-json`, and only the Swagger asset namespace).
+ * Draft preview and platform mutations are deeper, protected routes and are
+ * not exempted.
  * The onboarding/login flows were runtime-verified (RT-ONB-001, Sprint 2
  * Task 1); this spec pins the complete middleware wiring.
  */
@@ -75,6 +77,9 @@ describe('AppModule middleware wiring (H-2/DEPLOY-002)', () => {
       'api/v1/auth/login',
       'design/platform',
       'api/v1/design/platform',
+      'api/docs',
+      'api/docs-json',
+      'api/docs/(.*)',
     ]);
     expect(tenantSegment.routes).toEqual(['*']);
   });
@@ -97,6 +102,9 @@ describe('AppModule middleware wiring (H-2/DEPLOY-002)', () => {
       'api/v1/auth/login',
       'design/platform',
       'api/v1/design/platform',
+      'api/docs',
+      'api/docs-json',
+      'api/docs/(.*)',
     ]);
   });
 });

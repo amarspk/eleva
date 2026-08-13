@@ -6,6 +6,7 @@ import { SecretsManagerService } from './common/secrets/secrets-manager.service'
 import { ZayjarLogger, getGlobalLogger } from './common/logging/logger.service';
 import { initDatadogTracer } from './common/logging/datadog-apm';
 import { createApiSecurityHeadersMiddleware } from './common/security/security-headers.middleware';
+import { setupOpenApi } from './openapi/openapi';
 
 // AUDIT-002 Finding #1: STRIPE_WEBHOOK_SECRET is required in production —
 // without it the billing webhook would have to accept unverified payloads
@@ -108,6 +109,11 @@ async function bootstrap(): Promise<void> {
     });
     logger.warn('CORS_ORIGIN not set — reflecting request origin (development mode only)');
   }
+
+  // AUDIT-011: runtime-generated OpenAPI JSON and Swagger UI. Both routes are
+  // tenant-free at the middleware layer but independently require a signed,
+  // active PLATFORM_OWNER access token in every environment.
+  setupOpenApi(app);
 
   // Serve locally-stored generated assets (media uploads + invoice PDFs) from
   // the storage directory used by LocalStorageProvider (STORAGE_LOCAL_PATH,

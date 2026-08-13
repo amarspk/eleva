@@ -72,6 +72,9 @@ export class AppModule implements NestModule {
       // only the published projection; draft preview and both mutations remain
       // JWT-protected and PLATFORM_OWNER-only in DesignController. A4 adds the
       // standard /api/v1 alias, so both exact public paths are exempted.
+      // AUDIT-011: documentation is platform-level, never tenant-scoped. Only
+      // the two configured docs routes and their Swagger UI asset namespace are
+      // excluded; the access middleware still requires PLATFORM_OWNER JWT auth.
       .exclude(
         'health',
         'api/v1/tenants/plans',
@@ -79,6 +82,9 @@ export class AppModule implements NestModule {
         'api/v1/auth/login',
         'design/platform',
         'api/v1/design/platform',
+        'api/docs',
+        'api/docs-json',
+        'api/docs/(.*)',
       )
       .forRoutes('*');
   }
