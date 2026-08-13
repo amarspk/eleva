@@ -1,64 +1,147 @@
-import { Controller, Get, Put, Post, Body, Query, UseGuards, Param, ParseIntPipe } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  ForbiddenException,
+  Get,
+  NotFoundException,
+  Param,
+  ParseIntPipe,
+  ParseUUIDPipe,
+  Post,
+  Query,
+  Req,
+  Put,
+  UseGuards,
+} from '@nestjs/common';
 import { DesignService, DesignData } from './design.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RbacPermissionGuard } from '../auth/guards/rbac-permission.guard';
 import { Public } from '../auth/decorators/public.decorator';
+import { RequirePermission } from '../auth/decorators/require-permission.decorator';
+import { AuthenticatedRequest } from '../common/types/request.types';
 
 @Controller('design')
+@UseGuards(JwtAuthGuard, RbacPermissionGuard)
 export class DesignController {
   constructor(private readonly designService: DesignService) {}
 
-  @UseGuards(JwtAuthGuard)
+  /**
+   * Resolves the only tenant id a restaurant user may operate on.
+   *
+   * A1: the path parameter is routing input, never an authorization source.
+   * JWT tenant identity is authoritative. Platform owners retain their existing
+   * cross-tenant administration capability; ordinary tenant users receive a
+   * uniform 404 for a foreign id so this endpoint is not a tenant oracle.
+   */
+  private authorizedTenantId(req: AuthenticatedRequest, requestedTenantId: string): string {
+    const user = req.user;
+    if (!user) {
+      throw new ForbiddenException('Authentication required');
+    }
+
+    if (user.roles.includes('PLATFORM_OWNER')) {
+      return requestedTenantId;
+    }
+
+    if (!user.tenantId) {
+      throw new ForbiddenException('Tenant context missing from authenticated request');
+    }
+
+    if (user.tenantId !== requestedTenantId) {
+      throw new NotFoundException('Design not found');
+    }
+
+    return user.tenantId;
+  }
+
+  private requirePlatformOwner(req: AuthenticatedRequest): void {
+    if (!req.user?.roles.includes('PLATFORM_OWNER')) {
+      throw new ForbiddenException('Access Denied: platform design operations require PLATFORM_OWNER role');
+    }
+  }
+
   @Get('tenant/:tenantId')
-  getForTenant(@Param('tenantId') tenantId: string, @Query('preview') preview?: string): Promise<unknown> {
-    return this.designService.getDesign(tenantId, preview === 'true');
+  @RequirePermission('read', 'Tenant')
+  getForTenant(
+    @Param('tenantId', new ParseUUIDPipe()) tenantId: string,
+    @Req() req: AuthenticatedRequest,
+    @Query('preview') preview?: string,
+  ): Promise<unknown> {
+    const authorizedTenantId = this.authorizedTenantId(req, tenantId);
+    return this.designService.getDesign(authorizedTenantId, preview === 'true');
   }
 
-  @UseGuards(JwtAuthGuard)
   @Put('tenant/:tenantId/draft')
-  saveDraft(@Param('tenantId') tenantId: string, @Body() body: DesignData): Promise<unknown> {
-    return this.designService.saveDraft(tenantId, body);
+  @RequirePermission('update', 'Tenant')
+  saveDraft(
+    @Param('tenantId', new ParseUUIDPipe()) tenantId: string,
+    @Body() body: DesignData,
+    @Req() req: AuthenticatedRequest,
+  ): Promise<unknown> {
+    const authorizedTenantId = this.authorizedTenantId(req, tenantId);
+    return this.designService.saveDraft(authorizedTenantId, body);
   }
 
-  @UseGuards(JwtAuthGuard)
   @Post('tenant/:tenantId/publish')
-  publish(@Param('tenantId') tenantId: string): Promise<unknown> {
-    return this.designService.publish(tenantId);
+  @RequirePermission('update', 'Tenant')
+  publish(
+    @Param('tenantId', new ParseUUIDPipe()) tenantId: string,
+    @Req() req: AuthenticatedRequest,
+  ): Promise<unknown> {
+    const authorizedTenantId = this.authorizedTenantId(req, tenantId);
+    return this.designService.publish(authorizedTenantId);
   }
 
-  @UseGuards(JwtAuthGuard)
   @Get('tenant/:tenantId/versions')
-  versions(@Param('tenantId') tenantId: string): Promise<unknown> {
-    return this.designService.getVersions(tenantId);
+  @RequirePermission('read', 'Tenant')
+  versions(
+    @Param('tenantId', new ParseUUIDPipe()) tenantId: string,
+    @Req() req: AuthenticatedRequest,
+  ): Promise<unknown> {
+    const authorizedTenantId = this.authorizedTenantId(req, tenantId);
+    return this.designService.getVersions(authorizedTenantId);
   }
 
-  @UseGuards(JwtAuthGuard)
   @Post('tenant/:tenantId/restore/:version')
-  restore(@Param('tenantId') tenantId: string, @Param('version', ParseIntPipe) version: number): Promise<unknown> {
-    return this.designService.restore(tenantId, version);
+  @RequirePermission('update', 'Tenant')
+  restore(
+    @Param('tenantId', new ParseUUIDPipe()) tenantId: string,
+    @Param('version', ParseIntPipe) version: number,
+    @Req() req: AuthenticatedRequest,
+  ): Promise<unknown> {
+    const authorizedTenantId = this.authorizedTenantId(req, tenantId);
+    return this.designService.restore(authorizedTenantId, version);
   }
 
+  /** Public tenant design access is published-only; draft is never returned. */
   @Public()
   @Get('public/:tenantId')
-  getPublic(@Param('tenantId') tenantId: string): Promise<unknown> {
-    return this.designService.getDesign(tenantId, false).then((r) => r.published ?? r.draft);
+  getPublic(@Param('tenantId', new ParseUUIDPipe()) tenantId: string): Promise<DesignData | null> {
+    return this.designService.getPublishedDesign(tenantId);
   }
 
-  // Platform
+  /** Public platform access is published-only. The old public preview switch is removed. */
   @Public()
   @Get('platform')
-  getPlatform(@Query('preview') preview?: string): Promise<unknown> {
-    return this.designService.getPlatformDesign(preview === 'true');
+  getPlatform(): Promise<DesignData | null> {
+    return this.designService.getPublishedPlatformDesign();
   }
 
-  @UseGuards(JwtAuthGuard)
+  @Get('platform/preview')
+  getPlatformPreview(@Req() req: AuthenticatedRequest): Promise<DesignData> {
+    this.requirePlatformOwner(req);
+    return this.designService.getPlatformPreview();
+  }
+
   @Put('platform/draft')
-  savePlatform(@Body() body: DesignData): Promise<unknown> {
+  savePlatform(@Body() body: DesignData, @Req() req: AuthenticatedRequest): Promise<unknown> {
+    this.requirePlatformOwner(req);
     return this.designService.savePlatformDraft(body);
   }
 
-  @UseGuards(JwtAuthGuard)
   @Post('platform/publish')
-  publishPlatform(): Promise<unknown> {
+  publishPlatform(@Req() req: AuthenticatedRequest): Promise<unknown> {
+    this.requirePlatformOwner(req);
     return this.designService.publishPlatform();
   }
 }

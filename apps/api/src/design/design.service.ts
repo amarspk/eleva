@@ -24,23 +24,36 @@ const DEFAULT_SECTIONS = [
 
 @Injectable()
 export class DesignService {
+  private withPlatformContext<T>(operation: () => Promise<T>): Promise<T> {
+    return dbTenantContext.run({ isPlatformOwner: true }, operation);
+  }
+
   async getDesign(tenantId: string, preview = false): Promise<{ draft: DesignData; published: DesignData; version: number; publishedAt: string | null }> {
     if (!tenantId) throw new ForbiddenException('tenant required');
     return dbTenantContext.run({ tenantId }, async () => {
-      let row: any = await (prisma as any).tenantDesign.findUnique({ where: { tenantId } });
+      const row: any = await (prisma as any).tenantDesign.findUnique({ where: { tenantId } });
       if (!row) {
-        row = await (prisma as any).tenantDesign.create({ data: { tenantId, draft: { sections: DEFAULT_SECTIONS }, published: { sections: DEFAULT_SECTIONS } } });
+        const draft = { sections: DEFAULT_SECTIONS };
+        const published = {};
+        return { draft, published, version: 0, publishedAt: null, preview: preview ? draft : published } as any;
       }
       return { draft: row.draft, published: row.published, version: row.version, publishedAt: row.publishedAt?.toISOString() ?? null, preview: preview ? row.draft : row.published } as any;
+    });
+  }
+
+  async getPublishedDesign(tenantId: string): Promise<DesignData | null> {
+    if (!tenantId) throw new ForbiddenException('tenant required');
+    return dbTenantContext.run({ tenantId }, async () => {
+      const row = await (prisma as any).tenantDesign.findUnique({ where: { tenantId }, select: { published: true } });
+      return row ? row.published as DesignData : null;
     });
   }
 
   async saveDraft(tenantId: string, draft: DesignData): Promise<any> {
     return dbTenantContext.run({ tenantId }, async () => {
       let row: any = await (prisma as any).tenantDesign.findUnique({ where: { tenantId } });
-      if (!row) row = await (prisma as any).tenantDesign.create({ data: { tenantId, draft, published: draft } });
+      if (!row) row = await (prisma as any).tenantDesign.create({ data: { tenantId, draft, published: {} } });
       else row = await (prisma as any).tenantDesign.update({ where: { tenantId }, data: { draft, updatedAt: new Date() } });
-      // auto version snapshot every save (keep last 20)
       const count = await (prisma as any).tenantDesignVersion.count({ where: { tenantId } });
       if (count >= 50) {
         const oldest = await (prisma as any).tenantDesignVersion.findFirst({ where: { tenantId }, orderBy: { version: 'asc' } });
@@ -62,9 +75,7 @@ export class DesignService {
   }
 
   async getVersions(tenantId: string): Promise<any[]> {
-    return dbTenantContext.run({ tenantId }, async () => {
-      return (prisma as any).tenantDesignVersion.findMany({ where: { tenantId }, orderBy: { version: 'desc' }, take: 20 });
-    });
+    return dbTenantContext.run({ tenantId }, async () => (prisma as any).tenantDesignVersion.findMany({ where: { tenantId }, orderBy: { version: 'desc' }, take: 20 }));
   }
 
   async restore(tenantId: string, version: number): Promise<any> {
@@ -75,20 +86,33 @@ export class DesignService {
     });
   }
 
-  // Platform
-  async getPlatformDesign(preview = false): Promise<any> {
-    let row: any = await (prisma as any).platformDesign.findFirst();
-    if (!row) row = await (prisma as any).platformDesign.create({ data: { draft: {}, published: {} } });
-    return preview ? row.draft : row.published;
+  async getPublishedPlatformDesign(): Promise<DesignData | null> {
+    return this.withPlatformContext(async () => {
+      const row = await (prisma as any).platformDesign.findFirst({ select: { published: true } });
+      return row ? row.published as DesignData : null;
+    });
   }
+
+  async getPlatformPreview(): Promise<DesignData> {
+    return this.withPlatformContext(async () => {
+      const row = await (prisma as any).platformDesign.findFirst({ select: { draft: true } });
+      return row ? row.draft as DesignData : {};
+    });
+  }
+
   async savePlatformDraft(data: DesignData): Promise<any> {
-    let row: any = await (prisma as any).platformDesign.findFirst();
-    if (!row) return (prisma as any).platformDesign.create({ data: { draft: data, published: data } });
-    return (prisma as any).platformDesign.update({ where: { id: row.id }, data: { draft: data } });
+    return this.withPlatformContext(async () => {
+      let row: any = await (prisma as any).platformDesign.findFirst();
+      if (!row) return (prisma as any).platformDesign.create({ data: { draft: data, published: {} } });
+      return (prisma as any).platformDesign.update({ where: { id: row.id }, data: { draft: data } });
+    });
   }
+
   async publishPlatform(): Promise<any> {
-    const row: any = await (prisma as any).platformDesign.findFirst();
-    if (!row) throw new NotFoundException('Platform design not found');
-    return (prisma as any).platformDesign.update({ where: { id: row.id }, data: { published: row.draft, version: row.version + 1, publishedAt: new Date() } });
+    return this.withPlatformContext(async () => {
+      const row: any = await (prisma as any).platformDesign.findFirst();
+      if (!row) throw new NotFoundException('Platform design not found');
+      return (prisma as any).platformDesign.update({ where: { id: row.id }, data: { published: row.draft, version: row.version + 1, publishedAt: new Date() } });
+    });
   }
 }

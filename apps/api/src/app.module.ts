@@ -67,7 +67,11 @@ export class AppModule implements NestModule {
       // scoping via X-Tenant-ID header or DTO — tenant-free login simply
       // returns a JWT with tenantId=null which the middleware will accept
       // on subsequent authenticated requests (isPlatformOwner=true).
-      .exclude('health', 'api/v1/tenants/plans', 'api/v1/tenants', 'api/v1/auth/login')
+      //
+      // A1: the public platform-design endpoint is also tenant-free. It returns
+      // only the published projection; draft preview and both mutations remain
+      // JWT-protected and PLATFORM_OWNER-only in DesignController.
+      .exclude('health', 'api/v1/tenants/plans', 'api/v1/tenants', 'api/v1/auth/login', 'design/platform')
       .forRoutes('*');
   }
 }

@@ -13,11 +13,12 @@ import { SanitizationMiddleware } from './common/sanitization/sanitization.middl
  * tenant-free paths — 'health' (infrastructure probes, H-2/DEPLOY-002),
  * 'api/v1/tenants/plans' + 'api/v1/tenants' (public onboarding/signup and
  * plan listing — added ea8da7d so self-service signup works without an
- * existing tenant context), and 'api/v1/auth/login' (added ec48f11 so
- * Platform Owners with tenantId=null can authenticate) — no more, no less,
- * while every other middleware segment keeps running unexempted on all
- * routes. The onboarding/login flows were runtime-verified (RT-ONB-001,
- * Sprint 2 Task 1); this spec pins their middleware wiring.
+ * existing tenant context), 'api/v1/auth/login' (added ec48f11 so Platform
+ * Owners with tenantId=null can authenticate), and A1's exact public
+ * 'design/platform' published projection — no more, no less. Draft preview
+ * and platform mutations are deeper, protected routes and are not exempted.
+ * The onboarding/login flows were runtime-verified (RT-ONB-001, Sprint 2
+ * Task 1); this spec pins the complete middleware wiring.
  */
 interface MiddlewareSegmentRecord {
   middlewares: unknown[];
@@ -66,7 +67,13 @@ describe('AppModule middleware wiring (H-2/DEPLOY-002)', () => {
     const calls = captureWiring();
     const tenantSegment = calls[3];
     // path-exact: no wildcards, no deeper paths
-    expect(tenantSegment.excluded).toEqual(['health', 'api/v1/tenants/plans', 'api/v1/tenants', 'api/v1/auth/login']);
+    expect(tenantSegment.excluded).toEqual([
+      'health',
+      'api/v1/tenants/plans',
+      'api/v1/tenants',
+      'api/v1/auth/login',
+      'design/platform',
+    ]);
     expect(tenantSegment.routes).toEqual(['*']);
   });
 
@@ -81,6 +88,12 @@ describe('AppModule middleware wiring (H-2/DEPLOY-002)', () => {
   it('is the ONLY exemption in the entire consumer configuration', () => {
     const calls = captureWiring();
     const allExclusions = calls.flatMap((c) => c.excluded);
-    expect(allExclusions).toEqual(['health', 'api/v1/tenants/plans', 'api/v1/tenants', 'api/v1/auth/login']);
+    expect(allExclusions).toEqual([
+      'health',
+      'api/v1/tenants/plans',
+      'api/v1/tenants',
+      'api/v1/auth/login',
+      'design/platform',
+    ]);
   });
 });
