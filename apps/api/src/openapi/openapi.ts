@@ -166,6 +166,12 @@ export function buildOpenApiDocument(app: INestApplication): OpenAPIObject {
       name: 'hashstring',
       description: 'Tap Payments HMAC-SHA256 webhook hashstring.',
     })
+    .addSecurity('metricsToken', {
+      type: 'http',
+      scheme: 'bearer',
+      bearerFormat: 'METRICS_TOKEN',
+      description: 'Static bearer credential required by GET /metrics, configured via the METRICS_TOKEN environment variable (503 when unset).',
+    })
     .build();
 
   const document = SwaggerModule.createDocument(app, config, {

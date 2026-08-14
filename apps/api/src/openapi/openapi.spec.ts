@@ -107,8 +107,8 @@ describe('AUDIT-011 OpenAPI runtime contract', () => {
 
     expect(DOCUMENTED_CONTROLLER_COUNT).toBe(controllersWithRoutes.size);
     expect(DOCUMENTED_HANDLER_COUNT).toBe(handlerKeys.size);
-    expect(DOCUMENTED_CONTROLLER_COUNT).toBe(20);
-    expect(DOCUMENTED_HANDLER_COUNT).toBe(90);
+    expect(DOCUMENTED_CONTROLLER_COUNT).toBe(21);
+    expect(DOCUMENTED_HANDLER_COUNT).toBe(93);
 
     const missingRoutes = [...expectedRoutes].filter((key) => {
       const [verb, path] = key.split(' ');
@@ -120,8 +120,8 @@ describe('AUDIT-011 OpenAPI runtime contract', () => {
       Object.entries(pathItem ?? {}).filter(([method]) => HTTP_METHODS.has(method)),
     );
     // DesignController deliberately has two live prefixes, so its ten handlers
-    // appear twice: 90 handler methods -> 100 concrete OpenAPI operations.
-    expect(expectedRoutes.size).toBe(100);
+    // appear twice: 93 handler methods -> 103 concrete OpenAPI operations.
+    expect(expectedRoutes.size).toBe(103);
     expect(operations).toHaveLength(expectedRoutes.size);
     expect(operations.every(([, value]) => Boolean((value as { summary?: string }).summary))).toBe(true);
     expect(operations.every(([, value]) => Boolean((value as { responses?: unknown }).responses))).toBe(true);
@@ -234,6 +234,23 @@ describe('AUDIT-011 OpenAPI runtime contract', () => {
     expect(productRestore.responses).toHaveProperty('409');
     expect(productRestore.responses).not.toHaveProperty('503');
     expect(operation('/api/v1/payments/wallet', 'post').responses).toHaveProperty('503');
+  });
+
+  it('documents the AUDIT-023 infrastructure endpoints (/live, /ready, /metrics)', () => {
+    const live = operation('/live', 'get');
+    expect(live.security).toBeUndefined();
+    expect(live['x-tenant-scope']).toBe('tenant-free');
+
+    const ready = operation('/ready', 'get');
+    expect(ready.security).toBeUndefined();
+    expect(ready['x-tenant-scope']).toBe('tenant-free');
+    expect(ready.responses).toHaveProperty('503');
+
+    const metrics = operation('/metrics', 'get');
+    expect(metrics.security).toEqual([{ metricsToken: [] }]);
+    expect(metrics['x-tenant-scope']).toBe('tenant-free');
+    expect(metrics.responses).toHaveProperty('401');
+    expect(metrics.responses).toHaveProperty('503');
   });
 
   it('rejects anonymous and non-platform access to both documentation routes', async () => {

@@ -31,9 +31,12 @@ import { SanitizationModule } from './common/sanitization/sanitization.module';
 import { SanitizationMiddleware } from './common/sanitization/sanitization.middleware';
 import { CorrelationIdMiddleware } from './common/logging/correlation-id.middleware';
 import { HttpLoggingMiddleware } from './common/logging/http-logging.middleware';
+import { MetricsModule } from './common/metrics/metrics.module';
+import { MetricsService } from './common/metrics/metrics.service';
+import { createHttpMetricsMiddleware } from './common/metrics/metrics.middleware';
 
 @Module({
-  imports: [EventEmitterModule.forRoot(), CacheModule, LoggingModule, HealthModule, CsrfModule, SanitizationModule, AuthModule, TenantModule, BranchModule, MenuModule, RestaurantModule, OrderModule, KdsModule, CustomerModule, BillingModule, AdminModule, AssetModule, WebhookModule, DeviceTokenModule, SubscriptionModule, AuditModule, PaymentModule, MediaModule, UserModule, DesignModule],
+  imports: [EventEmitterModule.forRoot(), CacheModule, LoggingModule, HealthModule, MetricsModule, CsrfModule, SanitizationModule, AuthModule, TenantModule, BranchModule, MenuModule, RestaurantModule, OrderModule, KdsModule, CustomerModule, BillingModule, AdminModule, AssetModule, WebhookModule, DeviceTokenModule, SubscriptionModule, AuditModule, PaymentModule, MediaModule, UserModule, DesignModule],
   providers: [
     {
       provide: APP_INTERCEPTOR,
@@ -46,8 +49,22 @@ import { HttpLoggingMiddleware } from './common/logging/http-logging.middleware'
   ],
 })
 export class AppModule implements NestModule {
+  constructor(private readonly metricsService: MetricsService) {}
+
   configure(consumer: MiddlewareConsumer): void {
     consumer
+      // AUDIT-023: HTTP metrics observation wraps every request before the
+      // remaining middleware chain. The four infrastructure probe paths are
+      // excluded so /metrics can never instrument itself and probes cannot
+      // pollute the application signal.
+      .apply(createHttpMetricsMiddleware(this.metricsService))
+      .exclude(
+        'health',
+        'live',
+        'ready',
+        'metrics',
+      )
+      .forRoutes('*')
       .apply(CorrelationIdMiddleware)
       .forRoutes('*')
       .apply(HttpLoggingMiddleware)
@@ -60,6 +77,9 @@ export class AppModule implements NestModule {
       // health endpoint without tenant resolution. Excluded here at the
       // consumer level so the exemption is path-exact (only '/health') and
       // every other route keeps the full tenant fail-safe unchanged.
+      // AUDIT-023: the same exemption now covers the new probe endpoints
+      // '/live' and '/ready', and the token-gated '/metrics' endpoint —
+      // infrastructure paths only, never application APIs.
       // Also excluded: tenant onboarding routes that must be accessible
       // without an existing tenant context (signup, plan listing).
       // Login is excluded so Platform Owners (tenantId=null) can authenticate
@@ -77,6 +97,9 @@ export class AppModule implements NestModule {
       // excluded; the access middleware still requires PLATFORM_OWNER JWT auth.
       .exclude(
         'health',
+        'live',
+        'ready',
+        'metrics',
         'api/v1/tenants/plans',
         'api/v1/tenants',
         'api/v1/auth/login',

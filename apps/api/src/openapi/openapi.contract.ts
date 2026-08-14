@@ -15,6 +15,7 @@ import { AuthController } from '../auth/auth.controller';
 import { BillingController } from '../billing/billing.controller';
 import { BranchController } from '../branch/branch.controller';
 import { HealthController } from '../common/health/health.controller';
+import { MetricsController } from '../common/metrics/metrics.controller';
 import { CustomerController } from '../customer/customer.controller';
 import { DesignController } from '../design/design.controller';
 import { DeviceTokenController } from '../device-token/device-token.controller';
@@ -33,7 +34,7 @@ import { arrayOf, ref } from './openapi.schemas';
 
 type ControllerType = abstract new (...args: never[]) => unknown;
 type TenantScope = 'tenant-jwt' | 'tenant-context' | 'tenant-path-jwt' | 'platform-global' | 'tenant-free';
-type AuthKind = 'public' | 'bearer' | 'refresh-cookie' | 'stripe-webhook' | 'tap-webhook' | 'actual-media';
+type AuthKind = 'public' | 'bearer' | 'refresh-cookie' | 'stripe-webhook' | 'tap-webhook' | 'actual-media' | 'metrics-token';
 
 interface ParameterDoc {
   name: string;
@@ -137,8 +138,20 @@ const docs: ControllerDoc[] = [
   {
     controller: HealthController,
     tag: 'Health',
-    description: 'Tenant-free infrastructure health check.',
-    endpoints: [{ method: 'getHealth', summary: 'Get API health', auth: 'public', tenant: 'tenant-free', response: 'Health' }],
+    description: 'Tenant-free infrastructure health probes. /health preserves the legacy contract; /live is process-only; /ready verifies database availability.',
+    endpoints: [
+      { method: 'getHealth', summary: 'Get API health (legacy compatibility endpoint)', auth: 'public', tenant: 'tenant-free', response: 'Health' },
+      { method: 'getLive', summary: 'Process-only liveness probe — proves the API process/event loop is alive without touching PostgreSQL, Redis, external services, tenant resolution or authentication', auth: 'public', tenant: 'tenant-free', response: 'Health' },
+      { method: 'getReady', summary: 'Readiness probe — verifies the required PostgreSQL dependency is available', auth: 'public', tenant: 'tenant-free', response: 'Readiness', errors: [503] },
+    ],
+  },
+  {
+    controller: MetricsController,
+    tag: 'Metrics',
+    description: 'Prometheus text exposition for infrastructure scraping, protected by the static METRICS_TOKEN bearer credential (503 when the credential is not configured server-side).',
+    endpoints: [
+      { method: 'getMetrics', summary: 'Expose Prometheus metrics (text/plain; Cache-Control: no-store)', auth: 'metrics-token', tenant: 'tenant-free', response: 'MetricsExposition', errors: [401, 503] },
+    ],
   },
   {
     controller: CustomerController,
@@ -342,7 +355,9 @@ function decorateMethod(controller: ControllerType, endpoint: EndpointDoc): void
         ? [{ stripeSignature: [] }]
         : endpoint.auth === 'tap-webhook'
           ? [{ tapHashstring: [] }]
-          : undefined;
+          : endpoint.auth === 'metrics-token'
+            ? [{ metricsToken: [] }]
+            : undefined;
 
   ApiOperation({
     summary: endpoint.summary,
@@ -356,6 +371,12 @@ function decorateMethod(controller: ControllerType, endpoint: EndpointDoc): void
     ApiHeader({ name: 'stripe-signature', required: true, description: 'Stripe webhook signature verified against the raw request body.' })(target, key, descriptor);
   } else if (endpoint.auth === 'tap-webhook') {
     ApiHeader({ name: 'hashstring', required: true, description: 'Tap HMAC-SHA256 hashstring verified before state changes.' })(target, key, descriptor);
+  } else if (endpoint.auth === 'metrics-token') {
+    ApiHeader({
+      name: 'authorization',
+      required: true,
+      description: 'Bearer credential equal to the METRICS_TOKEN environment value. The endpoint returns 503 when the credential is not configured server-side.',
+    })(target, key, descriptor);
   }
 
   if (endpoint.tenant === 'tenant-jwt' || endpoint.tenant === 'tenant-context' || endpoint.tenant === 'tenant-path-jwt') {

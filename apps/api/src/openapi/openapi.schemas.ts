@@ -322,6 +322,15 @@ export const OPENAPI_SCHEMAS: Record<string, SchemaObject> = {
   UpdateCookingStatusRequest: object({ status: { type: 'string', enum: ['PENDING', 'PREPARING', 'COOKED', 'SERVED'] } }, ['status']),
   KdsStatus: object({ orderItemId: uuid(), cookingStatus: { type: 'string' }, updatedAt: dateTime() }, ['orderItemId', 'cookingStatus', 'updatedAt']),
   Health: object({ status: { type: 'string' }, timestamp: dateTime(), uptime: { type: 'number' } }, ['status', 'timestamp', 'uptime']),
+  Readiness: object(
+    {
+      status: { type: 'string' },
+      checks: object({ database: { type: 'string', enum: ['up', 'down'] } }, ['database']),
+      timestamp: dateTime(),
+    },
+    ['status', 'checks', 'timestamp'],
+  ),
+  MetricsExposition: { type: 'string', description: 'Prometheus text-based exposition (text/plain; version=0.0.4). Label values are bounded route templates, methods and status codes only — no raw URLs, query strings or identifiers.' },
 };
 
 export const arrayOf = (name: string): SchemaObject => array(ref(name));
