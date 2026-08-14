@@ -119,6 +119,16 @@ jobs:
           DATABASE_URL: postgresql://prisma:prisma@localhost:5432/prisma?schema=public
         run: pnpm --filter @zayjar/db exec prisma validate
 
+      - name: Verify required partial indexes are not reverted
+        # Regression guard: the 5 uniqueness bounds rebuilt as PARTIAL indexes
+        # by migration 20260804000000 (DOC-002 §28/29/114/234/448/602) must
+        # stay partial. Prisma cannot express partial indexes, so a future
+        # `prisma migrate dev` could regenerate them as FULL indexes — this
+        # static scan of the committed migration chain fails the job if any of
+        # the 5 final definitions is not a partial unique index with the
+        # authoritative predicate. Pure static analysis; no database needed.
+        run: pnpm --filter @zayjar/db run verify:partial-indexes
+
       - name: Build all packages
         run: pnpm build
 

@@ -13,6 +13,7 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate deploy",
     "prisma:seed": "prisma db seed",
+    "verify:partial-indexes": "node scripts/verify-partial-indexes.mjs",
     "db:health": "psql \"$DATABASE_URL\" -f scripts/db-health-checks.sql",
     "db:profile": "psql \"$DATABASE_URL\" -f scripts/query-profiling.sql",
     "db:optimize": "psql \"$DATABASE_URL\" -f scripts/optimize-tables.sql",
