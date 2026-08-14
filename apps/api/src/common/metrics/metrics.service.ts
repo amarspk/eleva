@@ -8,6 +8,33 @@ export const UNMATCHED_ROUTE = 'unmatched';
 export const ROUTE_OVERFLOW = 'other';
 export const MAX_TRACKED_ROUTES = 100;
 
+export const METHOD_OTHER = 'OTHER';
+
+/**
+ * AUDIT-023 — bounded HTTP method label allowlist.
+ *
+ * `req.method` is not guaranteed to be a standard verb: HTTP extension
+ * methods or misbehaving clients/proxies can send arbitrary method tokens,
+ * which would leak unbounded cardinality into the `method` label. Every
+ * recorded method is normalized through this single rule — exact membership
+ * in this finite allowlist, otherwise 'OTHER'. The raw incoming method
+ * string never reaches Prometheus.
+ */
+export const HTTP_METHOD_LABELS: ReadonlySet<string> = new Set([
+  'GET',
+  'HEAD',
+  'POST',
+  'PUT',
+  'PATCH',
+  'DELETE',
+  'OPTIONS',
+]);
+
+export function normalizeHttpMethod(rawMethod: string | undefined): string {
+  const method = rawMethod ?? '';
+  return HTTP_METHOD_LABELS.has(method) ? method : METHOD_OTHER;
+}
+
 /**
  * AUDIT-023 — process-isolated Prometheus metrics registry.
  *
@@ -15,7 +42,10 @@ export const MAX_TRACKED_ROUTES = 100;
  * global default), so every Nest module instance and every test gets a
  * deterministic, uncontaminated registry. Labels are strictly bounded:
  *
- * - `method`: the HTTP verb (a fixed, finite runtime enum).
+ * - `method`: the normalized HTTP verb — bounded to the finite allowlist
+ *   (GET, HEAD, POST, PUT, PATCH, DELETE, OPTIONS); every other method
+ *   token is recorded as 'OTHER' via `normalizeHttpMethod`. The raw
+ *   incoming method string never reaches the exposition.
  * - `route`: the matched Express route TEMPLATE (e.g. '/api/v1/orders/:id'),
  *   resolved when the response finishes — after the Express route layer has
  *   matched. Raw URLs, query strings, tenant/user/order ids and uuids are
@@ -73,23 +103,25 @@ export class MetricsService {
   /**
    * In-flight tracking starts at request entry. The route template is not
    * yet available at entry (Nest middleware runs before the Express route
-   * layer dispatches), so the gauge is labeled by method only — bounded and
-   * honest.
+   * layer dispatches), so the gauge is labeled by method only — normalized
+   * through the bounded allowlist, never the raw incoming method.
    */
   observeRequestStart(method: string): void {
-    this.httpRequestsInFlight.inc({ method });
+    this.httpRequestsInFlight.inc({ method: normalizeHttpMethod(method) });
   }
 
   /**
    * Final observation at response finish/close: the matched route template
    * is resolved here (or 'unmatched' when no route ever matched) and the
-   * in-flight gauge is decremented exactly once.
+   * in-flight gauge is decremented exactly once. The method label is the
+   * same normalized allowlist value used at request start.
    */
   observeRequestEnd(method: string, route: string, statusCode: number, durationSeconds: number): void {
-    this.httpRequestsInFlight.dec({ method });
+    const normalizedMethod = normalizeHttpMethod(method);
+    this.httpRequestsInFlight.dec({ method: normalizedMethod });
     const status = String(statusCode);
-    this.httpRequestsTotal.inc({ method, route, status });
-    this.httpRequestDurationSeconds.observe({ method, route, status }, durationSeconds);
+    this.httpRequestsTotal.inc({ method: normalizedMethod, route, status });
+    this.httpRequestDurationSeconds.observe({ method: normalizedMethod, route, status }, durationSeconds);
   }
 
   async render(): Promise<string> {

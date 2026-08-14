@@ -97,4 +97,15 @@ describe('AUDIT-023 HTTP metrics middleware', () => {
     expect(output).toContain('http_requests_total{method="GET",route="unmatched",status="200"} 1');
     expect(output).not.toContain('/not-a-real-route');
   });
+
+  it('normalizes a custom method to OTHER and never leaks the raw method', async () => {
+    const metrics = new MetricsService();
+    const middleware = createHttpMetricsMiddleware(metrics);
+    const req: MockRequest = { path: '/custom-method', method: 'BREW', route: { path: '/custom-method' } };
+    await runRequest(middleware, req, makeRes());
+
+    const output = await metrics.render();
+    expect(output).toContain('http_requests_total{method="OTHER",route="/custom-method",status="200"} 1');
+    expect(output).not.toContain('BREW');
+  });
 });

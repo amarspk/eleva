@@ -1,5 +1,5 @@
 import type { NextFunction, Request, RequestHandler, Response } from 'express';
-import { MetricsService } from './metrics.service';
+import { MetricsService, normalizeHttpMethod } from './metrics.service';
 
 /**
  * AUDIT-023 — HTTP metrics middleware (functional; one instance per app).
@@ -15,6 +15,12 @@ import { MetricsService } from './metrics.service';
  *   middleware itself runs before that dispatch. Raw URLs, query strings,
  *   authorization tokens, cookies and ids are never read for labeling, so
  *   no tenant/user/order id or uuid can ever appear in the exposition.
+ * - The method label is normalized through the single bounded allowlist in
+ *   `normalizeHttpMethod()`: standard verbs pass through unchanged and any
+ *   other method token is recorded as 'OTHER'. The SAME normalized value is
+ *   used for the in-flight increment at entry and the final
+ *   counter/histogram observation, and the raw incoming method is never
+ *   exposed in the exposition.
  * - The four infrastructure probe paths are never instrumented, so
  *   GET /metrics can never count itself and probes cannot pollute the
  *   application signal.
@@ -27,7 +33,7 @@ export function createHttpMetricsMiddleware(metrics: MetricsService): RequestHan
       next();
       return;
     }
-    const method = req.method || 'UNKNOWN';
+    const method = normalizeHttpMethod(req.method);
     const start = process.hrtime.bigint();
     metrics.observeRequestStart(method);
     let recorded = false;
