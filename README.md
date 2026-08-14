@@ -16,6 +16,7 @@ Welcome to the official Core Technical Documentation suite for the **Zayjar Rest
 | [**DOC-008.md**](./DOC-008.md) | **Multi-Channel Notifications** | Architecture for delivery communications. | SendGrid template system, Twilio SMS routing, Firebase Cloud Messaging (FCM) payloads, outbound webhooks, Socket.io rooms. |
 | [**DOC-009.md**](./DOC-009.md) | **Third-Party Integrations** | Specs for external billing, wallet and logging systems. | Stripe Billing, regional payment wallets (KNET, benefit, Apple Pay), ELK Stack, Datadog metrics, disaster recovery. |
 | [**DOC-010.md**](./DOC-010.md) | **Development, Testing & Operations** | Handover guidelines for SREs and developers. | Monorepo pnpm schemas, ESLint conventions, Jest unit testing, Playwright E2E checks, Docker Compose scripts, Nginx configurations, AWS database failover runbooks. |
+| [**TESTING.md**](./TESTING.md) | **Manual Application Testing Index** | Entry point for manually inspecting and testing the running application (Phase 3 closure state). | Boot commands, entry URLs, verified credential path, core test matrix with expected results, suite results, known documented limitations. |
 
 ---
 
