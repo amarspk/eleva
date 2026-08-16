@@ -33,6 +33,14 @@ Phase 4 preserves the existing project-state/roadmap requirements that remain ap
 - Customer can enter/apply an eligible discount code at checkout.
 - Reuse the existing tenant-scoped discount engine rather than creating a second discount mechanism.
 - Preserve existing anti-oracle validation and usage limits.
+- Restaurant owner can create a **new-customer / first-order welcome offer**.
+- Welcome offer can be either **percentage-based** (for example, 10% off) or **fixed-amount** (for example, 2 OMR/SAR off, according to the restaurant currency).
+- Restaurant owner can enable/disable the welcome offer and configure its value and validity according to the existing discount rules.
+- The welcome offer must be restricted to customers who are genuinely eligible as **new customers of that restaurant**.
+- A qualifying customer may redeem the welcome offer **once only** for that restaurant; repeated orders by the same customer must not receive it again.
+- Eligibility and redemption must be enforced server-side using the real customer/order relationship, not only by hiding the offer in the UI.
+- Guest checkout must not be able to bypass the one-time rule by repeatedly submitting the same promotion without a verified customer identity; the exact guest-identity policy must be defined during implementation.
+- Existing global `usageLimit`/`usageCount` behavior is not sufficient by itself for this requirement because it limits total campaign usage, not one redemption per customer.
 
 ## Customer wallet / store credit
 
