@@ -83,16 +83,44 @@ export class CaslAbilityFactory {
       // ==========================================
       // FIX #1: Real Attribute-Based Access Control (ABAC) Exclusions
       // ==========================================
+      // Phase 4 P0: every branch-scoped staff role is restricted to its
+      // assigned branches (DOC-005 §4.2, persistent user_branches source).
+      // The `branches` claim is populated at login/refresh from user_branches.
+      // RESTAURANT_OWNER has no user_branches rows -> tenant-wide (unchanged).
+      // PLATFORM_OWNER is handled separately above with manage('all').
+      // When a role has NO branch assignment the rules below do not fire,
+      // preserving the canonical backward-compatible behavior.
 
-      // A. Cashier: Cannot update PAID orders (takes absolute precedence over general can)
+      // A. Cashier: POS only — cannot update PAID orders, cannot read/create/
+      //    update Orders in unassigned branches.
       if (user.roles.includes('CASHIER')) {
         cannot('update', 'Order', { status: 'PAID' } as MongoQuery);
+        if (user.branches && user.branches.length > 0) {
+          // `$exists: true` is required so the rule fires ONLY when the subject
+          // actually carries a branchId. List endpoints evaluate a branchless
+          // subject (no :id to resolve) — the guard must pass there so the
+          // SERVICE enforces scope on the query, while entity-level reads and
+          // create-bodies (which carry branchId) are still denied for foreign
+          // branches.
+          cannot('read', 'Order', { branchId: { $exists: true, $nin: user.branches } } as MongoQuery);
+          cannot('create', 'Order', { branchId: { $exists: true, $nin: user.branches } } as MongoQuery);
+          cannot('update', 'Order', { branchId: { $exists: true, $nin: user.branches } } as MongoQuery);
+        }
       }
 
-      // B. Branch Manager: Cannot read Orders or update Products belonging to unassigned branches
+      // B. Branch Manager: Cannot read/create/update Orders in unassigned
+      //    branches.
       if (user.roles.includes('BRANCH_MANAGER') && user.branches && user.branches.length > 0) {
-        cannot('read', 'Order', { branchId: { $nin: user.branches } } as MongoQuery);
-        cannot('update', 'Product', { branchId: { $nin: user.branches } } as MongoQuery);
+        cannot('read', 'Order', { branchId: { $exists: true, $nin: user.branches } } as MongoQuery);
+        cannot('create', 'Order', { branchId: { $exists: true, $nin: user.branches } } as MongoQuery);
+        cannot('update', 'Order', { branchId: { $exists: true, $nin: user.branches } } as MongoQuery);
+      }
+
+      // C. Kitchen Staff: KDS only — cannot read or update Orders (tickets,
+      //    cooking status) in unassigned branches.
+      if (user.roles.includes('KITCHEN_STAFF') && user.branches && user.branches.length > 0) {
+        cannot('read', 'Order', { branchId: { $exists: true, $nin: user.branches } } as MongoQuery);
+        cannot('update', 'Order', { branchId: { $exists: true, $nin: user.branches } } as MongoQuery);
       }
 
       // 3. Default fallback rules for logged-in tenants

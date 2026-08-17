@@ -12,6 +12,14 @@ interface JwtTokenPayload {
   tenantId: string | null;
   roles: string[];
   permissions: string[];
+  /**
+   * Assigned branch IDs (DOC-005 §4.2). Populated from the persistent
+   * user_branches relation at login/refresh. Consumed by
+   * CaslAbilityFactory to build branch-scoped ABAC rules for
+   * CASHIER / KITCHEN_STAFF / BRANCH_MANAGER. Absent for
+   * RESTAURANT_OWNER / PLATFORM_OWNER (tenant-wide / platform-wide).
+   */
+  branches?: string[];
   /** Issued-at (seconds). Compared against the per-user revocation cut-off. */
   iat?: number;
 }
@@ -104,6 +112,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       tenantId: payload.tenantId,
       roles: payload.roles,
       permissions: payload.permissions,
+      branches: payload.branches,
     };
   }
 }

@@ -56,7 +56,8 @@ This automatically:
 | Email | `manager@albaik.com` |
 | Password | `Demo1234!` |
 | Roles | `MANAGER` |
-| Can access | Menu, orders, branches, customers (read/write) |
+| Assigned branches | Riyadh - Olaya **and** Jeddah - Corniche (explicit `user_branches`) |
+| Can access | Menu, orders, branches, customers (read/write) — **scoped to assigned branches only** |
 
 ### Cashier — Al-Baik
 | Field | Value |
@@ -64,7 +65,8 @@ This automatically:
 | Email | `cashier@albaik.com` |
 | Password | `Demo1234!` |
 | Roles | `CASHIER` |
-| Can access | Orders, menu (read), payments |
+| Assigned branch | Riyadh - Olaya only (`user_branches`) |
+| Can access | Orders (read/create/update), menu (read), payments, tables (read) — **Riyadh branch only** |
 
 ### Kitchen Staff — Al-Baik
 | Field | Value |
@@ -72,7 +74,17 @@ This automatically:
 | Email | `kitchen@albaik.com` |
 | Password | `Demo1234!` |
 | Roles | `KITCHEN_STAFF` |
-| Can access | KDS tickets, order status |
+| Assigned branch | Riyadh - Olaya only (`user_branches`) |
+| Can access | KDS tickets, order status — **Riyadh branch only** |
+
+> **Phase 4 P0 — branch scoping.** The JWT issued at login carries the user's
+> assigned branch IDs (`user_branches`). CASHIER / KITCHEN_STAFF /
+> BRANCH_MANAGER are restricted server-side (CASL ABAC + order/KDS service
+> checks) to those branches: they cannot read, create, update, cancel or list
+> orders, and cannot view KDS tickets, for any other branch. Owners
+> (`admin@albaik.com`, `admin@tokyoramen.com`) and the Platform Owner have no
+> `user_branches` rows and keep the canonical tenant-wide / platform-wide
+> behavior. `branchId` supplied by a client is never trusted on its own.
 
 ### Restaurant Owner — Tokyo Ramen
 | Field | Value |
@@ -101,9 +113,9 @@ This automatically:
 | Subscription Plans | 3 | Starter, Growth, Enterprise |
 | Tenants | 2 | Al-Baik (ACTIVE), Tokyo Ramen (TRIALING) |
 | Users | 6 | Platform Owner + 4 Al-Baik staff + 1 Tokyo owner |
-| Roles | 6 | PLATFORM_OWNER + 4 Al-Baik + 1 Tokyo |
-| Permissions | 40 | Full CASL-compatible set |
-| Role-Permission mappings | 157 | Owner=40, Manager≈25, Cashier≈15, Kitchen≈5 |
+| Roles | 5 | PLATFORM_OWNER + RESTAURANT_OWNER, MANAGER, CASHIER, KITCHEN_STAFF (Al-Baik) |
+| Permissions | 42 | Full CASL-compatible set (create/read/update/delete vocabulary) |
+| Role-Permission mappings | 122 | Owner=42, Platform=42, Manager=26, Cashier=9, Kitchen=3 |
 | Restaurants | 2 | Al-Baik, Tokyo Ramen |
 | Branches | 3 | Riyadh Olaya, Jeddah Corniche, Shibuya |
 | Tables | 24 | 10 + 6 + 8 across branches |

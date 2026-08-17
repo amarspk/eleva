@@ -310,7 +310,20 @@ async function main(): Promise<void> {
     },
   });
 
-  console.log('Created roles:', ownerRole.name, managerRole.name, cashierRole.name, kitchenRole.name);
+  // Platform Owner role — tenantId=null, platform-wide. Created with its own
+  // deterministic id (Phase 4 P0 / DEMO.md consistency: platform@zayjar.ai must
+  // exist in the canonical seed, not only in scripts/seed-demo.js).
+  const platformRole = await prisma.role.create({
+    data: {
+      id: 'b0000001-0000-4000-b000-000000000001',
+      tenantId: null,
+      name: 'PLATFORM_OWNER',
+      displayName: 'Platform Owner',
+      description: 'Platform-wide administration (tenantId = null)',
+    },
+  });
+
+  console.log('Created roles:', ownerRole.name, managerRole.name, cashierRole.name, kitchenRole.name, platformRole.name);
 
   // ==========================================
   // 6. ROLE-PERMISSION MAPPING
@@ -325,74 +338,117 @@ async function main(): Promise<void> {
     ),
   );
 
-  // Manager: read/write branch, menu, order, customer, payment
-  // (AUDIT-002 Finding #5: 'payment' in the list links payment:read via the
-  // read/write filter; payment:create is linked explicitly below.)
-  const managerPermResources = ['branch', 'menu', 'order', 'customer', 'kds', 'payment'];
-  const managerPermissions = allPermissions.filter(
-    (p) => managerPermResources.includes(p.resource) && (p.action === 'read' || p.action === 'write'),
-  );
-  await Promise.all(
-    managerPermissions.map((p) =>
-      prisma.rolePermission.create({
-        data: { roleId: managerRole.id, permissionId: p.id },
-      }),
-    ),
-  );
-
-  // Cashier: read menu, read/write order, read/write customer, payment
-  // (AUDIT-002 Finding #5: 'payment' in the list links payment:read via the
-  // read/write filter; payment:create is linked explicitly below.)
-  const cashierPermResources = ['menu', 'order', 'customer', 'payment'];
-  const cashierPermissions = allPermissions.filter(
-    (p) => cashierPermResources.includes(p.resource) && (p.action === 'read' || p.action === 'write'),
-  );
-  await Promise.all(
-    cashierPermissions.map((p) =>
-      prisma.rolePermission.create({
-        data: { roleId: cashierRole.id, permissionId: p.id },
-      }),
-    ),
-  );
-
-  // Kitchen: read order, write kds
-  const kitchenPermResources = ['order', 'kds'];
-  const kitchenPermissions = allPermissions.filter(
-    (p) => kitchenPermResources.includes(p.resource) && (p.action === 'read' || p.action === 'write'),
-  );
-  await Promise.all(
-    kitchenPermissions.map((p) =>
-      prisma.rolePermission.create({
-        data: { roleId: kitchenRole.id, permissionId: p.id },
-      }),
-    ),
-  );
-
-  // AUDIT-002 Finding #5 (RBAC): `payment:create` is a CASL verb, so the
-  // read/write resource filters above never link it. Managers and cashiers
-  // process payments at the till (cashier role description: "Can process
-  // orders and payments"), so both get the explicit link; KITCHEN_STAFF
-  // receives neither payment permission.
-  const paymentCreatePermission = allPermissions.find(
-    (p) => p.resource === 'payment' && p.action === 'create',
-  );
-  if (paymentCreatePermission) {
+  // ==========================================
+  // Phase 4 P0 — role grants use the modern CASL vocabulary.
+  // Each grant is an explicit (resource, action) pair whose action is one of
+  // create/read/update/delete and whose resource matches a Subject in
+  // CaslAbilityFactory (Product, Category, Order, Branch, Tenant, User,
+  // Table, Customer, Restaurant, Payment). The legacy `menu`/`kds`/
+  // `billing`/`analytics` resource rows and the `write` action remain in the
+  // permissions table for backward compatibility (they are harmless no-ops —
+  // `write` and `menu`/`kds`/`billing`/`analytics` never match a CASL
+  // Subject), but they are NO LONGER the source of effective grants.
+  // ==========================================
+  const linkRolePermissions = async (
+    roleId: string,
+    grants: Array<{ resource: string; action: string }>,
+  ): Promise<void> => {
+    const ids = grants
+      .map((g) => allPermissions.find((p) => p.resource === g.resource && p.action === g.action)?.id)
+      .filter((id): id is string => !!id);
     await Promise.all(
-      [managerRole, cashierRole].map((role) =>
+      ids.map((permissionId) =>
         prisma.rolePermission.create({
-          data: { roleId: role.id, permissionId: paymentCreatePermission.id },
+          data: { roleId, permissionId },
         }),
       ),
     );
-  }
+  };
+
+  // MANAGER — restaurant management for the manager's assigned branch(es).
+  await linkRolePermissions(managerRole.id, [
+    { resource: 'branch', action: 'read' },
+    { resource: 'branch', action: 'create' },
+    { resource: 'branch', action: 'update' },
+    { resource: 'branch', action: 'delete' },
+    { resource: 'product', action: 'read' },
+    { resource: 'product', action: 'create' },
+    { resource: 'product', action: 'update' },
+    { resource: 'product', action: 'delete' },
+    { resource: 'category', action: 'read' },
+    { resource: 'category', action: 'create' },
+    { resource: 'category', action: 'update' },
+    { resource: 'category', action: 'delete' },
+    { resource: 'table', action: 'read' },
+    { resource: 'table', action: 'create' },
+    { resource: 'table', action: 'update' },
+    { resource: 'table', action: 'delete' },
+    { resource: 'order', action: 'read' },
+    { resource: 'order', action: 'create' },
+    { resource: 'order', action: 'update' },
+    { resource: 'customer', action: 'read' },
+    { resource: 'customer', action: 'create' },
+    { resource: 'customer', action: 'update' },
+    { resource: 'customer', action: 'delete' },
+    { resource: 'payment', action: 'read' },
+    { resource: 'payment', action: 'create' },
+    { resource: 'restaurant', action: 'read' },
+  ]);
+
+  // CASHIER — POS operations on the cashier's assigned branch(es).
+  await linkRolePermissions(cashierRole.id, [
+    { resource: 'order', action: 'read' },
+    { resource: 'order', action: 'create' },
+    { resource: 'order', action: 'update' },
+    { resource: 'product', action: 'read' },
+    { resource: 'customer', action: 'read' },
+    { resource: 'customer', action: 'create' },
+    { resource: 'payment', action: 'read' },
+    { resource: 'payment', action: 'create' },
+    { resource: 'table', action: 'read' },
+  ]);
+
+  // KITCHEN_STAFF — KDS only. KDS endpoints are guarded on the Order subject,
+  // so the effective grants are order read/update + product read (item names).
+  await linkRolePermissions(kitchenRole.id, [
+    { resource: 'order', action: 'read' },
+    { resource: 'order', action: 'update' },
+    { resource: 'product', action: 'read' },
+  ]);
+
+  // PLATFORM_OWNER — linked to EVERY permission row (platform-wide).
+  await Promise.all(
+    allPermissions.map((p) =>
+      prisma.rolePermission.create({
+        data: { roleId: platformRole.id, permissionId: p.id },
+      }),
+    ),
+  );
 
   console.log('Created role-permission mappings.');
 
   // ==========================================
   // 7. USERS
   // ==========================================
-  // Password: "Demo1234!" — Argon2 hash placeholder (real auth uses bcrypt/argon2 at runtime)
-  const passwordHash = '$argon2id$v=19$m=65536,t=3,p=4$demoSaltPlaceholder$demoHashPlaceholder';
+  // Password: "Demo1234!" — REAL Argon2id hash (Phase 4 P0). Verified with
+  // argon2.verify at generation time; seeded users can actually log in.
+  // Generated with argon2id (memoryCost 65536, timeCost 3, parallelism 4).
+  const passwordHash = '$argon2id$v=19$m=65536,p=4,t=3$OKCUB0Sk24nQpg6xu2dDkA$sLnvDE29uLc3DueyqaSeXKhEqh4TuOG3BMNrauWYLKo';
+  // Platform Owner password: "Platform123!" (DEMO.md). Verified with
+  // argon2.verify at generation time.
+  const platformPasswordHash = '$argon2id$v=19$m=65536,p=4,t=3$nR7/QNwcjrWPm/S5g8pphQ$pXuCBaq2KB8BqxHhPC/RdxvhU47i2KkrvDnjBNtLtzk';
+
+  const platformUser = await prisma.user.create({
+    data: {
+      id: 'b0000001-0000-4000-b000-000000000002',
+      tenantId: null,
+      firstName: 'System',
+      lastName: 'Admin',
+      email: 'platform@zayjar.ai',
+      passwordHash: platformPasswordHash,
+      isActive: true,
+    },
+  });
 
   const adminUser = await prisma.user.create({
     data: {
@@ -468,6 +524,8 @@ async function main(): Promise<void> {
   await prisma.userRole.create({ data: { userId: cashierUser.id, roleId: cashierRole.id } });
   await prisma.userRole.create({ data: { userId: kitchenUser.id, roleId: kitchenRole.id } });
   await prisma.userRole.create({ data: { userId: tenant2Admin.id, roleId: ownerRole.id } });
+  // Platform owner — tenantId=null (platform-wide administration).
+  await prisma.userRole.create({ data: { userId: platformUser.id, roleId: platformRole.id } });
 
   console.log('Created user-role mappings.');
 
@@ -571,6 +629,25 @@ async function main(): Promise<void> {
   });
 
   console.log('Created branches.');
+
+  // ==========================================
+  // 10b. USER-BRANCH ASSIGNMENTS (DOC-005 §4.2 / Phase 4 P0)
+  // ==========================================
+  // Branch-scoped staff roles must carry a persistent user_branches source so
+  // the JWT `branches` claim and the CASL branch-scoping rules have real data.
+  //   manager@albaik.com  -> BOTH Al-Baik branches (explicit assignment; still
+  //                          scoped — no implicit access to other tenants)
+  //   cashier@albaik.com  -> Riyadh - Olaya branch only
+  //   kitchen@albaik.com  -> Riyadh - Olaya branch only
+  // Owners (admin@albaik.com, admin@tokyoramen.com) intentionally have NO
+  // user_branches rows -> tenant-wide per the canonical RBAC design.
+  await Promise.all([
+    prisma.userBranch.create({ data: { userId: managerUser.id, branchId: branch1.id, tenantId: tenant1.id } }),
+    prisma.userBranch.create({ data: { userId: managerUser.id, branchId: branch2.id, tenantId: tenant1.id } }),
+    prisma.userBranch.create({ data: { userId: cashierUser.id, branchId: branch1.id, tenantId: tenant1.id } }),
+    prisma.userBranch.create({ data: { userId: kitchenUser.id, branchId: branch1.id, tenantId: tenant1.id } }),
+  ]);
+  console.log('Created user-branch assignments.');
 
   // ==========================================
   // 11. TABLES

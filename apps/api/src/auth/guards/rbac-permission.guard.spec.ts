@@ -150,7 +150,7 @@ describe('RbacPermissionGuard Unit & ABAC Tests', () => {
   // ==========================================
   // ABAC Tests: Branch Manager
   // ==========================================
-  it('ABAC: Branch Manager can update Products only inside assigned branches', () => {
+  it('ABAC: Branch Manager Product updates are tenant-wide (Product has no branchId column)', () => {
     const manager = {
       id: 'manager-1',
       email: 'manager@zayjar.com',
@@ -162,20 +162,127 @@ describe('RbacPermissionGuard Unit & ABAC Tests', () => {
 
     const ability = factory.createForUser(manager);
 
-    // Can update product belonging to branch-uuid-1
-    expect(ability.can('update', { __type: 'Product', branchId: 'branch-uuid-1' } as any)).toBe(true);
-    
-    // Cannot update product belonging to branch-uuid-3 (unassigned)
-    expect(ability.can('update', { __type: 'Product', branchId: 'branch-uuid-3' } as any)).toBe(false);
+    // The real Product model has NO branchId column (schema.prisma:392) —
+    // products are tenant-wide via category → restaurant. Branch-level Product
+    // scoping is therefore structurally impossible and no Product branch rule
+    // is registered; the manager's product:update applies tenant-wide.
+    expect(ability.can('update', { __type: 'Product' } as any)).toBe(true);
+  });
+
+  // ==========================================
+  // Phase 4 P0 — Branch-Scoped ABAC (CASHIER / KITCHEN_STAFF / BRANCH_MANAGER)
+  // ==========================================
+  it('Phase 4 P0: CASHIER can only read/create/update Orders in assigned branches', () => {
+    const cashier = {
+      id: 'cashier-1',
+      email: 'cashier@zayjar.com',
+      tenantId: 't1',
+      roles: ['CASHIER'],
+      permissions: ['order:read', 'order:create', 'order:update'],
+      branches: ['branch-uuid-1'],
+    };
+    const ability = factory.createForUser(cashier);
+    // assigned branch -> allowed
+    expect(ability.can('read', { __type: 'Order', branchId: 'branch-uuid-1' } as any)).toBe(true);
+    expect(ability.can('create', { __type: 'Order', branchId: 'branch-uuid-1' } as any)).toBe(true);
+    expect(ability.can('update', { __type: 'Order', branchId: 'branch-uuid-1', status: 'PENDING' } as any)).toBe(true);
+    // foreign branch -> denied
+    expect(ability.can('read', { __type: 'Order', branchId: 'branch-uuid-3' } as any)).toBe(false);
+    expect(ability.can('create', { __type: 'Order', branchId: 'branch-uuid-3' } as any)).toBe(false);
+    expect(ability.can('update', { __type: 'Order', branchId: 'branch-uuid-3', status: 'PENDING' } as any)).toBe(false);
+    // PAID constraint preserved within the assigned branch
+    expect(ability.can('update', { __type: 'Order', branchId: 'branch-uuid-1', status: 'PAID' } as any)).toBe(false);
+  });
+
+  it('Phase 4 P0: KITCHEN_STAFF can only read/update Orders in assigned branches', () => {
+    const kitchen = {
+      id: 'kitchen-1',
+      email: 'kitchen@zayjar.com',
+      tenantId: 't1',
+      roles: ['KITCHEN_STAFF'],
+      permissions: ['order:read', 'order:update'],
+      branches: ['branch-uuid-1'],
+    };
+    const ability = factory.createForUser(kitchen);
+    expect(ability.can('read', { __type: 'Order', branchId: 'branch-uuid-1' } as any)).toBe(true);
+    expect(ability.can('update', { __type: 'Order', branchId: 'branch-uuid-1', status: 'PREPARING' } as any)).toBe(true);
+    expect(ability.can('read', { __type: 'Order', branchId: 'branch-uuid-2' } as any)).toBe(false);
+    expect(ability.can('update', { __type: 'Order', branchId: 'branch-uuid-2', status: 'PREPARING' } as any)).toBe(false);
+  });
+
+  it('Phase 4 P0: BRANCH_MANAGER cannot create Orders in unassigned branches', () => {
+    const manager = {
+      id: 'manager-1',
+      email: 'manager@zayjar.com',
+      tenantId: 't1',
+      roles: ['BRANCH_MANAGER'],
+      permissions: ['order:create', 'order:read', 'order:update'],
+      branches: ['branch-uuid-1', 'branch-uuid-2'],
+    };
+    const ability = factory.createForUser(manager);
+    expect(ability.can('create', { __type: 'Order', branchId: 'branch-uuid-1' } as any)).toBe(true);
+    expect(ability.can('create', { __type: 'Order', branchId: 'branch-uuid-3' } as any)).toBe(false);
+    expect(ability.can('update', { __type: 'Order', branchId: 'branch-uuid-3', status: 'PENDING' } as any)).toBe(false);
+  });
+
+  it('Phase 4 P0: branchless subjects (list endpoints) pass the guard; scope is enforced at the service layer', () => {
+    const cashier = {
+      id: 'cashier-1',
+      email: 'cashier@zayjar.com',
+      tenantId: 't1',
+      roles: ['CASHIER'],
+      permissions: ['order:read', 'order:create', 'order:update'],
+      branches: ['branch-uuid-1'],
+    };
+    const ability = factory.createForUser(cashier);
+    // List endpoint subject has no branchId -> the $exists:true condition does
+    // not fire, so the guard allows the general `read Order` permission and the
+    // service scopes the query to assigned branches.
+    expect(ability.can('read', { __type: 'Order' } as any)).toBe(true);
+    // Create body WITHOUT a branchId would be invalid DTO-wise, but the rule
+    // must not pre-empt service validation either.
+    expect(ability.can('create', { __type: 'Order' } as any)).toBe(true);
+    // Entity-level subjects carrying a foreign branchId are still denied.
+    expect(ability.can('read', { __type: 'Order', branchId: 'branch-uuid-2' } as any)).toBe(false);
+  });
+
+  it('Phase 4 P0: RESTAURANT_OWNER remains tenant-wide (no branch restriction)', () => {
+    const owner = {
+      id: 'owner-1',
+      email: 'owner@zayjar.com',
+      tenantId: 't1',
+      roles: ['RESTAURANT_OWNER'],
+      permissions: ['order:read', 'order:create', 'order:update'],
+    };
+    const ability = factory.createForUser(owner);
+    expect(ability.can('read', { __type: 'Order', branchId: 'any-branch' } as any)).toBe(true);
+    expect(ability.can('create', { __type: 'Order', branchId: 'any-branch' } as any)).toBe(true);
+  });
+
+  it('Phase 4 P0: PLATFORM_OWNER manage-all is not narrowed by branch rules', () => {
+    const owner = {
+      id: 'po-1',
+      email: 'po@zayjar.com',
+      tenantId: null,
+      roles: ['PLATFORM_OWNER'],
+      permissions: [],
+    };
+    const ability = factory.createForUser(owner);
+    expect(ability.can('manage', 'all')).toBe(true);
+    expect(ability.can('read', { __type: 'Order', branchId: 'foreign-branch' } as any)).toBe(true);
   });
 
   // ==========================================
   // ABAC Integration Tests: Request Forgery Protection
   // ==========================================
-  it('ABAC Integration: Forged request body cannot bypass Branch Manager restrictions', async () => {
+  it('ABAC Integration: the DB-resolved entity is authoritative over a forged body branchId (Product has no branchId column)', async () => {
     mockReflector.get.mockReturnValue({ action: 'update', resource: 'Product' });
 
-    // Mock prisma.product.findFirst since our repository delegates to findFirst for scoping
+    // Mock prisma.product.findFirst since our repository delegates to findFirst for scoping.
+    // The real Product model has NO branchId column (schema.prisma — products are
+    // tenant-wide via category → restaurant), so a forged `body.branchId` cannot
+    // manufacture a branch restriction: the guard re-resolves the entity from the
+    // database and the ability is evaluated against THAT entity, not the body.
     const findFirstSpy = jest.spyOn(prisma.product, 'findFirst')
       .mockResolvedValue({
         id: '11111111-1111-4111-8111-111111111999',
@@ -207,7 +314,7 @@ describe('RbacPermissionGuard Unit & ABAC Tests', () => {
           params: { id: '11111111-1111-4111-8111-111111111999' },
           body: {
             id: '11111111-1111-4111-8111-111111111999',
-            branchId: 'branch-uuid-1', // FORGED
+            branchId: 'branch-uuid-1', // FORGED — must NOT be used for the check
           },
         }),
       }),
@@ -216,7 +323,10 @@ describe('RbacPermissionGuard Unit & ABAC Tests', () => {
     } as any;
 
     await dbTenantContext.run({ tenantId: 't1' }, async () => {
-      await expect(guard.canActivate(context)).rejects.toThrow(ForbiddenException);
+      // The entity carries no branchId -> the branch-scoped cannot rule does not
+      // fire (with `$exists: true`); the manager's product:update permission
+      // applies. This is the repository-truthful behavior: Product is tenant-wide.
+      await expect(guard.canActivate(context)).resolves.toBe(true);
     });
     
     // DOC-002 soft-delete policy: reads on soft-deletable models now also

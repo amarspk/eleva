@@ -63,6 +63,15 @@ export class KdsController {
       // caller mistake look like a server fault in logs and alerting.
       throw new BadRequestException('branchId query param is required.');
     }
+    // Phase 4 P0: a branch-scoped user (CASHIER/KITCHEN_STAFF/BRANCH_MANAGER)
+    // can only view KDS tickets for their assigned branches. The branchId
+    // query param is never trusted on its own.
+    const userBranches = req.user?.branches;
+    if (userBranches && userBranches.length > 0 && !userBranches.includes(branchId)) {
+      throw new ForbiddenException(
+        `Access denied: you do not have permission to view tickets for branch [${branchId}].`,
+      );
+    }
     return this.kdsService.getTickets(branchId, tenantId);
   }
 
@@ -86,7 +95,9 @@ export class KdsController {
       // with 403 (see user.controller.ts / payment.controller.ts).
       throw new ForbiddenException('Access denied: Missing valid tenant context.');
     }
-    return this.kdsService.updateCookingStatus(orderItemId, dto.status, tenantId);
+    // Phase 4 P0: pass the caller's assigned branches so the service can deny
+    // cooking-status updates on order items belonging to other branches.
+    return this.kdsService.updateCookingStatus(orderItemId, dto.status, tenantId, req.user?.branches);
   }
 }
 

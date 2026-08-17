@@ -79,6 +79,26 @@ describe('JwtStrategy — C-1 (AUTHZ-001) tenant reconciliation', () => {
     });
   });
 
+  it('Phase 4 P0: carries the verified branch claims into AuthenticatedUser', async () => {
+    const branchPayload = {
+      ...staffPayload,
+      roles: ['CASHIER'],
+      branches: ['branch-1', 'branch-2'],
+    };
+    await dbTenantContext.run({ tenantId: 'T-A' }, async () => {
+      const user = await strategy.validate(makeReq(), branchPayload);
+      expect(user.branches).toEqual(['branch-1', 'branch-2']);
+    });
+  });
+
+  it('Phase 4 P0: leaves branches undefined for tenant-wide roles', async () => {
+    const ownerPayload = { ...staffPayload, roles: ['RESTAURANT_OWNER'] };
+    await dbTenantContext.run({ tenantId: 'T-A' }, async () => {
+      const user = await strategy.validate(makeReq(), ownerPayload);
+      expect(user.branches).toBeUndefined();
+    });
+  });
+
   it('exempts PLATFORM_OWNER from tenant reconciliation (platform rules preserved)', async () => {
     const ownerPayload = { ...staffPayload, tenantId: null, roles: ['PLATFORM_OWNER'] };
     await dbTenantContext.run({ tenantId: 'T-B', isPlatformOwner: true }, async () => {

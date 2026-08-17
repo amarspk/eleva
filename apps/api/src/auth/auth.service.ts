@@ -113,6 +113,7 @@ export class AuthService {
     tenantId: string | null;
     roles: string[];
     permissions: string[];
+    branches?: string[];
   }): Promise<{ accessToken: string; refreshToken: string }> {
     const accessToken = await this.jwtService.signAsync(payload, {
       secret: JWT_CONFIG.accessTokenSecret,
@@ -164,6 +165,7 @@ export class AuthService {
         tenantId: (decoded.tenantId as string | null | undefined) || null,
         roles: (decoded.roles as string[] | undefined) || [],
         permissions: (decoded.permissions as string[] | undefined) || [],
+        branches: decoded.branches as string[] | undefined,
       });
       return { ...rotatedPair, sub: decoded.sub as string };
 
@@ -686,15 +688,21 @@ export class AuthService {
     lastName: string | null;
     roles: string[];
     permissions: string[];
+    branches: string[];
     mfaEnabled: boolean;
   }> {
     const normalizedEmail = email.toLowerCase().trim();
 
-    // Find user with tenant scoping, include roles and permissions
+    // Find user with tenant scoping, include roles/permissions AND branch
+    // assignments (DOC-005 §4.2 — the persistent user_branches source). Branch
+    // IDs are carried into the JWT so the CASL ability factory can enforce
+    // branch-level ABAC rules server-side. Soft-deleted branches are filtered
+    // out: a revoked branch must not survive in the token.
     let user: UserFromDb | null = null;
+    let userBranches: Array<{ branchId: string }> = [];
     try {
       if (tenantId) {
-        user = await prisma.user.findFirst({
+        const raw = await prisma.user.findFirst({
           where: { email: normalizedEmail, tenantId },
           include: {
             userRoles: {
@@ -708,11 +716,17 @@ export class AuthService {
                 },
               },
             },
+            userBranches: {
+              where: { branch: { deletedAt: null } },
+              select: { branchId: true },
+            },
           },
-        }) as unknown as UserFromDb | null;
+        }) as unknown as (UserFromDb & { userBranches?: Array<{ branchId: string }> }) | null;
+        user = raw as unknown as UserFromDb | null;
+        userBranches = raw?.userBranches ?? [];
       } else {
         // If no tenantId, find first user by email across tenants (or with tenantId null for platform owners)
-        user = await prisma.user.findFirst({
+        const raw = await prisma.user.findFirst({
           where: { email: normalizedEmail },
           include: {
             userRoles: {
@@ -726,13 +740,20 @@ export class AuthService {
                 },
               },
             },
+            userBranches: {
+              where: { branch: { deletedAt: null } },
+              select: { branchId: true },
+            },
           },
-        }) as unknown as UserFromDb | null;
+        }) as unknown as (UserFromDb & { userBranches?: Array<{ branchId: string }> }) | null;
+        user = raw as unknown as UserFromDb | null;
+        userBranches = raw?.userBranches ?? [];
       }
     } catch (err) {
       this.logger.error(`DB lookup failed for login [${normalizedEmail}]: ${(err as Error).message}`);
       // Fallback for test env without DB: create mock user that will pass password check via argon2 mock
       user = null;
+      userBranches = [];
     }
 
     // If user not found in DB (test env fallback), create mock user for testing purposes
@@ -843,6 +864,7 @@ export class AuthService {
       lastName: user.lastName,
       roles,
       permissions,
+      branches: userBranches.map((ub) => ub.branchId),
       mfaEnabled: user.mfaEnabled,
     };
   }

@@ -66,7 +66,7 @@ One-command alternative: `bash scripts/demo.sh` (see `DEMO.md`).
 
 ## 4. Credentials for manual testing (verified 2026-08-14)
 
-- **Seeded users** (`admin@albaik.com`, `manager@albaik.com`, …) carry **placeholder argon2 hashes** — they cannot log in. `DEMO.md`'s demo-account passwords are stale relative to the current seed (documented drift).
+- **Seeded users** — `admin@albaik.com`, `manager@albaik.com`, `cashier@albaik.com`, `kitchen@albaik.com`, `admin@tokyoramen.com` all authenticate with password **`Demo1234!`** (real Argon2id hashes, Phase 4 P0). `platform@zayjar.ai` authenticates with **`Platform123!`** (see `DEMO.md`).
 - **Real authentication:** onboard a fresh tenant, then log in:
 
 ```bash
@@ -98,7 +98,7 @@ Expected results below are the values proven by the Full-App Adversarial Pass (�
 | 5 | Mass assignment | onboarding payload containing `tenantId` | **400** "property tenantId should not exist" |
 | 6 | Uniqueness | duplicate subdomain / email onboarding | **409** |
 | 7 | Enumeration | forgot-password known vs unknown email | identical generic response |
-| 8 | Webhooks fail-closed | unsigned Stripe / Tap (or wrong hashstring) | **400** |
+| 8 | Webhooks fail-closed | unsigned Stripe (`POST /api/v1/billing/webhooks`) / unsigned Tap (`POST /api/v1/payments/webhooks/tap`) or wrong `hashstring` header | **400** (Stripe requires tenant context or the middleware fail-safe blocks first; Tap requires `TAP_PAYMENTS_SECRET_KEY` configured — otherwise the documented dev-skip returns 200 in non-production) |
 | 9 | Metrics gate | `/metrics` no / wrong / correct Bearer | **401 / 401 / 200** + `Cache-Control: no-store`; no tenant ids/emails/passwords in the exposition |
 | 10 | Readiness | `/ready` with the database stopped | **503** (and `/live` stays **200**) |
 | 11 | RBAC | staff user without permission calls protected route | **403** (allow-side returns 200) |
@@ -117,7 +117,7 @@ Expected results below are the values proven by the Full-App Adversarial Pass (�
 
 - `MediaController` declares no `JwtAuthGuard` (documented runtime inconsistency — see OpenAPI contract note).
 - CORS reflects the caller origin when `CORS_ORIGIN` is unset (documented production-hardening note).
-- Tap webhook hashstring verification skips in dev when `TAP_PAYMENTS_SECRET_KEY` is unset (documented).
+- Tap webhook hashstring verification skips in dev when `TAP_PAYMENTS_SECRET_KEY` is unset (documented). The Tap webhook endpoint is `POST /api/v1/payments/webhooks/tap` (not `/api/v1/wallet/tap/webhook`).
 - Email-verification login enforcement is disabled pre-launch (mandatory pre-launch gate, §19 row 53).
 - Socket.io falls back to the in-memory adapter (documented SPEC-DRIFT).
 - Newly onboarded tenants provision only the owner role; staff roles are provisioned separately.

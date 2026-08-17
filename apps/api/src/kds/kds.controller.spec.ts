@@ -22,7 +22,7 @@ describe('KdsController — client errors must not surface as HTTP 500', () => {
   let controller: KdsController;
   let service: { getTickets: jest.Mock; updateCookingStatus: jest.Mock };
 
-  const reqWith = (tenantId: string | null): AuthenticatedRequest =>
+  const reqWith = (tenantId: string | null, branches?: string[]): AuthenticatedRequest =>
     ({
       user: {
         id: 'u1',
@@ -30,6 +30,7 @@ describe('KdsController — client errors must not surface as HTTP 500', () => {
         tenantId,
         roles: ['KITCHEN_STAFF'],
         permissions: ['kds:read', 'kds:write'],
+        branches,
       },
     }) as unknown as AuthenticatedRequest;
 
@@ -68,5 +69,34 @@ describe('KdsController — client errors must not surface as HTTP 500', () => {
     await controller.getTickets('branch-1', reqWith('tenant-1'));
 
     expect(service.getTickets).toHaveBeenCalledWith('branch-1', 'tenant-1');
+  });
+
+  // ==========================================
+  // Phase 4 P0 — KDS branch-scope enforcement
+  // ==========================================
+  it('Phase 4 P0: denies KDS tickets for a branch outside the user assigned scope', async () => {
+    await expect(controller.getTickets('branch-foreign', reqWith('tenant-1', ['branch-1']))).rejects.toThrow(
+      ForbiddenException,
+    );
+    expect(service.getTickets).not.toHaveBeenCalled();
+  });
+
+  it('Phase 4 P0: allows KDS tickets for an assigned branch', async () => {
+    await controller.getTickets('branch-1', reqWith('tenant-1', ['branch-1']));
+    expect(service.getTickets).toHaveBeenCalledWith('branch-1', 'tenant-1');
+  });
+
+  it('Phase 4 P0: users without branch assignments keep tenant-wide KDS access', async () => {
+    await controller.getTickets('branch-anything', reqWith('tenant-1'));
+    expect(service.getTickets).toHaveBeenCalledWith('branch-anything', 'tenant-1');
+  });
+
+  it('Phase 4 P0: passes user branches to the service on cooking-status update', async () => {
+    await controller.updateItemStatus(
+      'order-item-1',
+      { status: 'PREPARING' } as never,
+      reqWith('tenant-1', ['branch-1']),
+    );
+    expect(service.updateCookingStatus).toHaveBeenCalledWith('order-item-1', 'PREPARING', 'tenant-1', ['branch-1']);
   });
 });

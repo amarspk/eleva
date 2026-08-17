@@ -1088,4 +1088,133 @@ describe('OrderService — Sprint 1 Step 2 (Guest Checkout / DEFECT-A / DEFECT-B
       tenantId, branchId, 'order.created', expect.objectContaining({ id: 'order-b2' }),
     );
   });
+
+  // ==========================================
+  // Phase 4 P0 — server-side branch-scope enforcement
+  // ==========================================
+  describe('Phase 4 P0 branch-scope enforcement', () => {
+    const tenantId = 'tenant-uuid-1111';
+    const branchId = 'branch-uuid-1234';
+    const productId = 'prod-uuid-999';
+    const foreignBranchId = 'branch-uuid-9999';
+
+    it('createOrder rejects a branch-scoped user targeting a foreign branch (before any lookup)', async () => {
+      const dto = {
+        branchId: foreignBranchId,
+        type: OrderType.DINE_IN,
+        items: [{ productId, quantity: 1 }],
+        paymentMethod: PaymentMethodType.CASH,
+      };
+      await expect(service.createOrder(dto, tenantId, [branchId])).rejects.toThrow(ForbiddenException);
+      // No DB lookup must have happened — enforcement precedes the branch check.
+      expect(TenantBranchRepository.prototype.findById).not.toHaveBeenCalled();
+    });
+
+    it('createOrder allows a branch-scoped user on their own branch', async () => {
+      jest.spyOn(TenantBranchRepository.prototype, 'findById').mockResolvedValue({
+        id: branchId,
+        tenantId,
+        restaurantId: 'rest-uuid-999',
+      } as any);
+      jest.spyOn(TenantRestaurantRepository.prototype, 'findById').mockResolvedValue({
+        id: 'rest-uuid-999',
+        taxPercentage: 0 as any,
+      } as any);
+      jest.spyOn(TenantProductRepository.prototype, 'findById').mockResolvedValue({
+        id: productId,
+        basePrice: 10.00 as any,
+        isAvailable: true,
+      } as any);
+      const txMock = {
+        order: { create: jest.fn().mockResolvedValue({ id: 'o1', orderNumber: 'ORD-2026-1', subtotal: 10, taxAmount: 0, total: 10 }) },
+        kitchenQueue: { create: jest.fn().mockResolvedValue({ id: 'kq', ticketNumber: '1', priority: 'NORMAL' }) },
+        discount: { update: jest.fn().mockResolvedValue({}) },
+      };
+      jest.spyOn(prisma, '$transaction').mockImplementation(async (cb: any) => cb(txMock));
+
+      const dto = {
+        branchId,
+        type: OrderType.DINE_IN,
+        items: [{ productId, quantity: 1 }],
+        paymentMethod: PaymentMethodType.CASH,
+      };
+      const result = await service.createOrder(dto, tenantId, [branchId]);
+      expect(result.id).toBe('o1');
+    });
+
+    it('createOrder ignores branch scope when the user has no assignments (tenant-wide owner)', async () => {
+      // Owner path: no userBranches arg -> no restriction; the branch lookup
+      // runs normally. If the branch did not exist it would 404 — proving the
+      // scope gate did NOT pre-empt it.
+      jest.spyOn(TenantBranchRepository.prototype, 'findById').mockResolvedValue(null);
+      const dto = {
+        branchId: foreignBranchId,
+        type: OrderType.DINE_IN,
+        items: [{ productId, quantity: 1 }],
+        paymentMethod: PaymentMethodType.CASH,
+      };
+      await expect(service.createOrder(dto, tenantId)).rejects.toThrow(NotFoundException);
+    });
+
+    it('getOrders filters a branch-scoped user to assigned branches only', async () => {
+      const findManySpy = jest.spyOn(TenantOrderRepository.prototype, 'findMany').mockResolvedValue([]);
+      await service.getOrders(undefined, [branchId, 'branch-uuid-2']);
+      expect(findManySpy).toHaveBeenCalledWith({ branchId: { in: [branchId, 'branch-uuid-2'] } });
+    });
+
+    it('getOrders honors an explicit branchId only when it is inside the user scope', async () => {
+      const findManySpy = jest.spyOn(TenantOrderRepository.prototype, 'findMany').mockResolvedValue([]);
+      await service.getOrders(branchId, [branchId, 'branch-uuid-2']);
+      expect(findManySpy).toHaveBeenCalledWith({ branchId });
+    });
+
+    it('getOrders rejects an explicit branchId outside the user scope (403)', async () => {
+      await expect(service.getOrders(foreignBranchId, [branchId])).rejects.toThrow(ForbiddenException);
+    });
+
+    it('getOrders leaves tenant-wide users unrestricted', async () => {
+      const findManySpy = jest.spyOn(TenantOrderRepository.prototype, 'findMany').mockResolvedValue([]);
+      await service.getOrders(branchId);
+      expect(findManySpy).toHaveBeenCalledWith({ branchId });
+    });
+
+    it('getOrder denies a branch-scoped user reading a foreign-branch order', async () => {
+      jest.spyOn(TenantOrderRepository.prototype, 'findById').mockResolvedValue({
+        id: 'order-x',
+        branchId: foreignBranchId,
+        status: OrderStatus.PENDING,
+      } as any);
+      await expect(service.getOrder('order-x', [branchId])).rejects.toThrow(ForbiddenException);
+    });
+
+    it('getOrder allows a branch-scoped user reading their own-branch order', async () => {
+      jest.spyOn(TenantOrderRepository.prototype, 'findById').mockResolvedValue({
+        id: 'order-x',
+        branchId,
+        status: OrderStatus.PENDING,
+      } as any);
+      const res = await service.getOrder('order-x', [branchId]);
+      expect(res.id).toBe('order-x');
+    });
+
+    it('updateOrderStatus denies a branch-scoped user mutating a foreign-branch order', async () => {
+      jest.spyOn(TenantOrderRepository.prototype, 'findById').mockResolvedValue({
+        id: 'order-x',
+        branchId: foreignBranchId,
+        status: OrderStatus.PENDING,
+      } as any);
+      await expect(
+        service.updateOrderStatus('order-x', { status: OrderStatus.ACCEPTED }, [branchId]),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('cancelOrder denies a branch-scoped user cancelling a foreign-branch order', async () => {
+      jest.spyOn(TenantOrderRepository.prototype, 'findById').mockResolvedValue({
+        id: 'order-x',
+        branchId: foreignBranchId,
+        status: OrderStatus.PENDING,
+      } as any);
+      await expect(service.cancelOrder('order-x', [branchId])).rejects.toThrow(ForbiddenException);
+    });
+  });
 });

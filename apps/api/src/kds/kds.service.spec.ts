@@ -5,13 +5,18 @@ import { BadRequestException } from '@nestjs/common';
 import { CookingStatus } from '@zayjar/types';
 
 jest.mock('@zayjar/db', () => {
-  const MockRepo = jest.fn().mockImplementation(() => ({
-    create: jest.fn(),
-    findMany: jest.fn().mockResolvedValue([]),
-    findById: jest.fn().mockResolvedValue(null),
-    update: jest.fn(),
-    delete: jest.fn(),
-  }));
+  // Methods are defined on the PROTOTYPE (not instance properties) so tests
+  // can jest.spyOn(TenantXRepository.prototype, 'method'). NOTE: every
+  // repository maps to the SAME MockRepo class in this spec's factory, so
+  // their prototype methods are shared — tests must not set conflicting
+  // implementations on different repositories' `update` in one test.
+  class MockRepo {}
+  const proto = MockRepo.prototype as unknown as Record<string, jest.Mock>;
+  proto.create = jest.fn();
+  proto.findMany = jest.fn().mockResolvedValue([]);
+  proto.findById = jest.fn().mockResolvedValue(null);
+  proto.update = jest.fn();
+  proto.delete = jest.fn();
   return {
     TenantOrderRepository: MockRepo,
     TenantOrderItemRepository: MockRepo,
@@ -85,6 +90,54 @@ describe('KdsService', () => {
 
     it('should allow same status (no-op)', () => {
       expect(() => validate(CookingStatus.PREPARING, CookingStatus.PREPARING)).not.toThrow();
+    });
+  });
+
+  describe('Phase 4 P0 — updateCookingStatus branch-scope enforcement', () => {
+    it('denies a branch-scoped user updating an order item in a foreign branch', async () => {
+      const { TenantOrderItemRepository, prisma } = require('@zayjar/db');
+      const { ForbiddenException } = require('@nestjs/common');
+
+      (TenantOrderItemRepository.prototype.findById as jest.Mock).mockResolvedValue({
+        id: 'oi-1',
+        orderId: 'order-x',
+        cookingStatus: 'PENDING',
+      });
+      (prisma.order.findFirst as jest.Mock).mockResolvedValue({
+        id: 'order-x',
+        branchId: 'branch-foreign',
+      });
+
+      await expect(
+        service.updateCookingStatus('oi-1', CookingStatus.PREPARING, 'tenant-1', ['branch-1']),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('allows a branch-scoped user updating an order item in an assigned branch', async () => {
+      const { TenantOrderItemRepository, prisma } = require('@zayjar/db');
+
+      (TenantOrderItemRepository.prototype.findById as jest.Mock).mockResolvedValue({
+        id: 'oi-1',
+        orderId: 'order-x',
+        cookingStatus: 'PENDING',
+      });
+      // First findFirst = the new branch check (assigned branch -> pass);
+      // second findFirst = the broadcast parent-order fetch.
+      (prisma.order.findFirst as jest.Mock).mockResolvedValue({
+        id: 'order-x',
+        branchId: 'branch-1',
+        tenantId: 'tenant-1',
+      });
+      const updateMock = jest.fn().mockResolvedValue({ id: 'oi-1', cookingStatus: 'PREPARING' });
+      TenantOrderItemRepository.prototype.update = updateMock;
+      // kitchenQueue.findFirst resolves null -> updateKitchenQueueTimestamps
+      // returns early and never calls kitchenQueueRepository.update (which
+      // shares the same MockRepo prototype in this spec's factory).
+      (prisma.kitchenQueue.findFirst as jest.Mock).mockResolvedValue(null);
+
+      const result = await service.updateCookingStatus('oi-1', CookingStatus.PREPARING, 'tenant-1', ['branch-1']);
+      expect(result.cookingStatus).toBe('PREPARING');
+      expect(updateMock).toHaveBeenCalledWith('oi-1', { cookingStatus: 'PREPARING' });
     });
   });
 });

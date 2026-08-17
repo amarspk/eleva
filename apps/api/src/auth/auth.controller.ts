@@ -89,6 +89,7 @@ export class AuthController {
       tenantId: userProfile.tenantId,
       roles: userProfile.roles,
       permissions: userProfile.permissions,
+      branches: userProfile.branches,
     };
 
     const { accessToken, refreshToken } = await this.authService.generateTokens(payload);
@@ -114,6 +115,7 @@ export class AuthController {
         tenantId: payload.tenantId,
         email: payload.email,
         roles: payload.roles,
+        branches: userProfile.branches,
         firstName: userProfile.firstName,
         lastName: userProfile.lastName,
         mfaRequired: false,

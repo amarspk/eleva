@@ -95,6 +95,13 @@ export class AppModule implements NestModule {
       // AUDIT-011: documentation is platform-level, never tenant-scoped. Only
       // the two configured docs routes and their Swagger UI asset namespace are
       // excluded; the access middleware still requires PLATFORM_OWNER JWT auth.
+      // Phase 4 P0 (manual gate finding): the password-reset / email-verification
+      // flows are @Public() account-recovery endpoints that must be reachable
+      // WITHOUT a tenant context — same rationale as login. Their handlers
+      // (requestPasswordReset / resetPassword / verifyEmail) establish their own
+      // platform-scoped dbTenantContext internally, so excluding the routes here
+      // is safe and makes the documented enumeration-resistant generic response
+      // actually reachable instead of being pre-empted by the middleware 403.
       .exclude(
         'health',
         'live',
@@ -103,6 +110,9 @@ export class AppModule implements NestModule {
         'api/v1/tenants/plans',
         'api/v1/tenants',
         'api/v1/auth/login',
+        'api/v1/auth/forgot-password',
+        'api/v1/auth/reset-password',
+        'api/v1/auth/verify-email',
         'design/platform',
         'api/v1/design/platform',
         'api/docs',

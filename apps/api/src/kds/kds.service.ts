@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { CookingStatus, OrderStatus } from '@zayjar/types';
 import {
   TenantOrderRepository,
@@ -163,7 +163,12 @@ export class KdsService {
    * Updates cooking status of a specific order item.
    * Validates state transitions, updates kitchen_queues timestamps, and emits real-time events.
    */
-  async updateCookingStatus(orderItemId: string, status: CookingStatus, tenantId: string): Promise<{
+  async updateCookingStatus(
+    orderItemId: string,
+    status: CookingStatus,
+    tenantId: string,
+    userBranches?: string[],
+  ): Promise<{
     orderItemId: string;
     cookingStatus: string;
     updatedAt: string;
@@ -182,6 +187,22 @@ export class KdsService {
 
     if (!orderItem) {
       throw new NotFoundException(`Order item with ID [${orderItemId}] not found.`);
+    }
+
+    // Phase 4 P0: resolve the parent order's branch and deny branch-scoped
+    // staff (KITCHEN_STAFF/CASHIER/BRANCH_MANAGER) updates on foreign-branch
+    // order items. Never trust a client-supplied branch; derive it from the
+    // parent order server-side.
+    const branchOrder = await dbTenantContext.run({ tenantId }, async () => {
+      return prisma.order.findFirst({
+        where: { id: orderItem.orderId, tenantId },
+        select: { id: true, branchId: true },
+      });
+    });
+    if (branchOrder && userBranches && userBranches.length > 0 && !userBranches.includes(branchOrder.branchId)) {
+      throw new ForbiddenException(
+        `Access denied: you do not have permission to update items on branch [${branchOrder.branchId}].`,
+      );
     }
 
     // Validate state transition for cooking

@@ -162,11 +162,37 @@ export class OrderService {
   }
 
   /**
+   * Phase 4 P0 — server-side branch-scope enforcement (defense in depth).
+   * When the authenticated user carries branch assignments (CASHIER,
+   * KITCHEN_STAFF, BRANCH_MANAGER), every order operation MUST be confined to
+   * those branches. A client-supplied branchId is never trusted on its own:
+   * it must be present in the user's own user_branches-derived claim.
+   * Users without branch assignments (RESTAURANT_OWNER, PLATFORM_OWNER, or a
+   * staff role that was never scoped) keep the canonical tenant-wide behavior.
+   */
+  private assertBranchAllowed(userBranches: string[] | undefined, branchId: string): void {
+    if (userBranches && userBranches.length > 0 && !userBranches.includes(branchId)) {
+      throw new ForbiddenException(
+        `Access denied: you do not have permission to operate on branch [${branchId}].`,
+      );
+    }
+  }
+
+  /**
    * Orchestrates a secure checkout transaction.
    * Maps exactly to the transactional architecture requirements in TSK-2.0.
    */
-  async createOrder(dto: CreateOrderRequestDto, userTenantId: string): Promise<Record<string, unknown>> {
+  async createOrder(
+    dto: CreateOrderRequestDto,
+    userTenantId: string,
+    userBranches?: string[],
+  ): Promise<Record<string, unknown>> {
     this.logger.log(`Initiating checkout transaction for tenant: [${userTenantId}]`);
+
+    // Phase 4 P0 — enforce the caller's branch scope BEFORE any lookup so a
+    // branch-scoped staff user can never create an order against a foreign
+    // branch, even if they somehow hold a checkout DTO for one.
+    this.assertBranchAllowed(userBranches, dto.branchId);
 
     // 1. Validate branch ownership and resolve parameters
     const branch = await this.branchRepository.findById(dto.branchId);
@@ -405,22 +431,37 @@ export class OrderService {
   /**
    * Safe lookup by id.
    */
-  async getOrder(id: string): Promise<Record<string, unknown>> {
+  async getOrder(id: string, userBranches?: string[]): Promise<Record<string, unknown>> {
     const order = await this.orderRepository.findById(id);
     if (!order) {
       throw new NotFoundException(`Order with ID [${id}] was not found.`);
     }
+    this.assertBranchAllowed(userBranches, order.branchId);
     return order;
   }
 
   /**
-   * Safe listing scoped to tenant.
+   * Safe listing scoped to tenant and (for branch-scoped staff) to the user's
+   * assigned branches. An explicit client-supplied branchId is honored only
+   * when it falls inside the caller's scope; otherwise it is rejected.
    */
-  async getOrders(branchId?: string): Promise<Array<Record<string, unknown>>> {
+  async getOrders(branchId?: string, userBranches?: string[]): Promise<Array<Record<string, unknown>>> {
     const where: Record<string, unknown> = {};
-    if (branchId) {
+
+    // Phase 4 P0: branch-scoped users can only ever see orders from their
+    // assigned branches. This closes the list endpoint, which the RBAC guard
+    // cannot scope (no :id entity to resolve against).
+    if (userBranches && userBranches.length > 0) {
+      if (branchId) {
+        this.assertBranchAllowed(userBranches, branchId);
+        where.branchId = branchId;
+      } else {
+        where.branchId = { in: userBranches };
+      }
+    } else if (branchId) {
       where.branchId = branchId;
     }
+
     return this.orderRepository.findMany(where);
   }
 
@@ -429,11 +470,19 @@ export class OrderService {
    * Automatically generates billing invoices upon successful completion.
    * Broadcasts KDS events automatically whenever status changes.
    */
-  async updateOrderStatus(id: string, dto: UpdateOrderStatusRequestDto): Promise<Record<string, unknown>> {
+  async updateOrderStatus(
+    id: string,
+    dto: UpdateOrderStatusRequestDto,
+    userBranches?: string[],
+  ): Promise<Record<string, unknown>> {
     const order = await this.orderRepository.findById(id);
     if (!order) {
       throw new NotFoundException(`Order with ID [${id}] was not found.`);
     }
+
+    // Phase 4 P0 — a branch-scoped staff user cannot mutate orders in other
+    // branches even when they hold a valid order id.
+    this.assertBranchAllowed(userBranches, order.branchId);
 
     this.validateStateTransition(order.status as OrderStatus, dto.status);
 
@@ -475,11 +524,14 @@ export class OrderService {
   /**
    * Safe cancellation.
    */
-  async cancelOrder(id: string): Promise<Record<string, unknown>> {
+  async cancelOrder(id: string, userBranches?: string[]): Promise<Record<string, unknown>> {
     const order = await this.orderRepository.findById(id);
     if (!order) {
       throw new NotFoundException(`Order with ID [${id}] was not found.`);
     }
+
+    // Phase 4 P0 — branch-scoped staff cannot cancel orders in other branches.
+    this.assertBranchAllowed(userBranches, order.branchId);
 
     if (order.status === OrderStatus.COMPLETED) {
       throw new ConflictException('Completed orders cannot be cancelled.');

@@ -146,6 +146,8 @@ const PERMISSIONS = [
   { id: 'b2f0df84-5159-4e76-9aa9-32633d49ba7f', action: 'update', resource: 'customer', description: 'Update customers' },
   { id: 'e388594d-c749-480a-9045-514e01197bc3', action: 'delete', resource: 'customer', description: 'Delete customers' },
   { id: 'e639eecc-9662-4413-b0fa-7268801aca3f', action: 'read',   resource: 'restaurant', description: 'View restaurant brands' },
+  { id: '328a0aa5-0576-4750-87bb-01ba2c283f74', action: 'create', resource: 'payment', description: 'Create wallet payments' },
+  { id: 'fec355e8-c91f-45b6-83b7-fbb957c180ae', action: 'read',   resource: 'payment', description: 'View wallet payments' },
 ];
 
 async function main() {
@@ -220,39 +222,51 @@ async function main() {
   await p.rolePermission.deleteMany({ where: { roleId: IDS.platformRole } });
   await p.rolePermission.createMany({ data: PERMISSIONS.map(pm => ({ roleId: IDS.platformRole, permissionId: pm.id })) });
 
-  // Manager: read/write on branch, menu, order, customer, kds + new CASL perms
-  const managerPermIds = PERMISSIONS.filter(pm =>
-    ['branch','menu','order','customer','kds'].includes(pm.resource) && ['read','write'].includes(pm.action)
-  ).map(pm => pm.id);
-  // Also add new CASL actions for manager
-  const managerExtraIds = PERMISSIONS.filter(pm =>
-    (pm.resource === 'product' && ['read','create','update'].includes(pm.action)) ||
-    (pm.resource === 'category' && ['read','create','update'].includes(pm.action)) ||
-    (pm.resource === 'table' && ['read','create','update'].includes(pm.action)) ||
-    (pm.resource === 'user' && pm.action === 'read') ||
-    (pm.resource === 'tenant' && ['read','update','write'].includes(pm.action)) ||
-    (pm.resource === 'restaurant' && pm.action === 'read')
-  ).map(pm => pm.id);
-  const allManagerIds = [...new Set([...managerPermIds, ...managerExtraIds])];
-  await p.rolePermission.createMany({ data: allManagerIds.map(pid => ({ roleId: IDS.albManagerRole, permissionId: pid })) });
+  // Phase 4 P0 — role grants use the modern CASL vocabulary (resource +
+  // create/read/update/delete matching the CaslAbilityFactory Subjects union).
+  // The legacy menu/kds/billing/analytics rows and the `write` action remain
+  // in PERMISSIONS for backward compatibility but are no longer the source of
+  // effective grants.
+  const linkRolePermissions = (roleId, grants) => {
+    const ids = grants
+      .map(g => PERMISSIONS.find(pm => pm.resource === g.resource && pm.action === g.action)?.id)
+      .filter(Boolean);
+    return p.rolePermission.createMany({ data: ids.map(permissionId => ({ roleId, permissionId })) });
+  };
 
-  // Cashier: read menu, read/write order, read/write customer
-  const cashierPermIds = PERMISSIONS.filter(pm =>
-    ['menu','order','customer'].includes(pm.resource) && ['read','write'].includes(pm.action)
-  ).map(pm => pm.id);
-  const cashierExtraIds = PERMISSIONS.filter(pm =>
-    (pm.resource === 'product' && pm.action === 'read') ||
-    (pm.resource === 'category' && pm.action === 'read') ||
-    (pm.resource === 'order' && ['create','update'].includes(pm.action))
-  ).map(pm => pm.id);
-  const allCashierIds = [...new Set([...cashierPermIds, ...cashierExtraIds])];
-  await p.rolePermission.createMany({ data: allCashierIds.map(pid => ({ roleId: IDS.albCashierRole, permissionId: pid })) });
+  // MANAGER — restaurant management for the manager's assigned branch(es).
+  await linkRolePermissions(IDS.albManagerRole, [
+    { resource: 'branch', action: 'read' }, { resource: 'branch', action: 'create' },
+    { resource: 'branch', action: 'update' }, { resource: 'branch', action: 'delete' },
+    { resource: 'product', action: 'read' }, { resource: 'product', action: 'create' },
+    { resource: 'product', action: 'update' }, { resource: 'product', action: 'delete' },
+    { resource: 'category', action: 'read' }, { resource: 'category', action: 'create' },
+    { resource: 'category', action: 'update' }, { resource: 'category', action: 'delete' },
+    { resource: 'table', action: 'read' }, { resource: 'table', action: 'create' },
+    { resource: 'table', action: 'update' }, { resource: 'table', action: 'delete' },
+    { resource: 'order', action: 'read' }, { resource: 'order', action: 'create' },
+    { resource: 'order', action: 'update' },
+    { resource: 'customer', action: 'read' }, { resource: 'customer', action: 'create' },
+    { resource: 'customer', action: 'update' }, { resource: 'customer', action: 'delete' },
+    { resource: 'payment', action: 'read' }, { resource: 'payment', action: 'create' },
+    { resource: 'restaurant', action: 'read' },
+  ]);
 
-  // Kitchen: read order, write kds
-  const kitchenPermIds = PERMISSIONS.filter(pm =>
-    ['order','kds'].includes(pm.resource) && ['read','write'].includes(pm.action)
-  ).map(pm => pm.id);
-  await p.rolePermission.createMany({ data: kitchenPermIds.map(pid => ({ roleId: IDS.albKitchenRole, permissionId: pid })) });
+  // CASHIER — POS operations on the cashier's assigned branch(es).
+  await linkRolePermissions(IDS.albCashierRole, [
+    { resource: 'order', action: 'read' }, { resource: 'order', action: 'create' },
+    { resource: 'order', action: 'update' },
+    { resource: 'product', action: 'read' },
+    { resource: 'customer', action: 'read' }, { resource: 'customer', action: 'create' },
+    { resource: 'payment', action: 'read' }, { resource: 'payment', action: 'create' },
+    { resource: 'table', action: 'read' },
+  ]);
+
+  // KITCHEN_STAFF — KDS only (KDS endpoints are guarded on the Order subject).
+  await linkRolePermissions(IDS.albKitchenRole, [
+    { resource: 'order', action: 'read' }, { resource: 'order', action: 'update' },
+    { resource: 'product', action: 'read' },
+  ]);
 
   // ── 8. Users ─────────────────────────────────────────────────────
   console.log('Creating users...');
@@ -298,6 +312,16 @@ async function main() {
   await p.branch.create({ data: { id: IDS.albBranch1, tenantId: IDS.tenant1, restaurantId: IDS.albRestaurant, name: 'Riyadh - Olaya Branch', address: 'Olaya Main St, Riyadh', phoneNumber: '+96611234567', latitude: 24.7136, longitude: 46.6753, operatingHours: defaultHours } });
   await p.branch.create({ data: { id: IDS.albBranch2, tenantId: IDS.tenant1, restaurantId: IDS.albRestaurant, name: 'Jeddah - Corniche Branch', address: 'Corniche Rd, Jeddah', phoneNumber: '+96612234567', latitude: 21.5439, longitude: 39.1725, operatingHours: defaultHours } });
   await p.branch.create({ data: { id: IDS.tokBranch1, tenantId: IDS.tenant2, restaurantId: IDS.tokRestaurant, name: 'Shibuya Branch', address: '1-2-3 Shibuya, Tokyo', phoneNumber: '+81312345678', latitude: 35.6580, longitude: 139.7016, operatingHours: defaultHours } });
+
+  // ── 11b. User-Branch assignments (DOC-005 §4.2 / Phase 4 P0) ─────────
+  // manager -> both Al-Baik branches (explicit); cashier & kitchen -> Riyadh
+  // branch only. Owners have NO user_branches rows -> tenant-wide.
+  await p.userBranch.createMany({ data: [
+    { userId: IDS.albManager, branchId: IDS.albBranch1, tenantId: IDS.tenant1 },
+    { userId: IDS.albManager, branchId: IDS.albBranch2, tenantId: IDS.tenant1 },
+    { userId: IDS.albCashier, branchId: IDS.albBranch1, tenantId: IDS.tenant1 },
+    { userId: IDS.albKitchen, branchId: IDS.albBranch1, tenantId: IDS.tenant1 },
+  ] });
 
   // ── 12. Tables ────────────────────────────────────────────────────
   console.log('Creating tables...');
