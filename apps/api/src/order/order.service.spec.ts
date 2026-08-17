@@ -634,7 +634,7 @@ describe('OrderService Unit Tests', () => {
   // ==========================================
   it('should broadcast KDS events on status transitions', async () => {
     const id = 'order-kds-test';
-    const kdsGateway = { broadcastOrderEvent: jest.fn(), emitTicketCreated: jest.fn() };
+    const kdsGateway = { broadcastOrderEvent: jest.fn(), emitTicketCreated: jest.fn(), emitNotificationNewOrder: jest.fn() };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -662,7 +662,7 @@ describe('OrderService Unit Tests', () => {
   // ==========================================
   it('should broadcast order.cancelled KDS event on cancellation', async () => {
     const id = 'order-cancel-kds';
-    const kdsGateway = { broadcastOrderEvent: jest.fn(), emitTicketCreated: jest.fn() };
+    const kdsGateway = { broadcastOrderEvent: jest.fn(), emitTicketCreated: jest.fn(), emitNotificationNewOrder: jest.fn() };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -984,7 +984,7 @@ describe('OrderService — Sprint 1 Step 2 (Guest Checkout / DEFECT-A / DEFECT-B
   // B1. DEFECT-B: ticket.created carries resolved product/size/addon names
   // ==========================================
   it('emits ticket.created with resolved product, size and addon names (never "Unknown Product")', async () => {
-    const kdsGateway = { broadcastOrderEvent: jest.fn(), emitTicketCreated: jest.fn() };
+    const kdsGateway = { broadcastOrderEvent: jest.fn(), emitTicketCreated: jest.fn(), emitNotificationNewOrder: jest.fn() };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -1048,10 +1048,60 @@ describe('OrderService — Sprint 1 Step 2 (Guest Checkout / DEFECT-A / DEFECT-B
   });
 
   // ==========================================
+  // Phase 4 P0 — cashier new-order notification is emitted once per order
+  // ==========================================
+  it('emits exactly one notification:newOrder for the created order', async () => {
+    const kdsGateway = { broadcastOrderEvent: jest.fn(), emitTicketCreated: jest.fn(), emitNotificationNewOrder: jest.fn() };
+
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        OrderService,
+        { provide: require('../kds/kds.gateway').KdsGateway, useValue: kdsGateway },
+      ],
+    }).compile();
+    const svc = module.get<OrderService>(OrderService);
+
+    mockBasePricingFixtures(0);
+    mockCapturingTransaction({
+      id: 'order-b3',
+      orderNumber: 'ORD-2026-99999',
+      subtotal: 10.0,
+      taxAmount: 0,
+      total: 10.0,
+      branchId,
+      status: OrderStatus.PENDING,
+      type: OrderType.DINE_IN,
+    });
+
+    await svc.createOrder(
+      {
+        branchId,
+        type: OrderType.DINE_IN,
+        items: [{ productId, quantity: 1 }],
+        paymentMethod: PaymentMethodType.CASH,
+      },
+      tenantId,
+    );
+
+    // Exactly one cashier notification for this order
+    expect(kdsGateway.emitNotificationNewOrder).toHaveBeenCalledTimes(1);
+    expect(kdsGateway.emitNotificationNewOrder).toHaveBeenCalledWith(
+      tenantId,
+      branchId,
+      expect.objectContaining({
+        orderId: 'order-b3',
+        orderNumber: 'ORD-2026-99999',
+        branchId,
+        status: 'PENDING',
+      }),
+    );
+  });
+
+  // ==========================================
   // B2. DEFECT-B: KDS name-resolution failure never fails the checkout
   // ==========================================
   it('still returns the created order if KDS name resolution fails (broadcast is best-effort)', async () => {
-    const kdsGateway = { broadcastOrderEvent: jest.fn(), emitTicketCreated: jest.fn() };
+    const kdsGateway = { broadcastOrderEvent: jest.fn(), emitTicketCreated: jest.fn(), emitNotificationNewOrder: jest.fn() };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [

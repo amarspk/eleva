@@ -425,6 +425,30 @@ export class OrderService {
     // Legacy alias: order.created for backward compatibility
     this.emitKdsEvent(userTenantId, dto.branchId, 'order.created', order);
 
+    // Phase 4 P0 — emit a cashier-focused new-order notification so the
+    // cashier POS terminal can display an audible alert.
+    if (this.kdsGateway) {
+      try {
+        this.kdsGateway.emitNotificationNewOrder(userTenantId, dto.branchId, {
+          orderId: order.id,
+          orderNumber: order.orderNumber,
+          branchId: order.branchId,
+          status: order.status,
+          total: Number(order.total),
+          taxAmount: Number(order.taxAmount),
+          subtotal: Number(order.subtotal),
+          type: order.type,
+          createdAt: order.createdAt instanceof Date
+            ? order.createdAt.toISOString()
+            : String(order.createdAt),
+          customerName: null,
+          items: [],
+        });
+      } catch (err) {
+        this.logger.error(`Failed to emit cashier new-order notification for order [${order.orderNumber}]: ${(err as Error).message}`);
+      }
+    }
+
     return order;
   }
 

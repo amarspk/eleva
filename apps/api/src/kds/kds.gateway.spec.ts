@@ -473,5 +473,137 @@ describe('KdsGateway Unit Tests - TSK-2.1 Real-Time KDS', () => {
       expect(capturedContext.tenantId).not.toBe('evil-tenant');
       expect(socket.join).toHaveBeenCalledWith('tenant:real-tenant-from-jwt:branch:branch-1');
     });
+
+    it('Phase 4 P0: should reject joinBranch when branch is outside the user assigned scope (JWT branches claim)', async () => {
+      // Cashier assigned only to branch-1; attempts to join branch-2
+      const socket = {
+        id: 'socket-scoped',
+        data: {
+          user: {
+            id: 'user-1',
+            email: 'cashier@zayjar.com',
+            tenantId: 'tenant-1',
+            roles: ['CASHIER'],
+            permissions: [],
+            branches: ['branch-1'],
+          },
+        } as any,
+        handshake: {} as any,
+        emit: jest.fn(),
+        disconnect: jest.fn(),
+        join: jest.fn().mockResolvedValue(undefined),
+        leave: jest.fn().mockResolvedValue(undefined),
+      } as unknown as Socket;
+
+      jest.spyOn(TenantBranchRepository.prototype, 'findById').mockResolvedValue({
+        id: 'branch-2',
+        tenantId: 'tenant-1',
+        restaurantId: 'rest-1',
+      } as any);
+      jest.spyOn(dbTenantContext, 'run').mockImplementation((ctx: any, cb: any) => cb());
+
+      await gateway.handleJoinBranch(socket, { branchId: 'branch-2' });
+
+      expect(socket.emit).toHaveBeenCalledWith(
+        'error',
+        expect.objectContaining({ message: expect.stringContaining('not assigned to branch') }),
+      );
+      expect(socket.join).not.toHaveBeenCalled();
+    });
+
+    it('Phase 4 P0: should allow joinBranch for an assigned branch', async () => {
+      const socket = {
+        id: 'socket-scoped-ok',
+        data: {
+          user: {
+            id: 'user-1',
+            email: 'cashier@zayjar.com',
+            tenantId: 'tenant-1',
+            roles: ['CASHIER'],
+            permissions: [],
+            branches: ['branch-1'],
+          },
+        } as any,
+        handshake: {} as any,
+        emit: jest.fn(),
+        disconnect: jest.fn(),
+        join: jest.fn().mockResolvedValue(undefined),
+        leave: jest.fn().mockResolvedValue(undefined),
+      } as unknown as Socket;
+
+      jest.spyOn(TenantBranchRepository.prototype, 'findById').mockResolvedValue({
+        id: 'branch-1',
+        tenantId: 'tenant-1',
+        restaurantId: 'rest-1',
+      } as any);
+      jest.spyOn(dbTenantContext, 'run').mockImplementation((ctx: any, cb: any) => cb());
+
+      await gateway.handleJoinBranch(socket, { branchId: 'branch-1' });
+
+      expect(socket.join).toHaveBeenCalledWith('tenant:tenant-1:branch:branch-1');
+    });
+
+    it('Phase 4 P0: tenant-wide roles (no branches claim) can join any tenant branch', async () => {
+      const socket = {
+        id: 'socket-owner',
+        data: {
+          user: {
+            id: 'owner-1',
+            email: 'owner@zayjar.com',
+            tenantId: 'tenant-1',
+            roles: ['RESTAURANT_OWNER'],
+            permissions: [],
+            // no branches claim → tenant-wide
+          },
+        } as any,
+        handshake: {} as any,
+        emit: jest.fn(),
+        disconnect: jest.fn(),
+        join: jest.fn().mockResolvedValue(undefined),
+        leave: jest.fn().mockResolvedValue(undefined),
+      } as unknown as Socket;
+
+      jest.spyOn(TenantBranchRepository.prototype, 'findById').mockResolvedValue({
+        id: 'branch-2',
+        tenantId: 'tenant-1',
+        restaurantId: 'rest-1',
+      } as any);
+      jest.spyOn(dbTenantContext, 'run').mockImplementation((ctx: any, cb: any) => cb());
+
+      await gateway.handleJoinBranch(socket, { branchId: 'branch-2' });
+
+      expect(socket.join).toHaveBeenCalledWith('tenant:tenant-1:branch:branch-2');
+    });
+  });
+
+  describe('Phase 4 P0 — cashier notification event', () => {
+    it('broadcasts notification:newOrder to the tenant/branch room', () => {
+      jest.clearAllMocks();
+
+      gateway.emitNotificationNewOrder('tenant-1', 'branch-1', {
+        orderId: 'order-1',
+        orderNumber: 'ORD-2026-1',
+        branchId: 'branch-1',
+        status: 'PENDING',
+        total: 12.5,
+        taxAmount: 1.25,
+        subtotal: 11.25,
+        type: 'DINE_IN',
+        createdAt: '2026-08-17T00:00:00.000Z',
+        customerName: null,
+        items: [{ name: 'Burger', quantity: 1 }],
+      });
+
+      expect(mockServerTo).toHaveBeenCalledWith('tenant:tenant-1:branch:branch-1');
+      expect(mockServerToEmit).toHaveBeenCalledWith(
+        'notification:newOrder',
+        expect.objectContaining({
+          event: 'notification:newOrder',
+          tenantId: 'tenant-1',
+          branchId: 'branch-1',
+          data: expect.objectContaining({ orderId: 'order-1', orderNumber: 'ORD-2026-1' }),
+        }),
+      );
+    });
   });
 });

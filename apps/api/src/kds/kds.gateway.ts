@@ -35,6 +35,13 @@ interface AuthenticatedUser {
   tenantId: string;
   roles: string[];
   permissions: string[];
+  /**
+   * Phase 4 P0 — assigned branch IDs from the persistent user_branches
+   * relation (DOC-005 §4.2). Populated at login/refresh, carried in the JWT,
+   * consumed by CaslAbilityFactory for ABAC and by this gateway for
+   * branch-scoped room access.
+   */
+  branches?: string[];
 }
 
 interface AuthenticatedSocket extends Socket {
@@ -56,6 +63,8 @@ interface JwtPayload {
   tenantId: string | null;
   roles: string[];
   permissions: string[];
+  /** Phase 4 P0 — assigned branch IDs from user_branches (DOC-005 §4.2). */
+  branches?: string[];
   iat?: number;
   exp?: number;
 }
@@ -249,6 +258,7 @@ export class KdsGateway
         tenantId: payload.tenantId,
         roles: payload.roles || [],
         permissions: payload.permissions || [],
+        branches: payload.branches,
       };
 
       client.data.user = user;
@@ -321,6 +331,21 @@ export class KdsGateway
         );
         client.emit('error', { message: `Branch ${branchId} not found or inaccessible under tenant context` });
         return { event: 'error', message: 'Branch not found or access denied' };
+      }
+
+      // Phase 4 P0 — branch-scoped staff users (CASHIER/KITCHEN_STAFF/
+      // BRANCH_MANAGER) may only join rooms for branches they are assigned to
+      // (DOC-005 §4.2, the JWT's `branches` claim). An empty/absent branches
+      // claim means the user is tenant-wide (RESTAURANT_OWNER/PLATFORM_OWNER)
+      // and may join any branch in their tenant.
+      if (user.branches && user.branches.length > 0 && !user.branches.includes(branchId)) {
+        this.logger.warn(
+          `joinBranch rejected: user ${user.id} (${user.roles.join(',')}) attempted to join branch ${branchId} which is not in their assigned scope ${JSON.stringify(user.branches)}`,
+        );
+        client.emit('error', {
+          message: `Access denied: you are not assigned to branch ${branchId}. Your assigned branches: ${user.branches.join(', ')}`,
+        });
+        return { event: 'error', message: 'Branch access denied' };
       }
 
       const roomName = this.getRoomName(user.tenantId, branchId);
@@ -439,6 +464,33 @@ export class KdsGateway
     ticket: { ticketId: string; ticketNumber: string; priority: string; items: Record<string, unknown>[] },
   ): void {
     this.broadcastOrderEvent(tenantId, branchId, 'ticket.created', ticket);
+  }
+
+  /**
+   * Phase 4 P0 — emits a cashier-focused new-order notification.
+   * Broadcasts `notification:newOrder` to the same tenant/branch room with a
+   * payload tailored for the cashier POS terminal (order summary, customer,
+   * totals). A branch-scoped cashier only receives events for their assigned
+   * branches because joinBranch enforces the JWT `branches` claim.
+   */
+  public emitNotificationNewOrder(
+    tenantId: string,
+    branchId: string,
+    order: {
+      orderId: string;
+      orderNumber: string;
+      branchId: string;
+      status: string;
+      total: number;
+      taxAmount: number;
+      subtotal: number;
+      type: string;
+      createdAt: string;
+      customerName?: string | null;
+      items: Array<{ name: string; quantity: number }>;
+    },
+  ): void {
+    this.broadcastOrderEvent(tenantId, branchId, 'notification:newOrder', order);
   }
 
   /**

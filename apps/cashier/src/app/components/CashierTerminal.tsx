@@ -1,10 +1,16 @@
 'use client';
 /* eslint-disable */
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { openDB, IDBPDatabase } from 'idb';
 import type { ProductModel } from '@zayjar/types';
 import { loadSession, logoutStaff, readCsrfCookie } from '../lib/auth';
+import {
+  CashierNotificationClient,
+  CashierNewOrderNotification,
+  loadVolume,
+  saveVolume,
+} from '../lib/notification-manager';
 
 interface CartItem {
   id: string;
@@ -52,6 +58,14 @@ export const CashierTerminal: React.FC<{ tenantId: string; branchId: string; api
   const [products, setProducts] = useState<ProductModel[]>([]);
   const [menuLoading, setMenuLoading] = useState(true);
   const [menuError, setMenuError] = useState<string | null>(null);
+
+  // Phase 4 P0 — cashier notification state
+  const [notifications, setNotifications] = useState<CashierNewOrderNotification[]>([]);
+  const [openedOrderIds, setOpenedOrderIds] = useState<Set<string>>(new Set());
+  const [notificationVolume, setNotificationVolume] = useState(loadVolume());
+  const [wsConnected, setWsConnected] = useState(false);
+  const [viewingOrder, setViewingOrder] = useState<Record<string, unknown> | null>(null);
+  const notificationClientRef = useRef<CashierNotificationClient | null>(null);
 
   // Register service worker per DOC-001 1.3 Cashier Terminal PWA Offline-First
   useEffect(() => {
@@ -121,6 +135,85 @@ export const CashierTerminal: React.FC<{ tenantId: string; branchId: string; api
 
     fetchMenu();
   }, [apiUrl, tenantId]);
+
+  // Phase 4 P0 — connect to the API Socket.io gateway for real-time
+  // cashier notifications. The WebSocket connection authenticates with the
+  // same JWT used for REST calls and joins the branch room. Server-side
+  // authorisation (joinBranch + JWT `branches` claim) ensures a cashier
+  // only receives events for their assigned branch.
+  useEffect(() => {
+    if (!branchId || !apiUrl) return;
+
+    const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') || '' : '';
+    if (!token) return;
+
+    const client = new CashierNotificationClient(
+      apiUrl,
+      token,
+      branchId,
+      // onNewOrder
+      (n: CashierNewOrderNotification) => {
+        setNotifications((prev) => [n, ...prev].slice(0, 50));
+      },
+      // onError
+      (msg: string) => {
+        console.warn('[CashierNotification]', msg);
+      },
+    );
+
+    client.connect();
+    notificationClientRef.current = client;
+    setWsConnected(true);
+
+    return () => {
+      client.disconnect();
+      notificationClientRef.current = null;
+      setWsConnected(false);
+    };
+  }, [branchId, apiUrl]);
+
+  // Phase 4 P0 — "acknowledge": dismiss the notification and stop its sound.
+  const handleAcknowledgeNotification = (orderId: string) => {
+    notificationClientRef.current?.acknowledgeOrder(orderId);
+    setNotifications((prev) => prev.filter((n) => n.orderId !== orderId));
+    setOpenedOrderIds((prev) => { const next = new Set(prev); next.delete(orderId); return next; });
+  };
+
+  // Phase 4 P0 — "opened": fetch the order details and display them. This is a
+  // distinct terminating action from acknowledge — it stops the persistent
+  // sound for this order while leaving the notification visible until the
+  // cashier acknowledges it.
+  const handleOpenNotification = async (orderId: string) => {
+    try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') || '' : '';
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+        'X-Tenant-ID': tenantId,
+      };
+      const res = await fetch(`${apiUrl}/api/v1/orders/${orderId}`, { headers });
+      if (res.ok) {
+        const order = await res.json();
+        setViewingOrder(order);
+      } else {
+        // Order may have been soft-deleted or access revoked; still stop the sound.
+        setNotifications((prev) => prev.filter((n) => n.orderId !== orderId));
+      }
+    } catch {
+      // Network error — keep the notification pending and sound active.
+      console.warn(`Failed to open order ${orderId}`);
+      return;
+    }
+    notificationClientRef.current?.openOrder(orderId);
+    setOpenedOrderIds((prev) => { const next = new Set(prev); next.add(orderId); return next; });
+  };
+
+  // Phase 4 P0 — change notification volume
+  const handleVolumeChange = (newVolume: number) => {
+    setNotificationVolume(newVolume);
+    saveVolume(newVolume);
+    notificationClientRef.current?.setVolume(newVolume);
+  };
 
   // Load offline orders from IndexedDB per DOC-001 1.3
   const loadOfflineOrders = async () => {
@@ -300,11 +393,88 @@ export const CashierTerminal: React.FC<{ tenantId: string; branchId: string; api
 
   return (
     <div className="w-full min-h-screen bg-gray-100 flex flex-col">
+      {/* Phase 4 P0 — notification banner for new orders */}
+      {notifications.length > 0 && (
+        <div className="bg-yellow-50 border-b border-yellow-200 p-2 space-y-1">
+          <div className="text-xs font-bold text-yellow-800 mb-1">
+            New orders ({notifications.length} unacknowledged)
+          </div>
+          {notifications.slice(0, 5).map((n) => {
+            const isOpened = openedOrderIds.has(n.orderId);
+            return (
+              <div
+                key={n.orderId}
+                onClick={() => handleOpenNotification(n.orderId)}
+                className={`flex items-center justify-between bg-white rounded px-3 py-1 shadow-sm text-xs cursor-pointer hover:bg-blue-50 ${isOpened ? 'opacity-70' : ''}`}
+                title={isOpened ? 'Opened — acknowledge to dismiss' : 'Click to view order'}
+              >
+                <span className="font-bold text-blue-800">#{n.orderNumber}</span>
+                <span className="text-gray-600">${n.total.toFixed(2)}</span>
+                <span className="text-gray-500">{n.type}{isOpened ? ' (opened)' : ''}</span>
+                <button
+                  onClick={(e) => { e.stopPropagation(); handleAcknowledgeNotification(n.orderId); }}
+                  className="ml-2 px-2 py-0.5 rounded bg-green-600 text-white text-[10px] hover:bg-green-700"
+                >
+                  Acknowledge
+                </button>
+              </div>
+            );
+          })}
+          {notifications.length > 5 && (
+            <div className="text-[10px] text-gray-500 text-center">
+              ...and {notifications.length - 5} more
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Phase 4 P0 — order detail modal (the "opened" action target) */}
+      {viewingOrder && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setViewingOrder(null)}>
+          <div className="bg-white rounded-lg shadow-xl w-96 p-4" onClick={(e) => e.stopPropagation()}>
+            <h3 className="font-bold text-sm mb-2">
+              Order #{String((viewingOrder as { orderNumber?: string }).orderNumber ?? '')}
+            </h3>
+            <div className="text-xs text-gray-600 space-y-1">
+              <p>Status: <span className="font-semibold">{(viewingOrder as { status?: string }).status ?? ''}</span></p>
+              <p>Type: {(viewingOrder as { type?: string }).type ?? ''}</p>
+              <p>Total: <span className="font-semibold">${Number((viewingOrder as { total?: number | string }).total ?? 0).toFixed(2)}</span></p>
+              <p>Tax: ${Number((viewingOrder as { taxAmount?: number | string }).taxAmount ?? 0).toFixed(2)}</p>
+              <p>Subtotal: ${Number((viewingOrder as { subtotal?: number | string }).subtotal ?? 0).toFixed(2)}</p>
+              {(viewingOrder as { createdAt?: string }).createdAt && (
+                <p>Created: {new Date(String((viewingOrder as { createdAt?: string }).createdAt)).toLocaleString()}</p>
+              )}
+            </div>
+            <div className="mt-3 flex justify-end gap-2">
+              <button
+                onClick={() => setViewingOrder(null)}
+                className="px-3 py-1 rounded bg-gray-200 text-xs text-gray-700 hover:bg-gray-300"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <header className="bg-slate-900 text-white p-4 flex justify-between items-center">
         <h1 className="text-lg font-bold">Cashier Terminal PWA - Tenant {tenantId.slice(-6)} Branch {branchId.slice(-4)}</h1>
         <div className="flex gap-2 items-center text-xs">
           <span className={`px-2 py-1 rounded ${isOnline ? 'bg-green-600' : 'bg-red-600'}`}>{isOnline ? 'Online' : 'Offline'}</span>
           <span className={`px-2 py-1 rounded ${serviceWorkerReady ? 'bg-blue-600' : 'bg-gray-600'}`}>SW: {serviceWorkerReady ? 'Ready' : 'Loading'}</span>
+          <span className={`px-2 py-1 rounded ${wsConnected ? 'bg-green-600' : 'bg-gray-600'}`}>WS: {wsConnected ? 'Connected' : 'Off'}</span>
+          <span className="flex items-center gap-1">
+            <span className="text-[10px]">Volume</span>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.1"
+              value={notificationVolume}
+              onChange={(e) => handleVolumeChange(parseFloat(e.target.value))}
+              className="w-16 h-1"
+              title="Notification volume"
+            />
+          </span>
           <span>Tenant Isolated</span>
           <button
             onClick={handleSignOut}
