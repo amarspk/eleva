@@ -14,6 +14,24 @@ export interface PublicTenantBranding {
   bannerUrl: string | null;
   primaryColor: string;
   secondaryColor: string;
+  /**
+   * Phase 4 P1 — restaurant social/contact links sourced from the tenant
+   * `branding` JSONB (no schema change required). Only present when at least
+   * one value is configured. The restaurant website renders these as real
+   * links; the QR ordering flow is unaffected.
+   */
+  social?: PublicSocialLinks | null;
+}
+
+/**
+ * Real restaurant contact/social links (Phase 4 P1 — restaurant website).
+ * Values are read from the tenant `branding` JSONB; absent keys are omitted.
+ */
+export interface PublicSocialLinks {
+  phone?: string | null;
+  whatsapp?: string | null;
+  instagram?: string | null;
+  twitter?: string | null;
 }
 
 export interface PublicTableContext {
@@ -28,6 +46,26 @@ export interface PublicBranchContext {
 export interface PublicRestaurantContext {
   name: string;
   currency: string;
+}
+
+/**
+ * Phase 4 P1 — token-free public restaurant website projection.
+ * Tenant identity + branding (incl. social links) + first active branch +
+ * full published menu. Scoped by tenant from the request Host only.
+ */
+export interface PublicSiteResponse {
+  tenant: PublicTenantBranding;
+  restaurant: PublicRestaurantContext;
+  branch: PublicSiteBranchContext | null;
+  categories: PublicCategory[];
+  design?: Record<string, unknown> | null;
+}
+
+export interface PublicSiteBranchContext {
+  id: string;
+  name: string;
+  phoneNumber: string | null;
+  address: string | null;
 }
 
 export interface PublicAddonOption {
@@ -117,6 +155,7 @@ interface TenantWithBranding {
   bannerUrl: string | null;
   primaryColor: string;
   secondaryColor: string;
+  branding?: Record<string, unknown> | null;
   status: string;
 }
 
@@ -183,95 +222,7 @@ export class PublicMenuService {
       // (PublicMenuService.MAX_* ) and exist to bound the worst case rather
       // than to paginate: a menu that exceeds them is a data-quality problem,
       // not a browsing pattern.
-      const categories = await prisma.category.findMany({
-        where: {
-          restaurantId: resolved.branch.restaurantId,
-          isActive: true,
-          deletedAt: null,
-        },
-        orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
-        take: PublicMenuService.MAX_CATEGORIES,
-        select: {
-          id: true,
-          name: true,
-          products: {
-            where: {
-              isAvailable: true,
-              deletedAt: null,
-            },
-            orderBy: { name: 'asc' },
-            take: PublicMenuService.MAX_PRODUCTS_PER_CATEGORY,
-            select: {
-              id: true,
-              name: true,
-              description: true,
-              imageUrl: true,
-              basePrice: true,
-              calories: true,
-              preparationTime: true,
-              isAvailable: true,
-              productSizes: {
-                select: { id: true, name: true, priceAdjustment: true },
-              },
-              productVariants: {
-                select: { id: true, name: true, price: true, stockQuantity: true },
-              },
-              productAddons: {
-                select: {
-                  id: true,
-                  name: true,
-                  minSelections: true,
-                  maxSelections: true,
-                  addonItems: {
-                    where: { isAvailable: true },
-                    select: { id: true, name: true, price: true, isAvailable: true },
-                  },
-                },
-              },
-            },
-          },
-        },
-      });
-
-      const mapped: PublicCategory[] = categories
-        .map((category) => ({
-          id: category.id,
-          name: category.name,
-          products: category.products.map((product) => ({
-            id: product.id,
-            name: product.name,
-            description: product.description,
-            imageUrl: product.imageUrl,
-            basePrice: Number(product.basePrice),
-            calories: product.calories,
-            preparationTime: product.preparationTime,
-            isAvailable: product.isAvailable,
-            sizes: product.productSizes.map((size) => ({
-              id: size.id,
-              name: size.name,
-              priceAdjustment: Number(size.priceAdjustment),
-            })),
-            variants: product.productVariants.map((variant) => ({
-              id: variant.id,
-              name: variant.name,
-              price: Number(variant.price),
-              stockQuantity: variant.stockQuantity,
-            })),
-            addons: product.productAddons.map((group) => ({
-              id: group.id,
-              name: group.name,
-              minSelections: group.minSelections,
-              maxSelections: group.maxSelections,
-              options: group.addonItems.map((item) => ({
-                id: item.id,
-                name: item.name,
-                price: Number(item.price),
-                isAvailable: item.isAvailable,
-              })),
-            })),
-          })),
-        }))
-        .filter((category) => category.products.length > 0);
+      const mapped: PublicCategory[] = await this.loadMenuForRestaurant(resolved.branch.restaurantId);
 
       // Phase 3: expose published design only (draft is private). Tenant isolation via tenantId.
       // The committed generated client predates the TenantDesign model, so the delegate is
@@ -299,6 +250,166 @@ export class PublicMenuService {
         design: publishedDesign,
       };
     });
+  }
+
+  /**
+   * Phase 4 P1 — token-free public restaurant website projection.
+   * Returns tenant branding (incl. real social links), the tenant's restaurant,
+   * its first active branch, and the full published menu. Tenant is resolved
+   * from the request Host by TenantContextMiddleware; no table token is
+   * required, so the surface is a browsable restaurant website rather than a
+   * QR-scanned ordering session. Subscription gating and the same bounded
+   * category/product fan-out as the QR menu apply.
+   */
+  async getPublicSite(tenantId: string): Promise<PublicSiteResponse> {
+    if (!tenantId) {
+      throw new BadRequestException('Tenant context is required to resolve the restaurant website.');
+    }
+    this.logger.log(`Resolving public restaurant website for tenant [${tenantId}]`);
+    return dbTenantContext.run({ tenantId }, async () => {
+      const tenant = await this.getTenantRecord(tenantId);
+      this.assertGuestOrderingAllowed(tenant.status);
+
+      const restaurant = await prisma.restaurant.findFirst({
+        where: { tenantId, deletedAt: null },
+        orderBy: { name: 'asc' },
+        select: { id: true, name: true, currency: true },
+      });
+      if (!restaurant) {
+        throw new NotFoundException('The requested restaurant could not be resolved.');
+      }
+
+      // First active branch — a website shows one menu at a time; branch
+      // selection across branches is a later enhancement.
+      const branch = await prisma.branch.findFirst({
+        where: { tenantId, restaurantId: restaurant.id, isActive: true, deletedAt: null },
+        orderBy: { name: 'asc' },
+        select: { id: true, name: true, phoneNumber: true, address: true },
+      });
+
+      const categories = await this.loadMenuForRestaurant(restaurant.id);
+
+      // Expose published design only (same rule as the QR menu).
+      let publishedDesign: Record<string, unknown> | null = null;
+      try {
+        const designRow = await (prisma as unknown as {
+          tenantDesign: {
+            findUnique(args: { where: { tenantId: string }; select: { published: boolean } }): Promise<{ published: unknown } | null>;
+          };
+        }).tenantDesign.findUnique({ where: { tenantId }, select: { published: true } });
+        if (designRow?.published && typeof designRow.published === 'object' && Object.keys(designRow.published as object).length > 0) {
+          publishedDesign = designRow.published as Record<string, unknown>;
+        }
+      } catch {
+        // design is optional — the website must still render without it
+      }
+
+      return {
+        tenant: this.toBranding(tenant),
+        restaurant: { name: restaurant.name, currency: restaurant.currency },
+        branch: branch
+          ? { id: branch.id, name: branch.name, phoneNumber: branch.phoneNumber, address: branch.address }
+          : null,
+        categories,
+        design: publishedDesign,
+      };
+    });
+  }
+
+  /**
+   * Shared, bounded category+product read used by both the QR menu and the
+   * public restaurant website (Phase 4 P1) — no duplicate query logic.
+   */
+  private async loadMenuForRestaurant(restaurantId: string): Promise<PublicCategory[]> {
+    const categories = await prisma.category.findMany({
+      where: {
+        restaurantId,
+        isActive: true,
+        deletedAt: null,
+      },
+      orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
+      take: PublicMenuService.MAX_CATEGORIES,
+      select: {
+        id: true,
+        name: true,
+        products: {
+          where: {
+            isAvailable: true,
+            deletedAt: null,
+          },
+          orderBy: { name: 'asc' },
+          take: PublicMenuService.MAX_PRODUCTS_PER_CATEGORY,
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            imageUrl: true,
+            basePrice: true,
+            calories: true,
+            preparationTime: true,
+            isAvailable: true,
+            productSizes: {
+              select: { id: true, name: true, priceAdjustment: true },
+            },
+            productVariants: {
+              select: { id: true, name: true, price: true, stockQuantity: true },
+            },
+            productAddons: {
+              select: {
+                id: true,
+                name: true,
+                minSelections: true,
+                maxSelections: true,
+                addonItems: {
+                  where: { isAvailable: true },
+                  select: { id: true, name: true, price: true, isAvailable: true },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    return categories
+      .map((category) => ({
+        id: category.id,
+        name: category.name,
+        products: category.products.map((product) => ({
+          id: product.id,
+          name: product.name,
+          description: product.description,
+          imageUrl: product.imageUrl,
+          basePrice: Number(product.basePrice),
+          calories: product.calories,
+          preparationTime: product.preparationTime,
+          isAvailable: product.isAvailable,
+          sizes: product.productSizes.map((size) => ({
+            id: size.id,
+            name: size.name,
+            priceAdjustment: Number(size.priceAdjustment),
+          })),
+          variants: product.productVariants.map((variant) => ({
+            id: variant.id,
+            name: variant.name,
+            price: Number(variant.price),
+            stockQuantity: variant.stockQuantity,
+          })),
+          addons: product.productAddons.map((group) => ({
+            id: group.id,
+            name: group.name,
+            minSelections: group.minSelections,
+            maxSelections: group.maxSelections,
+            options: group.addonItems.map((item) => ({
+              id: item.id,
+              name: item.name,
+              price: Number(item.price),
+              isAvailable: item.isAvailable,
+            })),
+          })),
+        })),
+      }))
+      .filter((category) => category.products.length > 0);
   }
 
   /**
@@ -360,6 +471,7 @@ export class PublicMenuService {
         bannerUrl: true,
         primaryColor: true,
         secondaryColor: true,
+        branding: true,
         status: true,
       },
     });
@@ -367,7 +479,7 @@ export class PublicMenuService {
       this.logger.error(`Public QR resolution failed: tenant [${tenantId}] missing after middleware resolution.`);
       throw new NotFoundException('The requested restaurant could not be resolved.');
     }
-    return tenant as TenantWithBranding;
+    return tenant as unknown as TenantWithBranding;
   }
 
   /**
@@ -383,12 +495,22 @@ export class PublicMenuService {
   }
 
   private toBranding(tenant: TenantWithBranding): PublicTenantBranding {
+    // Real social/contact links come from the tenant `branding` JSONB
+    // (Phase 4 P1). Only present when at least one value is configured.
+    const branding = (tenant as unknown as { branding?: Record<string, unknown> | null }).branding ?? {};
+    const social: PublicSocialLinks = {};
+    if (typeof branding.phone === 'string' && branding.phone.trim()) { social.phone = branding.phone.trim(); }
+    if (typeof branding.whatsapp === 'string' && branding.whatsapp.trim()) { social.whatsapp = branding.whatsapp.trim(); }
+    if (typeof branding.instagram === 'string' && branding.instagram.trim()) { social.instagram = branding.instagram.trim(); }
+    if (typeof branding.twitter === 'string' && branding.twitter.trim()) { social.twitter = branding.twitter.trim(); }
+
     return {
       name: tenant.name,
       logoUrl: tenant.logoUrl,
       bannerUrl: tenant.bannerUrl,
       primaryColor: tenant.primaryColor,
       secondaryColor: tenant.secondaryColor,
+      social: Object.keys(social).length > 0 ? social : null,
     };
   }
 }

@@ -240,6 +240,7 @@ const docs: ControllerDoc[] = [
     endpoints: [
       { method: 'getTableContext', summary: 'Resolve public table context from a QR token', auth: 'public', tenant: 'tenant-context', response: 'TableContext', params: [p('token', 'Cryptographic QR table token.', string)], errors: [400, 403, 404, 429] },
       { method: 'getPublicMenu', summary: 'Get the public menu for a scanned table', auth: 'public', tenant: 'tenant-context', response: 'PublicMenu', queries: [q('token', 'Cryptographic QR table token.', string, true)], errors: [400, 403, 404, 429] },
+      { method: 'getPublicSite', summary: 'Get the token-free public restaurant website projection (branding, social links, menu)', auth: 'public', tenant: 'tenant-context', response: 'PublicSite', errors: [400, 403, 404, 429] },
     ],
   },
   {

@@ -1,6 +1,8 @@
 # Phase 4 — Customer Experience & Retention Scope
 
-Status: **PLANNING ONLY — Phase 4 is not started.**
+Status: **IN PROGRESS — Phase 4 P0 (staff/cashier) complete; P1 (restaurant website) started.**
+
+This document records the full approved Phase 4 scope: the staff/cashier P0 work, the restaurant-experience P1 work, the Eleva brand/marketing P2 work, the printing P3 work, and the customer/retention requirements. Implementation status is marked per section; `PROJECT_STATE.md` remains the canonical engineering state and the only place where verification evidence is recorded.
 
 Phase 4 preserves the existing project-state/roadmap requirements that remain applicable, while adding the approved customer-facing requirements below.
 
@@ -9,6 +11,52 @@ Phase 4 preserves the existing project-state/roadmap requirements that remain ap
 - Complete the remaining product/merchant-facing items that are explicitly still applicable in `PROJECT_STATE.md` and approved before implementation.
 - Preserve the platform's multi-tenant isolation, RBAC, CSRF, auditability, server-authoritative pricing/order totals, and existing DINE_IN / TAKE_AWAY ordering model.
 - Regional payment expansion, delivery, and other architecture items remain separate decisions unless explicitly approved into this phase.
+
+## Staff & cashier operations (P0) — ✅ COMPLETE (commits `bb68dd7`, `8b3f832`)
+
+- Cashier branch isolation — cashier scope restricted to assigned branch(es) only. ✅
+- Cashier orders/POS restricted to assigned branch(es). ✅
+- KDS branch isolation. ✅
+- One notification per new order. ✅
+- Persistent new-order sound until acknowledged/opened/accepted/cancelled. ✅
+- Clearly audible configurable notification volume (persisted per device). ✅
+- RBAC boundaries between cashier / branch manager / restaurant owner / platform owner; permission vocabulary matches CASL actions/subjects. ✅
+- `user_branches` is real and verified — staff JWTs carry only assigned branches. ✅
+- Seeded cashier/staff accounts work with real Argon2id hashes. ✅
+- Platform Owner remains governed by canonical platform-level rules (no accidental restaurant-order visibility). ✅
+
+## Restaurant experience — website & design (P1) — IN PROGRESS
+
+- The restaurant public website is a restaurant website, not a generic Pages CMS.
+- **Token-free public restaurant website** (browsable at the tenant subdomain without a QR table token). ✅ `GET /api/v1/public/site` + qr-menu `/` no-token branch (commit pending).
+- Categories visible on the restaurant website. ✅
+- Clicking a category filters/displays its products. ✅
+- Real social/contact links (phone, WhatsApp, Instagram, X) from tenant branding. ✅
+- Mobile-first responsive design. ✅
+- Branding-aware colors (tenant primary/secondary) and logo. ✅
+- Real category images (uploaded photographs) instead of emoji/placeholder fallbacks. ⏳ not yet (Category has no `imageUrl` column — requires a migration + media wiring).
+- Proper Media Library. ⏳ partially present (`MediaLibrary.tsx` in backoffice) — needs wiring into the website editor.
+- IndexedDB for large demo/frontend media where appropriate. ⏳
+- About / Contact / Branches / Social content remains simple and restaurant-oriented. ⏳
+- Editing controls (website builder) scroll independently from the live preview/page. ⏳
+- Live preview while editing. ⏳ (DesignBuilder preview exists for the QR menu; restaurant-site editing is a follow-up)
+- Dark / Light / Auto themes. ⏳
+- Glassmorphism where it improves the design. ⏳
+- Logo/brand-aware color suggestions. ⏳
+- Responsive layouts. ✅ (mobile-first grid + sticky category nav)
+- Professional modern restaurant web design; not a generic CRUD-looking interface. ✅ (first unit)
+- Additional visual polish only when it materially improves usability/hierarchy/accessibility/perceived quality; no decoration-only effects. ⏳
+
+## Eleva brand & marketing platform (P2) — NOT STARTED
+
+- Separate Eleva marketing website, independent from the platform dashboard.
+- Professional marketing homepage: hero + appropriate animations, features, how it works, pricing, about, contact, FAQ, terms, privacy, CTA/signup.
+- Elevator/building metaphor as a UX/branding concept (Floor 1 cashier, Floor 2 management, Floor 3 owner, special platform floor); branding metaphor only, never a security boundary.
+
+## Printing & receipts (P3) — NOT STARTED
+
+- Receipt Designer with logo, VAT/tax number, branch, customer, cashier, items, sizes, add-ons, discount, VAT, total, payment, QR, footer.
+- Live receipt preview; independent kitchen ticket.
 
 ## Customer account & profile
 

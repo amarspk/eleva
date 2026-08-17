@@ -12,6 +12,28 @@ export interface PublicTenantBranding {
   bannerUrl: string | null;
   primaryColor: string;
   secondaryColor: string;
+  /** Phase 4 P1 — real restaurant contact/social links (from tenant branding). */
+  social?: PublicSocialLinks | null;
+}
+
+export interface PublicSocialLinks {
+  phone?: string | null;
+  whatsapp?: string | null;
+  instagram?: string | null;
+  twitter?: string | null;
+}
+
+/**
+ * Phase 4 P1 — token-free public restaurant website projection
+ * (GET /api/v1/public/site). Rendered at the tenant subdomain without a QR
+ * table token; the QR ordering flow continues to use /api/v1/public/menu.
+ */
+export interface PublicSiteResponse {
+  tenant: PublicTenantBranding;
+  restaurant: { name: string; currency: string };
+  branch: { id: string; name: string; phoneNumber: string | null; address: string | null } | null;
+  categories: PublicCategory[];
+  design?: Record<string, unknown> | null;
 }
 
 export interface PublicTableContext {

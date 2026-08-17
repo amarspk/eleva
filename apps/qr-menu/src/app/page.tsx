@@ -1,7 +1,8 @@
 import React from 'react';
 import { headers } from 'next/headers';
 import { MenuBrowser } from './components/MenuBrowser';
-import { fetchGuestMenu, resolveServerApiBase, GuestOrderError } from './lib/guest-api';
+import { RestaurantSite } from './components/RestaurantSite';
+import { fetchGuestMenu, fetchPublicSite, resolveServerApiBase, GuestOrderError } from './lib/guest-api';
 import type { PublicMenuResponse } from './lib/types';
 
 // The menu depends on the request host (tenant subdomain) and the scanned
@@ -32,12 +33,26 @@ export default async function Page({ searchParams }: PageProps): Promise<React.R
   const rawToken = searchParams.t;
   const token = typeof rawToken === 'string' ? rawToken.trim() : '';
 
-  if (!token) {
-    return <QrErrorView title="No table QR code detected" message="Please scan the QR code on your table to view the menu and order." />;
-  }
-
   const host = headers().get('host') ?? 'localhost:3000';
   const apiBase = resolveServerApiBase(host);
+
+  // Phase 4 P1 — when no QR table token is present, render the token-free
+  // public restaurant website (branding, social links, category-filterable
+  // menu) at the tenant subdomain instead of an error. The QR ordering flow
+  // below is unchanged when a token IS present.
+  if (!token) {
+    try {
+      const site = await fetchPublicSite(apiBase);
+      return <RestaurantSite site={site} />;
+    } catch {
+      return (
+        <QrErrorView
+          title="This restaurant is not available"
+          message="Please try again shortly, or scan the QR code on your table to view the menu and order."
+        />
+      );
+    }
+  }
 
   let menu: PublicMenuResponse;
   try {

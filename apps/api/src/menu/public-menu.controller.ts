@@ -1,5 +1,5 @@
 import { Controller, Get, Param, Query, Req, UseGuards, HttpCode, HttpStatus, BadRequestException } from '@nestjs/common';
-import { PublicMenuService, TableContextResponse, PublicMenuResponse } from './public-menu.service';
+import { PublicMenuService, TableContextResponse, PublicMenuResponse, PublicSiteResponse } from './public-menu.service';
 import { Public } from '../auth/decorators/public.decorator';
 import { RateLimitGuard, RateLimit } from '../common/rate-limit/rate-limit.guard';
 import { RequestWithTenant } from '../common/types/request.types';
@@ -47,6 +47,21 @@ export class PublicMenuController {
   @HttpCode(HttpStatus.OK)
   async getPublicMenu(@Query('token') token: string, @Req() req: RequestWithTenant): Promise<PublicMenuResponse> {
     return this.publicMenuService.getPublicMenu(token, this.requireTenantContext(req));
+  }
+
+  /**
+   * GET /api/v1/public/site
+   * Phase 4 P1 — token-free public restaurant website projection: tenant
+   * branding (incl. real social links), restaurant, first active branch and
+   * the full published menu. Tenant is resolved from the request Host; no QR
+   * table token is required, so this is the browsable restaurant website.
+   */
+  @Public()
+  @Get('site')
+  @RateLimit('public')
+  @HttpCode(HttpStatus.OK)
+  async getPublicSite(@Req() req: RequestWithTenant): Promise<PublicSiteResponse> {
+    return this.publicMenuService.getPublicSite(this.requireTenantContext(req));
   }
 
   /**

@@ -268,6 +268,31 @@ export const OPENAPI_SCHEMAS: Record<string, SchemaObject> = {
     categories: array(ref('PublicCategory')),
     design: { type: 'object', nullable: true, additionalProperties: true },
   }, ['table', 'branch', 'restaurant', 'tenant']),
+  // Phase 4 P1 — token-free public restaurant website projection.
+  PublicSite: object({
+    tenant: object({
+      name: { type: 'string' },
+      logoUrl: nullableString,
+      bannerUrl: nullableString,
+      primaryColor: { type: 'string' },
+      secondaryColor: { type: 'string' },
+      social: object({
+        phone: nullableString,
+        whatsapp: nullableString,
+        instagram: nullableString,
+        twitter: nullableString,
+      }),
+    }, ['name', 'logoUrl', 'bannerUrl', 'primaryColor', 'secondaryColor']),
+    restaurant: object({ name: { type: 'string' }, currency: { type: 'string' } }, ['name', 'currency']),
+    branch: object({
+      id: uuid(),
+      name: { type: 'string' },
+      phoneNumber: nullableString,
+      address: nullableString,
+    }, ['id', 'name']),
+    categories: array(ref('PublicCategory')),
+    design: { type: 'object', nullable: true, additionalProperties: true },
+  }, ['tenant', 'restaurant', 'categories']),
 
   DesignData: {
     type: 'object',

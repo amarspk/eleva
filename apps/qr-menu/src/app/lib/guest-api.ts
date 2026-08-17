@@ -3,6 +3,7 @@ import {
   CreateGuestOrderPayload,
   GuestOrderConfirmation,
   PublicMenuResponse,
+  PublicSiteResponse,
 } from './types';
 
 /**
@@ -141,4 +142,21 @@ export async function fetchGuestMenu(
     throw new GuestOrderError(`Guest menu request failed (HTTP ${res.status}).`, res.status);
   }
   return (await res.json()) as PublicMenuResponse;
+}
+
+/**
+ * Phase 4 P1 — fetches the token-free public restaurant website projection
+ * (GET /api/v1/public/site). Tenant is resolved server-side from the request
+ * Host; no QR table token is required, so this powers the browsable
+ * restaurant website at the tenant subdomain.
+ */
+export async function fetchPublicSite(
+  apiBase: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<PublicSiteResponse> {
+  const res = await fetchImpl(`${apiBase}/api/v1/public/site`, { cache: 'no-store' });
+  if (!res.ok) {
+    throw new GuestOrderError(`Public restaurant website request failed (HTTP ${res.status}).`, res.status);
+  }
+  return (await res.json()) as PublicSiteResponse;
 }

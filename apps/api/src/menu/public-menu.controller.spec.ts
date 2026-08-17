@@ -249,4 +249,101 @@ describe('PublicMenu (QR guest surface)', () => {
       await expect(controller.getPublicMenu(VALID_TOKEN, { tenantId: null } as never)).rejects.toThrow(BadRequestException);
     });
   });
+
+  describe('PublicMenuService.getPublicSite (Phase 4 P1 — token-free restaurant website)', () => {
+    const CATEGORY_ROW = {
+      id: 'cat-1',
+      name: 'Burgers',
+      products: [
+        {
+          id: 'prod-1',
+          name: 'Classic Burger',
+          description: null,
+          imageUrl: 'https://cdn.example.com/burger.webp',
+          basePrice: 9.5,
+          calories: 700,
+          preparationTime: 12,
+          isAvailable: true,
+          productSizes: [],
+          productVariants: [],
+          productAddons: [],
+        },
+      ],
+    };
+
+    it('returns tenant branding (incl. social links), restaurant, first branch and menu without a token', async () => {
+      mockPrisma.tenant.findUnique.mockResolvedValue({
+        ...TENANT_ROW,
+        branding: { phone: '+966501234567', whatsapp: '+966501234567', instagram: 'albaik', twitter: 'albaik' },
+      });
+      mockPrisma.restaurant.findFirst.mockResolvedValue({ id: 'rest-1', name: 'Albaik', currency: 'SAR' });
+      mockPrisma.branch.findFirst.mockResolvedValue({ id: 'branch-1', name: 'Riyadh', phoneNumber: '+96611', address: 'Olaya' });
+      mockPrisma.category.findMany.mockResolvedValue([CATEGORY_ROW]);
+      mockPrisma.tenantDesign.findUnique.mockResolvedValue(null);
+
+      const result = await service.getPublicSite(TENANT_ID);
+
+      expect(result.tenant.social).toEqual({
+        phone: '+966501234567',
+        whatsapp: '+966501234567',
+        instagram: 'albaik',
+        twitter: 'albaik',
+      });
+      expect(result.restaurant).toEqual({ name: 'Albaik', currency: 'SAR' });
+      expect(result.branch).toEqual({ id: 'branch-1', name: 'Riyadh', phoneNumber: '+96611', address: 'Olaya' });
+      expect(result.categories).toHaveLength(1);
+      expect(result.categories[0].products[0].basePrice).toBe(9.5);
+      expect(mockPrisma.table.findFirst).not.toHaveBeenCalled();
+    });
+
+    it('omits social when the tenant branding has no contact values', async () => {
+      mockPrisma.tenant.findUnique.mockResolvedValue({ ...TENANT_ROW, branding: { theme: 'dark' } });
+      mockPrisma.restaurant.findFirst.mockResolvedValue({ id: 'rest-1', name: 'Albaik', currency: 'SAR' });
+      mockPrisma.branch.findFirst.mockResolvedValue({ id: 'branch-1', name: 'Riyadh', phoneNumber: null, address: null });
+      mockPrisma.category.findMany.mockResolvedValue([]);
+
+      const result = await service.getPublicSite(TENANT_ID);
+      expect(result.tenant.social).toBeNull();
+    });
+
+    it('applies the same subscription gating as the QR menu (UNPAID → 403)', async () => {
+      mockPrisma.tenant.findUnique.mockResolvedValue({ ...TENANT_ROW, status: 'UNPAID' });
+      await expect(service.getPublicSite(TENANT_ID)).rejects.toThrow(ForbiddenException);
+    });
+
+    it('returns 404 when the tenant has no restaurant', async () => {
+      mockPrisma.tenant.findUnique.mockResolvedValue(TENANT_ROW);
+      mockPrisma.restaurant.findFirst.mockResolvedValue(null);
+      await expect(service.getPublicSite(TENANT_ID)).rejects.toThrow(NotFoundException);
+    });
+
+    it('allows a missing branch (website still renders branding + empty menu)', async () => {
+      mockPrisma.tenant.findUnique.mockResolvedValue(TENANT_ROW);
+      mockPrisma.restaurant.findFirst.mockResolvedValue({ id: 'rest-1', name: 'Albaik', currency: 'SAR' });
+      mockPrisma.branch.findFirst.mockResolvedValue(null);
+      mockPrisma.category.findMany.mockResolvedValue([]);
+      const result = await service.getPublicSite(TENANT_ID);
+      expect(result.branch).toBeNull();
+      expect(result.categories).toEqual([]);
+    });
+  });
+
+  describe('PublicMenuController.getPublicSite (controller wiring)', () => {
+    const reqWithTenant = { tenantId: TENANT_ID } as never;
+
+    it('delegates site resolution to the service with the middleware tenant context', async () => {
+      const spy = jest.spyOn(service, 'getPublicSite').mockResolvedValue({
+        tenant: { name: 'X', logoUrl: null, bannerUrl: null, primaryColor: '#000', secondaryColor: '#fff', social: null },
+        restaurant: { name: 'R', currency: 'USD' },
+        branch: null,
+        categories: [],
+      });
+      await controller.getPublicSite(reqWithTenant);
+      expect(spy).toHaveBeenCalledWith(TENANT_ID);
+    });
+
+    it('fails safe when no tenant context reached the controller', async () => {
+      await expect(controller.getPublicSite({ tenantId: null } as never)).rejects.toThrow(BadRequestException);
+    });
+  });
 });
