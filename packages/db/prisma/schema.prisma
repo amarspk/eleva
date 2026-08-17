@@ -380,6 +380,7 @@ model Category {
   createdAt    DateTime  @default(now()) @db.Timestamptz
   updatedAt    DateTime  @updatedAt @db.Timestamptz
   deletedAt    DateTime? @db.Timestamptz
+  imageUrl     String?   @db.VarChar(2048)
 
   tenant     Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Restrict)

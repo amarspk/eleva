@@ -87,4 +87,30 @@ describe('RestaurantSite (Phase 4 P1 — token-free restaurant website)', () => 
     const call = screen.getByText('Call');
     expect(call.closest('a')).toHaveAttribute('href', 'tel:+966112345678');
   });
+
+  it('Phase 4 P1: renders the selected category image when present', () => {
+    const siteWithCatImages: PublicSiteResponse = {
+      ...sampleSite,
+      categories: [
+        { ...sampleSite.categories[0], imageUrl: 'https://cdn.example.com/grills.webp' },
+        ...sampleSite.categories.slice(1),
+      ],
+    };
+    render(<RestaurantSite site={siteWithCatImages} />);
+    fireEvent.click(screen.getByText('Grills'));
+    const img = document.querySelector('img[alt="Grills"]') as HTMLImageElement | null;
+    expect(img).not.toBeNull();
+    expect(img?.src).toBe('https://cdn.example.com/grills.webp');
+  });
+
+  it('Phase 4 P1: shows a clean fallback when the category has no image', () => {
+    render(<RestaurantSite site={sampleSite} />);
+    fireEvent.click(screen.getByText('Grills'));
+    // No image element for the category; the neutral placeholder div renders
+    expect(document.querySelector('img[alt="Grills"]')).toBeNull();
+    expect(screen.getAllByText('Grills').length).toBeGreaterThanOrEqual(1);
+    // Filtering still works after selecting the image-less category
+    expect(screen.getByText('Chicken Tikka')).toBeInTheDocument();
+    expect(screen.queryByText('Ayran')).not.toBeInTheDocument();
+  });
 });

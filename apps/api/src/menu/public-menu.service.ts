@@ -113,6 +113,8 @@ export interface PublicProduct {
 export interface PublicCategory {
   id: string;
   name: string;
+  /** Phase 4 P1 — real category image; null renders a placeholder. */
+  imageUrl: string | null;
   products: PublicProduct[];
 }
 
@@ -332,6 +334,7 @@ export class PublicMenuService {
       select: {
         id: true,
         name: true,
+        imageUrl: true,
         products: {
           where: {
             isAvailable: true,
@@ -375,6 +378,7 @@ export class PublicMenuService {
       .map((category) => ({
         id: category.id,
         name: category.name,
+        imageUrl: category.imageUrl ?? null,
         products: category.products.map((product) => ({
           id: product.id,
           name: product.name,

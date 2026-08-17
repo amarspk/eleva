@@ -40,7 +40,8 @@ export const RestaurantSite: React.FC<{ site: PublicSiteResponse }> = ({ site })
     socialLinks.push({ href: `tel:${branch.phoneNumber}`, label: 'Call', emoji: '📞' });
   }
 
-  const categoryName = selectedCategoryId === 'all' ? 'Menu' : (categories.find((c) => c.id === selectedCategoryId)?.name ?? 'Menu');
+  const selectedCategory = selectedCategoryId === 'all' ? undefined : categories.find((c) => c.id === selectedCategoryId);
+  const categoryName = selectedCategory?.name ?? 'Menu';
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col" style={{ fontFamily: 'inherit' }}>
@@ -119,6 +120,18 @@ export const RestaurantSite: React.FC<{ site: PublicSiteResponse }> = ({ site })
 
       {/* Product list filtered by the selected category */}
       <main className="max-w-md mx-auto w-full flex-1 px-4 py-4">
+        {selectedCategory?.imageUrl ? (
+          <div className="rounded-xl overflow-hidden mb-3 shadow-sm">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={selectedCategory.imageUrl} alt={selectedCategory.name} className="w-full h-28 object-cover" />
+          </div>
+        ) : (
+          selectedCategory && (
+            <div className="rounded-xl mb-3 h-20 bg-gray-100 flex items-center justify-center text-gray-300 text-lg">
+              {selectedCategory.name}
+            </div>
+          )
+        )}
         <h2 className="text-sm font-bold text-gray-700 mb-3">{categoryName}</h2>
         {visibleProducts.length === 0 ? (
           <p className="text-sm text-gray-500">No items available right now.</p>

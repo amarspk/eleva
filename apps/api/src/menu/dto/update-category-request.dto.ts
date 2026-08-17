@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, IsInt, Min, Length, IsOptional, IsBoolean } from 'class-validator';
+import { IsString, IsNotEmpty, IsInt, Min, Length, IsOptional, IsBoolean, MaxLength } from 'class-validator';
 
 /**
  * Partial update payload for `PUT /api/v1/menu/categories/:id` (AUDIT-006).
@@ -23,4 +23,12 @@ export class UpdateCategoryRequestDto {
   @IsBoolean()
   @IsOptional()
   isActive?: boolean;
+
+  /**
+   * Real category image (Phase 4 P1). Pass `null` to remove the image.
+   */
+  @IsOptional()
+  @IsString()
+  @MaxLength(2048)
+  imageUrl?: string | null;
 }

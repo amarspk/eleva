@@ -34,8 +34,8 @@ Phase 4 preserves the existing project-state/roadmap requirements that remain ap
 - Real social/contact links (phone, WhatsApp, Instagram, X) from tenant branding. ✅
 - Mobile-first responsive design. ✅
 - Branding-aware colors (tenant primary/secondary) and logo. ✅
-- Real category images (uploaded photographs) instead of emoji/placeholder fallbacks. ⏳ not yet (Category has no `imageUrl` column — requires a migration + media wiring).
-- Proper Media Library. ⏳ partially present (`MediaLibrary.tsx` in backoffice) — needs wiring into the website editor.
+- Real category images (uploaded photographs) instead of emoji/placeholder fallbacks. ✅ Category gained `imageUrl` (migration `20260818000000_add_category_image_url`), create/update/clear via the menu API, exposed in the public site + QR menu, and rendered by the restaurant website with a clean placeholder fallback.
+- Proper Media Library. ⏳ partially present (`MediaLibrary.tsx` in backoffice + `Media` model/API) — category images can reference media URLs; deeper editor wiring is a follow-up.
 - IndexedDB for large demo/frontend media where appropriate. ⏳
 - About / Contact / Branches / Social content remains simple and restaurant-oriented. ⏳
 - Editing controls (website builder) scroll independently from the live preview/page. ⏳

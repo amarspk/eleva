@@ -95,6 +95,8 @@ export interface PublicProduct {
 export interface PublicCategory {
   id: string;
   name: string;
+  /** Phase 4 P1 — real category image; null renders a placeholder. */
+  imageUrl: string | null;
   products: PublicProduct[];
 }
 

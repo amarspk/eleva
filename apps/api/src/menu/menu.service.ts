@@ -75,6 +75,7 @@ export class MenuService {
       name: dto.name,
       sortOrder: dto.sortOrder,
       isActive: true,
+      imageUrl: dto.imageUrl ?? null,
     });
   }
 
@@ -149,6 +150,7 @@ export class MenuService {
       name: dto.name,
       sortOrder: dto.sortOrder,
       isActive: dto.isActive,
+      imageUrl: dto.imageUrl,
     });
 
     if (Object.keys(data).length === 0) {

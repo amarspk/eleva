@@ -296,6 +296,29 @@ describe('PublicMenu (QR guest surface)', () => {
       expect(mockPrisma.table.findFirst).not.toHaveBeenCalled();
     });
 
+    it('exposes the category imageUrl in the public site projection', async () => {
+      mockPrisma.tenant.findUnique.mockResolvedValue(TENANT_ROW);
+      mockPrisma.restaurant.findFirst.mockResolvedValue({ id: 'rest-1', name: 'Albaik', currency: 'SAR' });
+      mockPrisma.branch.findFirst.mockResolvedValue({ id: 'branch-1', name: 'Riyadh', phoneNumber: null, address: null });
+      mockPrisma.category.findMany.mockResolvedValue([
+        { id: 'cat-1', name: 'Burgers', imageUrl: 'https://cdn.example.com/burgers.webp', products: [CATEGORY_ROW.products[0]] },
+      ]);
+
+      const result = await service.getPublicSite(TENANT_ID);
+      expect(result.categories[0].imageUrl).toBe('https://cdn.example.com/burgers.webp');
+    });
+
+    it('returns null imageUrl when the category has no image (clean fallback)', async () => {
+      mockPrisma.tenant.findUnique.mockResolvedValue(TENANT_ROW);
+      mockPrisma.restaurant.findFirst.mockResolvedValue({ id: 'rest-1', name: 'Albaik', currency: 'SAR' });
+      mockPrisma.branch.findFirst.mockResolvedValue(null);
+      mockPrisma.category.findMany.mockResolvedValue([
+        { id: 'cat-1', name: 'Burgers', imageUrl: null, products: [CATEGORY_ROW.products[0]] },
+      ]);
+      const result = await service.getPublicSite(TENANT_ID);
+      expect(result.categories[0].imageUrl).toBeNull();
+    });
+
     it('omits social when the tenant branding has no contact values', async () => {
       mockPrisma.tenant.findUnique.mockResolvedValue({ ...TENANT_ROW, branding: { theme: 'dark' } });
       mockPrisma.restaurant.findFirst.mockResolvedValue({ id: 'rest-1', name: 'Albaik', currency: 'SAR' });

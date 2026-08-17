@@ -49,6 +49,35 @@ describe('MenuService', () => {
       expect(result).toBeDefined();
       expect(result.id).toBe('mock-id');
     });
+
+    it('Phase 4 P1: persists the category imageUrl when provided', async () => {
+      const repo = (service as unknown as { categoryRepository: { create: jest.Mock } }).categoryRepository;
+      const dto = { name: 'Burgers', restaurantId: 'rest-1', sortOrder: 1, imageUrl: 'https://cdn.example.com/burgers.webp' };
+      await service.createCategory(dto);
+      expect(repo.create).toHaveBeenCalledWith(expect.objectContaining({ imageUrl: 'https://cdn.example.com/burgers.webp' }));
+    });
+
+    it('Phase 4 P1: stores null imageUrl when not provided (clean fallback)', async () => {
+      const repo = (service as unknown as { categoryRepository: { create: jest.Mock } }).categoryRepository;
+      await service.createCategory({ name: 'Sides', restaurantId: 'rest-1', sortOrder: 2 });
+      expect(repo.create).toHaveBeenCalledWith(expect.objectContaining({ imageUrl: null }));
+    });
+  });
+
+  describe('updateCategory imageUrl (Phase 4 P1)', () => {
+    it('updates the category imageUrl', async () => {
+      const repo = (service as unknown as { categoryRepository: { findById: jest.Mock; update: jest.Mock } }).categoryRepository;
+      repo.findById.mockResolvedValue({ id: 'cat-1', name: 'Burgers' });
+      await service.updateCategory('cat-1', { imageUrl: 'https://cdn.example.com/burgers-v2.webp' });
+      expect(repo.update).toHaveBeenCalledWith('cat-1', expect.objectContaining({ imageUrl: 'https://cdn.example.com/burgers-v2.webp' }));
+    });
+
+    it('clears the category imageUrl when null is passed (removal)', async () => {
+      const repo = (service as unknown as { categoryRepository: { findById: jest.Mock; update: jest.Mock } }).categoryRepository;
+      repo.findById.mockResolvedValue({ id: 'cat-1', name: 'Burgers', imageUrl: 'https://cdn.example.com/burgers.webp' });
+      await service.updateCategory('cat-1', { imageUrl: null });
+      expect(repo.update).toHaveBeenCalledWith('cat-1', expect.objectContaining({ imageUrl: null }));
+    });
   });
 
   describe('getCategories', () => {
