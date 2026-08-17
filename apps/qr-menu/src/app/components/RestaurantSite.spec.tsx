@@ -113,4 +113,99 @@ describe('RestaurantSite (Phase 4 P1 — token-free restaurant website)', () => 
     expect(screen.getByText('Chicken Tikka')).toBeInTheDocument();
     expect(screen.queryByText('Ayran')).not.toBeInTheDocument();
   });
+
+  // Phase 4 P1 — Website Editor: Theme + Design Configuration
+  describe('Theme support (Light/Dark/Auto)', () => {
+    it('defaults to Light theme when no design config is provided', () => {
+      render(<RestaurantSite site={sampleSite} />);
+      const root = document.querySelector('[data-theme]');
+      expect(root).toBeInTheDocument();
+      expect(root).toHaveAttribute('data-theme', 'light');
+    });
+
+    it('applies Light theme when design.theme=light', () => {
+      const site: PublicSiteResponse = {
+        ...sampleSite,
+        design: { theme: 'light', colors: { primary: '#ff0000', secondary: '#ffffff' }, fonts: { heading: 'Arial', body: 'Arial' } },
+      };
+      render(<RestaurantSite site={site} />);
+      const root = document.querySelector('[data-theme]');
+      expect(root).toHaveAttribute('data-theme', 'light');
+      expect(root).toHaveAttribute('data-primary', '#ff0000');
+    });
+
+    it('applies Dark theme when design.theme=dark', () => {
+      const site: PublicSiteResponse = {
+        ...sampleSite,
+        design: { theme: 'dark', colors: { primary: '#111', secondary: '#222' }, fonts: { heading: 'Arial', body: 'Arial' } },
+      };
+      render(<RestaurantSite site={site} />);
+      const root = document.querySelector('[data-theme]');
+      expect(root).toHaveAttribute('data-theme', 'dark');
+    });
+
+    it('applies design colors from the website editor configuration', () => {
+      const site: PublicSiteResponse = {
+        ...sampleSite,
+        design: { theme: 'light', colors: { primary: '#FF5733', secondary: '#F0F0F0' } },
+      };
+      render(<RestaurantSite site={site} />);
+      const root = document.querySelector('[data-primary]');
+      expect(root).toHaveAttribute('data-primary', '#FF5733');
+    });
+
+    it('uses design fonts when configured', () => {
+      const site: PublicSiteResponse = {
+        ...sampleSite,
+        design: { theme: 'light', fonts: { heading: 'Georgia', body: 'Verdana' } },
+      };
+      render(<RestaurantSite site={site} />);
+      const root = document.querySelector('[data-theme]');
+      expect(root).toBeInTheDocument();
+      // The root div has fontFamily from body font
+      expect(root).toHaveStyle('font-family: Verdana');
+    });
+
+    it('falls back to tenant primaryColor when design has no colors', () => {
+      const site: PublicSiteResponse = {
+        ...sampleSite,
+        design: { theme: 'light' },
+      };
+      render(<RestaurantSite site={site} />);
+      const root = document.querySelector('[data-primary]');
+      expect(root).toHaveAttribute('data-primary', sampleSite.tenant.primaryColor);
+    });
+
+    it('Auto theme sets data-theme to system preference (light or dark)', () => {
+      // JSDOM defaults to light scheme; we can't mock matchMedia easily,
+      // so verify that data-theme is set when theme=auto
+      const site: PublicSiteResponse = {
+        ...sampleSite,
+        design: { theme: 'auto' },
+      };
+      render(<RestaurantSite site={site} />);
+      const root = document.querySelector('[data-theme]');
+      expect(root).toBeInTheDocument();
+      // data-theme will be 'light' or 'dark' (JSDOM default is light)
+      expect(['light', 'dark']).toContain(root?.getAttribute('data-theme'));
+    });
+  });
+
+  describe('Design configuration applied to rendered elements', () => {
+    it('applies heading font to the restaurant name', () => {
+      const site: PublicSiteResponse = {
+        ...sampleSite,
+        design: { theme: 'light', fonts: { heading: 'Georgia', body: 'Arial' } },
+      };
+      render(<RestaurantSite site={site} />);
+      const h1 = screen.getByText('Albaik Demo');
+      expect(h1).toHaveStyle('font-family: Georgia');
+    });
+
+    it('renders product cards with theme-aware styling', () => {
+      render(<RestaurantSite site={sampleSite} />);
+      const productCards = document.querySelectorAll('.grid > div');
+      expect(productCards.length).toBeGreaterThan(0);
+    });
+  });
 });

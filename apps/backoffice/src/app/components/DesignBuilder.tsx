@@ -41,7 +41,7 @@ function useAutoSave(value: unknown, onSave: (v: unknown)=>void|Promise<void>, d
 }
 
 export function DesignBuilder({ tenantId }: { tenantId: string }){
-  const [draft,setDraft] = useState<any>({ colors:{primary:'#FF5733',secondary:'#FFFFFF'}, fonts:{heading:'Inter',body:'Inter'}, logo:null, coverImage:null, sections:[
+  const [draft,setDraft] = useState<any>({ theme:'light', colors:{primary:'#FF5733',secondary:'#FFFFFF'}, fonts:{heading:'Inter',body:'Inter'}, logo:null, coverImage:null, sections:[
     {id:'hero',type:'hero',enabled:true,order:0,config:{variant:'split'}},
     {id:'categories',type:'categories',enabled:true,order:1,config:{variant:'pills'}},
     {id:'featured',type:'featured',enabled:true,order:2,config:{variant:'grid'}},
@@ -218,6 +218,13 @@ export function DesignBuilder({ tenantId }: { tenantId: string }){
           <h3 className="font-bold">Eleva Website Builder</h3>
           <span className="text-xs text-gray-500">{{loading:'Loading…',dirty:'Unsaved changes',saving:'Saving…',saved:`Saved v${currentVersion}`,error:'Save failed'}[saveState]}</span>
         </div>
+        {/* Theme selector */}
+        <div className="flex gap-1">
+          {['light','dark','auto'].map(m=>(
+            <button key={m} onClick={()=>updateDraft((d:any)=>{d.theme=m;return d;})} className={`px-2 py-1 rounded text-xs capitalize ${(draft.theme||'light')===m?'bg-black text-white border-black':'border'}`}>{m}</button>
+          ))}
+          <span className="text-[10px] text-gray-400 ml-auto self-center">Theme</span>
+        </div>
         {/* Colors */}
         <div>
           <h4 className="text-xs font-semibold text-gray-600 mb-2">Brand</h4>
@@ -315,7 +322,7 @@ export function DesignBuilder({ tenantId }: { tenantId: string }){
           <button onClick={()=>setPreviewMode('mobile')} className={`px-3 py-1 rounded text-xs ${previewMode==='mobile'?'bg-black text-white':'border'}`}>Mobile</button>
           <span className="text-xs text-gray-500 ml-auto">Draft preview — not yet published until Publish</span>
         </div>
-        <div className={`mx-auto border rounded-xl overflow-hidden bg-gray-50 ${previewMode==='mobile'?'max-w-[390px]':'max-w-[900px]'}`} style={{fontFamily: draft.fonts?.body}}>
+        <div data-theme={draft.theme||'light'} className={`mx-auto border rounded-xl overflow-hidden ${previewMode==='mobile'?'max-w-[390px]':'max-w-[900px]'}`} style={{fontFamily: draft.fonts?.body,backgroundColor: draft.colors?.primary||'#fff',color: '#fff'}}>
           <div className="h-32 flex items-center justify-center text-white font-bold text-lg" style={{backgroundColor: draft.colors?.primary, backgroundImage: draft.coverImage?`url(${draft.coverImage})`:undefined, backgroundSize:'cover'}}>
             <span style={{textShadow:'0 1px 4px rgba(0,0,0,0.5)'}}>{draft.logo? '': 'Your cover / hero'}</span>
             {draft.logo && <img src={draft.logo} alt="logo" className="h-12 bg-white p-1 rounded"/>}

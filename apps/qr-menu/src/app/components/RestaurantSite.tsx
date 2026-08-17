@@ -1,7 +1,7 @@
 'use client';
 /* eslint-disable */
 
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 import type { PublicCategory, PublicSiteResponse } from '../lib/types';
 
 /**
@@ -11,10 +11,51 @@ import type { PublicCategory, PublicSiteResponse } from '../lib/types';
  * first, branding-aware (tenant primary/secondary colors, logo, banner) and
  * shows real restaurant contact/social links plus a category-filterable menu.
  * The QR ordering flow (MenuBrowser) remains the transaction surface.
+ *
+ * Supports the Eleva Website Builder design configuration:
+ *   - site.design.colors -> primary, secondary
+ *   - site.design.theme   -> 'light' | 'dark' | 'auto'
+ *   - site.design.fonts   -> heading, body
+ *   - site.design.banner  -> logo, coverImage
+ * When site.design is absent the tenant's native branding (from the API) is
+ * used as a fallback — the public website works without the website editor.
+ *
+ * Theme modes:
+ *   - light (default): light background, dark text
+ *   - dark:            dark background, light text (inverted primary-derived)
+ *   - auto:            follows the user's prefers-color-scheme media query
+ *
+ * The design is applied through CSS custom properties on the root container so
+ * all child components inherit the theme without prop-drilling.
  */
 export const RestaurantSite: React.FC<{ site: PublicSiteResponse }> = ({ site }) => {
   const { tenant, restaurant, branch, categories } = site;
-  const primary = tenant.primaryColor || '#000000';
+  const design = site.design as Record<string, unknown> | null | undefined;
+  const designColors = (design?.colors as Record<string, string> | undefined) || {};
+  const primary = designColors.primary || tenant.primaryColor || '#000000';
+  const secondary = designColors.secondary || tenant.secondaryColor || '#ffffff';
+  const theme = (design?.theme as string) || 'light';
+  const bodyFont = (design?.fonts as Record<string, string> | undefined)?.body || 'inherit';
+  const headingFont = (design?.fonts as Record<string, string> | undefined)?.heading || 'inherit';
+
+  // Track the user's system color-scheme preference for 'auto' mode
+  const prefersDark = useRef(false);
+  const [systemTheme, setSystemTheme] = useState<'light' | 'dark'>('light');
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const mq = window.matchMedia('(prefers-color-scheme: dark)');
+    prefersDark.current = mq.matches;
+    setSystemTheme(mq.matches ? 'dark' : 'light');
+    const handler = (e: MediaQueryListEvent) => {
+      prefersDark.current = e.matches;
+      setSystemTheme(e.matches ? 'dark' : 'light');
+    };
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
+
+  const activeTheme = theme === 'auto' ? systemTheme : (theme as 'light' | 'dark');
+  const isDark = activeTheme === 'dark';
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>('all');
 
   const flatProducts = useMemo(
@@ -44,7 +85,13 @@ export const RestaurantSite: React.FC<{ site: PublicSiteResponse }> = ({ site })
   const categoryName = selectedCategory?.name ?? 'Menu';
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col" style={{ fontFamily: 'inherit' }}>
+    <div data-theme={activeTheme} data-primary={primary} data-secondary={secondary} className="min-h-screen flex flex-col" style={{ fontFamily: bodyFont, backgroundColor: isDark ? '#111' : '#f9fafb', color: isDark ? '#eee' : '#111' }}>
+      {/* Theme CSS variables */}
+      <style>{`
+        :root { --color-primary: ${primary}; --color-secondary: ${secondary}; --font-heading: ${headingFont}; --font-body: ${bodyFont}; }
+        [data-theme="dark"] { --bg-main: #111; --bg-card: #1e1e1e; --bg-chip: #2a2a2a; --text-main: #eee; --text-muted: #999; --border-subtle: #333; --shadow-card: none; }
+        [data-theme="light"] { --bg-main: #f9fafb; --bg-card: #fff; --bg-chip: #f3f4f6; --text-main: #111; --text-muted: #6b7280; --border-subtle: #e5e7eb; --shadow-card: 0 1px 3px rgba(0,0,0,0.1); }
+      `}</style>
       {/* Hero — banner, logo, restaurant identity */}
       <header
         className="relative text-white"
@@ -66,7 +113,7 @@ export const RestaurantSite: React.FC<{ site: PublicSiteResponse }> = ({ site })
               {tenant.name.slice(0, 1)}
             </div>
           )}
-          <h1 className="text-2xl font-bold">{tenant.name}</h1>
+          <h1 className="text-2xl font-bold" style={{fontFamily: headingFont}}>{tenant.name}</h1>
           <p className="text-sm opacity-90 mt-1">
             {restaurant.name}
             {branch ? ` • ${branch.name}` : ''}
@@ -91,7 +138,7 @@ export const RestaurantSite: React.FC<{ site: PublicSiteResponse }> = ({ site })
 
       {/* Category chips — filter products */}
       {categories.length > 1 && (
-        <nav className="sticky top-0 z-10 bg-white/95 backdrop-blur border-b border-gray-200">
+        <nav className="sticky top-0 z-10 backdrop-blur border-b" style={{backgroundColor: isDark ? 'rgba(17,17,17,0.95)' : 'rgba(255,255,255,0.95)', borderColor: isDark ? '#333' : '#e5e7eb'}}>
           <div className="max-w-md mx-auto flex gap-2 overflow-x-auto px-4 py-2">
             <button
               onClick={() => setSelectedCategoryId('all')}
@@ -119,35 +166,35 @@ export const RestaurantSite: React.FC<{ site: PublicSiteResponse }> = ({ site })
       )}
 
       {/* Product list filtered by the selected category */}
-      <main className="max-w-md mx-auto w-full flex-1 px-4 py-4">
+      <main className="max-w-md mx-auto w-full flex-1 px-4 py-4" style={{backgroundColor: 'var(--bg-main)', color: 'var(--text-main)'}}>
+        <h2 className="text-sm font-bold mb-3" style={{fontFamily: headingFont, color: 'var(--text-main)'}}>{categoryName}</h2>
         {selectedCategory?.imageUrl ? (
-          <div className="rounded-xl overflow-hidden mb-3 shadow-sm">
+          <div className="rounded-xl overflow-hidden mb-3" style={{boxShadow: 'var(--shadow-card)'}}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={selectedCategory.imageUrl} alt={selectedCategory.name} className="w-full h-28 object-cover" />
           </div>
         ) : (
           selectedCategory && (
-            <div className="rounded-xl mb-3 h-20 bg-gray-100 flex items-center justify-center text-gray-300 text-lg">
+            <div className="rounded-xl mb-3 h-20 flex items-center justify-center" style={{backgroundColor: isDark ? '#1e1e1e' : '#f3f4f6', color: isDark ? '#555' : '#d1d5db'}}>
               {selectedCategory.name}
             </div>
           )
         )}
-        <h2 className="text-sm font-bold text-gray-700 mb-3">{categoryName}</h2>
         {visibleProducts.length === 0 ? (
-          <p className="text-sm text-gray-500">No items available right now.</p>
+          <p className="text-sm" style={{color: 'var(--text-muted)'}}>No items available right now.</p>
         ) : (
           <div className="grid grid-cols-2 gap-3">
             {visibleProducts.map((p) => (
-              <div key={p.id} className="bg-white rounded-xl overflow-hidden shadow-sm border border-gray-100">
+              <div key={p.id} className="rounded-xl overflow-hidden border" style={{backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-subtle)', boxShadow: 'var(--shadow-card)'}}>
                 {p.imageUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={p.imageUrl} alt={p.name} className="w-full h-24 object-cover" />
                 ) : (
-                  <div className="w-full h-24 bg-gray-100 flex items-center justify-center text-gray-300 text-2xl">🍽</div>
+                  <div className="w-full h-24 flex items-center justify-center text-2xl" style={{backgroundColor: isDark ? '#2a2a2a' : '#f3f4f6', color: isDark ? '#555' : '#d1d5db'}}>🍽</div>
                 )}
                 <div className="p-3">
-                  <h3 className="text-sm font-semibold text-gray-800">{p.name}</h3>
-                  <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{p.description ?? ''}</p>
+                  <h3 className="text-sm font-semibold" style={{color: 'var(--text-main)'}}>{p.name}</h3>
+                  <p className="text-xs mt-0.5 line-clamp-2" style={{color: 'var(--text-muted)'}}>{p.description ?? ''}</p>
                   <p className="text-sm font-bold mt-2" style={{ color: primary }}>
                     {new Intl.NumberFormat(undefined, { style: 'currency', currency: restaurant.currency }).format(p.basePrice)}
                   </p>
@@ -158,7 +205,7 @@ export const RestaurantSite: React.FC<{ site: PublicSiteResponse }> = ({ site })
         )}
       </main>
 
-      <footer className="text-center text-xs text-gray-400 py-6 px-4">
+      <footer className="text-center text-xs py-6 px-4" style={{color: 'var(--text-muted)', fontFamily: bodyFont}}>
         {tenant.name} — order from the table QR to place an order.
       </footer>
     </div>
