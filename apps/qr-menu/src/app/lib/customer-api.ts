@@ -122,6 +122,14 @@ export function redeemLoyaltyPoints(points: number): Promise<{ success: boolean;
 
 
 
+
+export function createRating(data: { orderId: string; rating: number; feedback?: string }): Promise<Record<string, unknown>> {
+  return request('/api/v1/customer/ratings', { method: 'POST', body: data, auth: true, csrf: true });
+}
+export function listMyRatings(): Promise<Array<Record<string, unknown>>> {
+  return request('/api/v1/customer/ratings', { auth: true });
+}
+
 export function listMyComplaints(): Promise<Array<Record<string, unknown>>> {
   return request('/api/v1/customer/complaints', { auth: true });
 }

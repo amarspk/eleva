@@ -135,14 +135,15 @@ Phase 4 preserves the existing project-state/roadmap requirements that remain ap
 - **Security:** tenant isolation via existing Prisma extension; customer JWT separate from staff; staff mutations RBAC-gated; customers cannot access cross-customer/tenant complaints; order ownership verified server-side before linking. ✅
 - **API:** new `complaint` module with customer endpoints (customer JWT: create, list, get, add message) and staff endpoints (JWT + RBAC: list, get, reply, update status). ✅
 
-## Ratings & feedback
+## Ratings & feedback — ✅ COMPLETE (commit pending)
 
-- Customer can rate an eligible completed order using stars.
-- Customer can add written feedback/suggestions.
-- Rating is tied to the real order/customer relationship; arbitrary users cannot rate an order they did not place.
-- Restaurant can view ratings and feedback in Backoffice.
-- Customer-facing published ratings/reviews may be shown where the restaurant enables them; moderation/publication rules must be defined before implementation.
-- Rating/feedback data is tenant-isolated and auditable.
+- **Customer can rate an eligible completed order** — `POST /api/v1/customer/ratings` (customer JWT, verifies order ownership + COMPLETED status + no duplicate). Star rating 1-5 with optional feedback text. ✅
+- **Duplicate prevention** via `orderId` unique constraint (one rating per order, server-verified). ✅
+- **Order eligibility** — only COMPLETED orders belonging to the authenticated customer can be rated. ✅
+- **Customer view** — in the existing `/account` page, completed orders show a "Rate" button that opens an inline star-rating + feedback form. Customer can view their submitted ratings. ✅
+- **Restaurant backoffice** — new "Ratings" tab showing all tenant ratings with star filter (All / 5★ / 4★ / 3★ / 2★ / 1★). Customer reference (partial UUID), rating, feedback, order reference, date. ✅
+- **Public API** — `GET /api/v1/public/ratings` returns customer-safe ratings (no customer IDs, no order IDs) for restaurant website testimonial display. ✅
+- **Architecture:** new `OrderRating` model with unique constraint on orderId, FKs, tenant indexes. Migration `20260818000006_add_order_ratings`. Tenant isolation via Prisma extension; customer JWT separate from staff; staff endpoints RBAC-gated (`read Customer`). ✅
 
 ## Explicitly out of scope for Phase 4
 

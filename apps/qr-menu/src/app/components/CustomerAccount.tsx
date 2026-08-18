@@ -18,6 +18,8 @@ import {
   createComplaint,
   getMyComplaint,
   addComplaintMessage,
+  createRating,
+  listMyRatings,
 } from '../lib/customer-api';
 import type { CustomerProfile, CustomerOrderSummary } from '../lib/customer-types';
 
@@ -164,6 +166,11 @@ export function CustomerAccount({ branding }: { branding: Branding }): React.Rea
   const [compSubject, setCompSubject] = useState('');
   const [compDesc, setCompDesc] = useState('');
   const [compReply, setCompReply] = useState('');
+  const [ratings, setRatings] = useState<Array<Record<string, unknown>> | null>(null);
+  const [showRatingForm, setShowRatingForm] = useState<string | null>(null);
+  const [starHover, setStarHover] = useState(0);
+  const [selectedRating, setSelectedRating] = useState(0);
+  const [ratingFeedback, setRatingFeedback] = useState('');
   const [walletHistory, setWalletHistory] = useState<Array<Record<string, unknown>> | null>(null);
   const [redeemInput, setRedeemInput] = useState('');
   const [redeemResult, setRedeemResult] = useState<string | null>(null);
@@ -559,6 +566,33 @@ export function CustomerAccount({ branding }: { branding: Branding }): React.Rea
                 ))}
               </div>
             )}
+            {/* Rating form */}
+            {showRatingForm && (
+              <div style={{ marginTop: 10, padding: 12, border: '1px solid #e5e7eb', borderRadius: 12, background: '#f9fafb' }}>
+                <div style={{ display: 'flex', gap: 4, marginBottom: 8 }}>
+                  {[1,2,3,4,5].map(s => (
+                    <button key={s} type="button"
+                      onClick={() => setSelectedRating(s)}
+                      onMouseEnter={() => setStarHover(s)}
+                      onMouseLeave={() => setStarHover(0)}
+                      style={{ fontSize: 24, border: 'none', background: 'none', cursor: 'pointer', color: (starHover || selectedRating) >= s ? '#f59e0b' : '#d1d5db', transition: 'color 0.1s' }}>
+                      ★
+                    </button>
+                  ))}
+                </div>
+                <input placeholder={lang === 'ar' ? 'أضف تعليقاً (اختياري)' : 'Add feedback (optional)'}
+                  value={ratingFeedback} onChange={(e) => setRatingFeedback(e.target.value)}
+                  style={{ width: '100%', padding: '8px 10px', borderRadius: 10, border: '1px solid #d1d5db', fontSize: 13, marginBottom: 8, boxSizing: 'border-box' }} />
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <button type="button" onClick={() => { createRating({ orderId: showRatingForm, rating: selectedRating, feedback: ratingFeedback || undefined }).then(() => { setShowRatingForm(null); listMyRatings().then(setRatings).catch(() => {}); }).catch(() => {}); }}
+                    disabled={selectedRating === 0}
+                    style={{ padding: '8px 14px', borderRadius: 10, border: 'none', background: branding.primaryColor, color: '#fff', fontSize: 13, fontWeight: 700, opacity: selectedRating === 0 ? 0.5 : 1 }}>
+                    {lang === 'ar' ? 'إرسال' : 'Submit'}
+                  </button>
+                  <button type="button" onClick={() => setShowRatingForm(null)} style={{ padding: '8px 14px', borderRadius: 10, border: '1px solid #d1d5db', background: '#fff', fontSize: 13 }}>{lang === 'ar' ? 'إلغاء' : 'Cancel'}</button>
+                </div>
+              </div>
+            )}
           </div>
 
           <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #e5e7eb', padding: 20 }}>
@@ -583,8 +617,41 @@ export function CustomerAccount({ branding }: { branding: Branding }): React.Rea
                     <div style={{ fontWeight: 800, fontSize: 14, marginTop: 4 }}>
                       {new Intl.NumberFormat(lang === 'ar' ? 'ar-EG' : 'en-US', { style: 'currency', currency: branding.currency || 'USD' }).format(o.total)}
                     </div>
+                    {o.status === 'COMPLETED' && (
+                      <button type="button" onClick={() => { setShowRatingForm(o.id as string); setSelectedRating(0); setRatingFeedback(''); }}
+                        style={{ marginTop: 4, padding: '4px 10px', borderRadius: 8, border: '1px solid #d1d5db', background: '#fff', fontSize: 11, cursor: 'pointer' }}>
+                        {lang === 'ar' ? 'قيّم' : 'Rate'}
+                      </button>
+                    )}
                   </div>
                 ))}
+              </div>
+            )}
+            {/* Rating form */}
+            {showRatingForm && (
+              <div style={{ marginTop: 10, padding: 12, border: '1px solid #e5e7eb', borderRadius: 12, background: '#f9fafb' }}>
+                <div style={{ display: 'flex', gap: 4, marginBottom: 8 }}>
+                  {[1,2,3,4,5].map(s => (
+                    <button key={s} type="button"
+                      onClick={() => setSelectedRating(s)}
+                      onMouseEnter={() => setStarHover(s)}
+                      onMouseLeave={() => setStarHover(0)}
+                      style={{ fontSize: 24, border: 'none', background: 'none', cursor: 'pointer', color: (starHover || selectedRating) >= s ? '#f59e0b' : '#d1d5db', transition: 'color 0.1s' }}>
+                      ★
+                    </button>
+                  ))}
+                </div>
+                <input placeholder={lang === 'ar' ? 'أضف تعليقاً (اختياري)' : 'Add feedback (optional)'}
+                  value={ratingFeedback} onChange={(e) => setRatingFeedback(e.target.value)}
+                  style={{ width: '100%', padding: '8px 10px', borderRadius: 10, border: '1px solid #d1d5db', fontSize: 13, marginBottom: 8, boxSizing: 'border-box' }} />
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <button type="button" onClick={() => { createRating({ orderId: showRatingForm, rating: selectedRating, feedback: ratingFeedback || undefined }).then(() => { setShowRatingForm(null); listMyRatings().then(setRatings).catch(() => {}); }).catch(() => {}); }}
+                    disabled={selectedRating === 0}
+                    style={{ padding: '8px 14px', borderRadius: 10, border: 'none', background: branding.primaryColor, color: '#fff', fontSize: 13, fontWeight: 700, opacity: selectedRating === 0 ? 0.5 : 1 }}>
+                    {lang === 'ar' ? 'إرسال' : 'Submit'}
+                  </button>
+                  <button type="button" onClick={() => setShowRatingForm(null)} style={{ padding: '8px 14px', borderRadius: 10, border: '1px solid #d1d5db', background: '#fff', fontSize: 13 }}>{lang === 'ar' ? 'إلغاء' : 'Cancel'}</button>
+                </div>
               </div>
             )}
           </div>

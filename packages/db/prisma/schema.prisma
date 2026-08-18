@@ -143,6 +143,7 @@ model Tenant {
   customerWallets        CustomerWallet[]
   walletTransactions     WalletTransaction[]
   complaints             CustomerComplaint[]
+  orderRatings           OrderRating[]
 
   @@unique([subdomain], map: "idx_tenants_subdomain")
   @@unique([customDomain], map: "idx_tenants_custom_domain")
@@ -562,6 +563,7 @@ model Order {
   welcomeRedemptions     WelcomeRedemption[]
   walletTransactions     WalletTransaction[]
   complaints             CustomerComplaint[]
+  rating                OrderRating?
   @@index([tenantId, branchId], map: "idx_orders_tenant_branch")
   @@index([customerId], map: "idx_orders_customer")
   @@index([tableId], map: "idx_orders_table")
@@ -638,6 +640,7 @@ model Customer {
   wallet                 CustomerWallet?
   walletTransactions     WalletTransaction[]
   complaints             CustomerComplaint[]
+  orderRatings           OrderRating[]
 
   @@unique([email, tenantId], map: "idx_customers_email_tenant")
   @@map("customers")
@@ -837,6 +840,26 @@ model ComplaintMessage {
 
   @@index([complaintId], map: "idx_complaint_messages_parent")
   @@map("complaint_messages")
+}
+
+
+model OrderRating {
+  id          String   @id @default(uuid()) @db.Uuid
+  tenantId    String   @db.Uuid
+  customerId  String   @db.Uuid
+  orderId     String   @unique @db.Uuid
+  rating      Int
+  feedback    String?  @db.Text
+  createdAt   DateTime @default(now()) @db.Timestamptz
+
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  order    Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId], map: "idx_ratings_tenant")
+  @@index([customerId], map: "idx_ratings_customer")
+  @@index([tenantId, rating], map: "idx_ratings_tenant_rating")
+  @@map("order_ratings")
 }
 
 model AuditLog {
