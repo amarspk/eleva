@@ -81,14 +81,17 @@ Phase 4 preserves the existing project-state/roadmap requirements that remain ap
 - **Architecture** — shared `@zayjar/receipts` package (types, config defaults/resolver, i18n, formatting, `CustomerReceipt`, `KitchenTicket`, print styles) consumed by both cashier and backoffice so receipt rendering is defined once. ✅
 - **Tests** — 40 new tests green: receipts package 22/22, API `receipt.service.spec` 7/7 (incl. tenant scoping + branch isolation + config resolution), ReceiptDesigner 6/6, cashier print page 3/3, cashier print buttons 2/2. Backoffice tsc 0, cashier tsc 0 (new files), `next build` backoffice + cashier both succeed (cashier adds the `/receipt/[id]` route). Runtime: SSR render of the receipt/ticket verified (RTL, Arabic labels, no prices on kitchen ticket); dev servers boot and serve all routes HTTP 200. Root `jest.config.js` testMatch restored to `.spec.ts` (P1's `.tsx` widening made CI's node-env root test collect frontend specs that require jsdom — frontend specs run via their per-app configs).
 
-## Customer account & profile
+## Customer account & profile — ✅ COMPLETE (commit pending)
 
-- Guest checkout remains supported.
-- Customer can optionally create an account during/before ordering.
-- Login/logout and persistent customer session.
-- Saved name, phone, email and relevant customer details.
-- Order history and order-detail history.
-- Returning customers should not need to re-enter the same checkout information every time.
+- Guest checkout remains supported and unchanged (guest ordering without an account keeps working exactly as before). ✅
+- Customer can optionally create an account (public `POST /api/v1/public/customers/register`) or sign in (`POST /api/v1/public/customers/login`) — registration is never mandatory. ✅
+- Login/logout and a persistent customer session (signed customer JWT, 30-day expiry, reusing the existing JWT infrastructure; separate from staff auth). ✅
+- Profile with the details the existing `Customer` model supports: first/last name, email, phone, loyalty points; editable name/phone via `PUT /api/v1/customer/me` (email immutable). ✅
+- Order history (`GET /api/v1/customer/orders`) — only the customer's own orders, linked at checkout when the customer is signed in; real order data; guest orders without an account have no history (per scope). ✅
+- Returning customers do not need to re-enter checkout info; orders placed while signed in are linked to the account automatically. ✅
+- **Architecture:** `Customer.passwordHash` (Argon2id, nullable) + migration `20260818000001_add_customer_password_hash`; customer JWT carries `type: 'customer'` and is validated by a dedicated `CustomerJwtStrategy`/`CustomerAuthGuard` — fully disjoint from staff JWT/RBAC (staff strategy resolves `sub` in the User table; customer strategy requires the customer type claim + Customer lookup). CSRF double-submit reused (token issued at register/login, echoed on `PUT /me`). Optional customer linking at guest checkout via the existing `Authorization` header (invalid tokens silently fall back to guest — never block ordering). ✅
+- **Isolation (server-authoritative):** tenant-scoped customer/order lookups via the existing extension; a customer token from restaurant A cannot authenticate on restaurant B's host; staff/platform endpoints remain inaccessible to customer tokens; customer endpoints are outside staff RBAC. ✅
+- **UI:** mobile-first `CustomerAccount` component at `/account` (qr-menu), restaurant-branded (fetches the tenant's public site branding — never ELEVA tower styling), English/Arabic with full RTL/LTR, sign in / create account / profile / order history / sign out; entry points added to the restaurant website hero and the ordering (MenuBrowser) flow; guest ordering path preserved. ✅
 
 ## Loyalty
 

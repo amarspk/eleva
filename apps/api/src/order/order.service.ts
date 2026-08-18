@@ -1,8 +1,9 @@
-import {
-  Injectable, Logger, NotFoundException, BadRequestException, ConflictException, ForbiddenException, Inject, Optional } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, BadRequestException, ConflictException, ForbiddenException, Inject, Optional } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
 import { CreateOrderRequestDto } from './dto/create-order-request.dto';
 import { UpdateOrderStatusRequestDto } from './dto/update-order-status-request.dto';
 import { OrderStatus } from '@zayjar/types';
+import { JWT_CONFIG } from '../auth/config/jwt.config';
 import {
   TenantOrderRepository,
   TenantBranchRepository,
@@ -40,6 +41,7 @@ export class OrderService {
   private readonly tableRepository = new TenantTableRepository();
 
   constructor(
+    @Optional() @Inject(JwtService) private readonly jwtService?: JwtService,
     @Optional() @Inject(KdsGateway) private readonly kdsGateway?: KdsGateway,
     @Optional() @Inject(WebhookService) private readonly webhookService?: WebhookService,
     @Optional() @Inject(EmailService) private readonly emailService?: EmailService,
@@ -108,7 +110,11 @@ export class OrderService {
    * pipeline the authenticated staff checkout uses, so pricing, tax,
    * transaction atomicity and KDS broadcasting are identical across channels.
    */
-  async createGuestOrder(dto: CreateOrderRequestDto, guestTenantId: string): Promise<Record<string, unknown>> {
+  async createGuestOrder(
+    dto: CreateOrderRequestDto,
+    guestTenantId: string,
+    customerToken?: string,
+  ): Promise<Record<string, unknown>> {
     this.logger.log(`Initiating guest QR checkout for tenant: [${guestTenantId}]`);
 
     if (!guestTenantId) {
@@ -157,7 +163,28 @@ export class OrderService {
         throw new ForbiddenException('Online ordering is temporarily unavailable for this restaurant.');
       }
 
-      return this.createOrder(dto, guestTenantId);
+      // Phase 4 — optional customer account: when the guest supplies a valid
+      // customer token, link the order to that customer (server-verified,
+      // tenant-scoped). An invalid/expired token silently falls back to guest
+      // checkout — never blocks ordering.
+      let customerId: string | undefined;
+      if (customerToken && this.jwtService) {
+        try {
+          const payload = await this.jwtService.verifyAsync<{ type?: string; sub?: string }>(
+            customerToken,
+            { secret: JWT_CONFIG.accessTokenSecret },
+          );
+          if (payload?.type === 'customer' && payload?.sub) {
+            const customer = await prisma.customer.findUnique({ where: { id: payload.sub } });
+            if (customer) {
+              customerId = customer.id;
+            }
+          }
+        } catch {
+          // Invalid/expired token — treat as guest checkout.
+        }
+      }
+      return this.createOrder(dto, guestTenantId, undefined, customerId);
     });
   }
 
@@ -186,6 +213,7 @@ export class OrderService {
     dto: CreateOrderRequestDto,
     userTenantId: string,
     userBranches?: string[],
+    customerId?: string,
   ): Promise<Record<string, unknown>> {
     this.logger.log(`Initiating checkout transaction for tenant: [${userTenantId}]`);
 
@@ -335,6 +363,7 @@ export class OrderService {
           tenantId: userTenantId,
           branchId: dto.branchId,
           tableId: dto.tableId || null,
+          customerId: customerId || null,
           orderNumber,
           type: dto.type,
           paymentMethod: dto.paymentMethod,

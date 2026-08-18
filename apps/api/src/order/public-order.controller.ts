@@ -36,7 +36,12 @@ export class PublicOrderController {
   @HttpCode(HttpStatus.CREATED)
   @RateLimit('checkout')
   async guestCheckout(@Body() dto: CreateOrderRequestDto, @Req() req: RequestWithTenant): Promise<unknown> {
-    return this.orderService.createGuestOrder(dto, this.requireTenantContext(req));
+    // Phase 4 — optional customer account: if the guest holds a customer
+    // token, pass it so the order can be linked to their account (for their
+    // own order history). Absent/invalid tokens keep pure guest checkout.
+    const authHeader = req.headers?.authorization;
+    const customerToken = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : undefined;
+    return this.orderService.createGuestOrder(dto, this.requireTenantContext(req), customerToken);
   }
 
   /**

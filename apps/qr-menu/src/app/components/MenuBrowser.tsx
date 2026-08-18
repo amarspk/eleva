@@ -366,6 +366,15 @@ export const MenuBrowser: React.FC<MenuBrowserProps> = ({ initialData, token }) 
 
   return (
     <div className="w-full max-w-md mx-auto bg-gray-50 min-h-screen pb-24">
+      {/* Phase 4 — customer account entry (floating, restaurant-branded) */}
+      <a
+        href="/account"
+        className="fixed top-3 right-3 z-40 inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold text-white shadow-md"
+        style={{ backgroundColor: primaryColor }}
+        aria-label="My account"
+      >
+        <span aria-hidden>👤</span> My account
+      </a>
       <header className="sticky top-0 bg-white shadow-sm z-30 px-4 py-3">
         {design?.logo && <img src={design.logo} alt="logo" className="h-8 mb-2 object-contain" />}
         <input

@@ -611,6 +611,10 @@ model Customer {
   lastName      String    @db.VarChar(100)
   email         String    @db.VarChar(255)
   phoneNumber   String?   @db.VarChar(50)
+  /// Argon2id hash for customer self-service accounts (Phase 4 — Customer
+  /// Account & Profile). Null for legacy/guest-registered profiles that never
+  /// set a password; those customers cannot sign in (no credential).
+  passwordHash  String?   @db.VarChar(255)
   loyaltyPoints Int       @default(0)
   createdAt     DateTime  @default(now()) @db.Timestamptz
   updatedAt     DateTime  @updatedAt @db.Timestamptz

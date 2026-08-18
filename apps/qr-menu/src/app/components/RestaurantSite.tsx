@@ -118,6 +118,15 @@ export const RestaurantSite: React.FC<{ site: PublicSiteResponse }> = ({ site })
             {restaurant.name}
             {branch ? ` • ${branch.name}` : ''}
           </p>
+          {/* Phase 4 — customer account entry (restaurant-branded) */}
+          <div className="flex justify-center gap-2 mt-4">
+            <a
+              href="/account"
+              className="inline-flex items-center gap-1 px-4 py-1.5 rounded-full bg-white/90 text-gray-800 text-xs font-semibold hover:bg-white"
+            >
+              <span aria-hidden>👤</span> My account
+            </a>
+          </div>
           {socialLinks.length > 0 && (
             <div className="flex justify-center gap-2 mt-4 flex-wrap">
               {socialLinks.map((link) => (

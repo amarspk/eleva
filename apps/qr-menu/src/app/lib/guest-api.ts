@@ -86,9 +86,19 @@ export async function submitGuestOrder(
   payload: CreateGuestOrderPayload,
   fetchImpl: typeof fetch = fetch,
 ): Promise<GuestOrderConfirmation> {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  // Phase 4 — optional customer account: when the guest is signed in, attach
+  // the customer token so the order is linked to their account and appears in
+  // their order history. Guest checkout without a token is unchanged.
+  if (typeof window !== 'undefined') {
+    const customerToken = window.localStorage.getItem('eleva_customer_token');
+    if (customerToken) {
+      headers['Authorization'] = `Bearer ${customerToken}`;
+    }
+  }
   const res = await fetchImpl('/api/v1/public/orders/checkout', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers,
     body: JSON.stringify(payload),
   });
 
