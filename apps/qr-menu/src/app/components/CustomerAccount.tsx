@@ -10,6 +10,9 @@ import {
   customerLogout,
   clearCustomerSession,
   getCustomerToken,
+  fetchLoyaltyBalance,
+  fetchLoyaltyHistory,
+  redeemLoyaltyPoints,
 } from '../lib/customer-api';
 import type { CustomerProfile, CustomerOrderSummary } from '../lib/customer-types';
 
@@ -43,6 +46,18 @@ const L: Record<Lang, Record<string, string>> = {
     total: 'Total',
     status: 'Status',
     items: 'items',
+    points: 'Points',
+    loyaltyPoints: 'Loyalty points',
+    redeemTitle: 'Redeem points for discount',
+    redeemButton: 'Redeem',
+    redeemInfo: 'Enter points to redeem',
+    redeemSuccess: 'Discount code generated!',
+    redeemCodeLabel: 'Code',
+    historyTitle: 'Points history',
+    earned: 'Earned',
+    redeemed: 'Redeemed',
+    noLoyaltyHistory: 'No loyalty activity yet.',
+    loyaltyEarnInfo: 'Earn points by completing orders while signed in.',
     langToggle: 'العربية',
   },
   ar: {
@@ -64,6 +79,19 @@ const L: Record<Lang, Record<string, string>> = {
     history: 'طلباتي',
     noOrders: 'لا توجد طلبات بعد. ستظهر طلباتك المقدمة أثناء تسجيل الدخول هنا.',
     signOut: 'تسجيل الخروج',
+    points: 'نقطة',
+    loyaltyPoints: 'نقاط الولاء',
+    redeemTitle: 'استبدال النقاط للحصول على خصم',
+    redeemButton: 'استبدال',
+    redeemInfo: 'أدخل عدد النقاط للاستبدال',
+    redeemSuccess: 'تم إنشاء رمز الخصم!',
+    redeemCodeLabel: 'الرمز',
+    historyTitle: 'سجل النقاط',
+    earned: 'مكتسب',
+    redeemed: 'مستبدل',
+    noLoyaltyHistory: 'لا يوجد نشاط ولاء بعد.',
+    loyaltyEarnInfo: 'اكسب النقاط عن طريق إتمام الطلبات أثناء تسجيل الدخول.',
+    langToggle: 'English',
     saving: 'جارٍ الحفظ…',
     saved: 'تم الحفظ',
     saveProfile: 'حفظ الملف',
@@ -72,7 +100,6 @@ const L: Record<Lang, Record<string, string>> = {
     total: 'الإجمالي',
     status: 'الحالة',
     items: 'أصناف',
-    langToggle: 'English',
   },
 };
 
@@ -105,6 +132,11 @@ export function CustomerAccount({ branding }: { branding: Branding }): React.Rea
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [savedFlash, setSavedFlash] = useState(false);
+  const [loyaltyBalance, setLoyaltyBalance] = useState<number | null>(null);
+  const [loyaltyHistory, setLoyaltyHistory] = useState<Array<Record<string, unknown>> | null>(null);
+  const [redeemInput, setRedeemInput] = useState('');
+  const [redeemResult, setRedeemResult] = useState<string | null>(null);
+  const [redeemCode, setRedeemCode] = useState('');
 
   const t = L[lang];
   const greeting = lang === 'ar' ? `مرحباً، ${customer?.firstName ?? ''}` : `Welcome, ${customer?.firstName ?? ''}`;
@@ -160,6 +192,20 @@ export function CustomerAccount({ branding }: { branding: Branding }): React.Rea
     }
   };
 
+  const handleRedeem = async (): Promise<void> => {
+    const pts = parseInt(redeemInput, 10);
+    if (!pts || pts <= 0) return;
+    try {
+      const result = await redeemLoyaltyPoints(pts);
+      setRedeemResult(result.discountValue > 0 ? t.redeemSuccess : '');
+      setRedeemCode(result.discountCode);
+      setLoyaltyBalance(result.balanceAfter);
+      setRedeemInput('');
+    } catch (err) {
+      setRedeemResult(err instanceof Error ? err.message : t.error);
+    }
+  };
+
   const saveProfile = async (): Promise<void> => {
     setBusy(true);
     setError(null);
@@ -184,6 +230,8 @@ export function CustomerAccount({ branding }: { branding: Branding }): React.Rea
     clearCustomerSession();
     setCustomer(null);
     setOrders(null);
+    setLoyaltyBalance(null);
+    setLoyaltyHistory(null);
     setMode('login');
   };
 
@@ -333,6 +381,51 @@ export function CustomerAccount({ branding }: { branding: Branding }): React.Rea
               </button>
               {error && <div style={{ background: '#fef2f2', color: '#b91c1c', borderRadius: 10, padding: '10px 12px', fontSize: 13 }}>{error}</div>}
             </div>
+          </div>
+
+          {/* Loyalty */}
+          <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #e5e7eb', padding: 20 }}>
+            <div style={{ fontSize: 15, fontWeight: 800, marginBottom: 8 }}>{t.loyaltyPoints}</div>
+            {loyaltyBalance !== null && (
+              <div style={{ fontSize: 13, marginBottom: 4 }}>
+                <span style={{ fontWeight: 700 }}>{loyaltyBalance}</span> {t.points}
+              </div>
+            )}
+            <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 12 }}>{t.loyaltyEarnInfo}</div>
+
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
+              <input
+                type="number" min="1" placeholder={t.redeemInfo}
+                value={redeemInput} onChange={(e) => setRedeemInput(e.target.value)}
+                style={{ flex: 1, padding: '8px 10px', borderRadius: 10, border: '1px solid #d1d5db', fontSize: 14, boxSizing: 'border-box' }}
+              />
+              <button type="button" onClick={() => void handleRedeem()} disabled={!redeemInput || parseInt(redeemInput) <= 0}
+                style={{ padding: '8px 16px', borderRadius: 10, border: 'none', background: '#111', color: '#fff', fontSize: 13, fontWeight: 700, opacity: !redeemInput || parseInt(redeemInput) <= 0 ? 0.5 : 1 }}>
+                {t.redeemButton}
+              </button>
+            </div>
+            {redeemResult && (
+              <div style={{ background: redeemCode ? '#f0fdf4' : '#fef2f2', borderRadius: 10, padding: '10px 12px', fontSize: 13, marginBottom: 8 }}>
+                <div>{redeemResult}</div>
+                {redeemCode && <div style={{ fontWeight: 700, marginTop: 4 }}>{t.redeemCodeLabel}: <code style={{ background: '#f3f4f6', padding: '2px 6px', borderRadius: 4 }}>{redeemCode}</code></div>}
+              </div>
+            )}
+
+            {loyaltyHistory !== null && loyaltyHistory.length > 0 && (
+              <>
+                <div style={{ fontSize: 13, fontWeight: 700, margin: '12px 0 6px' }}>{t.historyTitle}</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {loyaltyHistory.slice(0, 20).map((tx) => (
+                    <div key={tx.id as string} style={{ fontSize: 12, display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #f3f4f6', paddingBottom: 4 }}>
+                      <span>{tx.type === 'EARNED' ? t.earned : tx.type === 'REDEEMED' ? t.redeemed : String(tx.type)}</span>
+                      <span style={{ fontWeight: 700, color: String(tx.points).startsWith('-') ? '#dc2626' : '#16a34a' }}>
+                        {String(tx.points).startsWith('-') ? '' : '+'}{String(tx.points)} {t.points}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
 
           <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #e5e7eb', padding: 20 }}>

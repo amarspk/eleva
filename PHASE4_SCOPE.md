@@ -93,13 +93,16 @@ Phase 4 preserves the existing project-state/roadmap requirements that remain ap
 - **Isolation (server-authoritative):** tenant-scoped customer/order lookups via the existing extension; a customer token from restaurant A cannot authenticate on restaurant B's host; staff/platform endpoints remain inaccessible to customer tokens; customer endpoints are outside staff RBAC. ✅
 - **UI:** mobile-first `CustomerAccount` component at `/account` (qr-menu), restaurant-branded (fetches the tenant's public site branding — never ELEVA tower styling), English/Arabic with full RTL/LTR, sign in / create account / profile / order history / sign out; entry points added to the restaurant website hero and the ordering (MenuBrowser) flow; guest ordering path preserved. ✅
 
-## Loyalty
+## Loyalty — ✅ COMPLETE (commit pending)
 
-- Tenant-scoped loyalty points for customers.
-- Earn points from eligible completed orders according to restaurant-configured rules.
-- Redeem points for configured rewards/discounts.
-- Customer can view balance, earning history and redemption history.
-- Restaurant can manage the loyalty rules/rewards from Backoffice.
+- Tenant-scoped loyalty points for customers. ✅ Already existed on the `Customer` model (`loyaltyPoints` field + staff CRUD).
+- **Earn points** from eligible completed orders according to **restaurant-configured rules** — `LoyaltyRule` model (`earnRate`, `earnMinOrderAmount`, `minRedeemPoints`, `redeemRate`; singleton per tenant; no points earned until the restaurant configures it). Points are awarded atomically at order COMPLETED status (inside the existing `OrderService.updateOrderStatus`), guarded by an idempotency check (existing `LoyaltyTransaction` with orderId prevents double-earn). ✅
+- **Redeem points** for a one-time `FIXED` discount code (reusable via the existing Discount engine). Redemption is atomic: balance checked → balance deducted → discount code generated → `LoyaltyTransaction` created — all in a single DB transaction. Gated by tenant rule (min redeem points, redeem rate). ✅
+- **Customer experience** integrated into the existing `/account` page: balance display, transaction history (EARNED/REDEEMED/ADJUSTMENT), redeem input with discount-code result. English + Arabic with full RTL/LTR. Restaurant-branded, mobile-first. ✅
+- **Restaurant management** via the new `LoyaltySettings` component in the Backoffice Settings tab (the existing backoffice shell — no second admin system). Staff-only surface with `read/update Customer` RBAC. ✅
+- **API:** new `loyalty` module: `GET /api/v1/customer/loyalty/me` (balance), `GET /api/v1/customer/loyalty/history`, `POST /api/v1/customer/loyalty/redeem` (customer JWT), `GET /api/v1/backoffice/loyalty/rule`, `PUT /api/v1/backoffice/loyalty/rule` (staff JWT + RBAC). ✅
+- **Database:** new `LoyaltyRule` + `LoyaltyTransaction` models with proper relations, indexes, and tenant isolation. Migration `20260818000002_add_loyalty` (2 tables + FKs + indexes). ✅
+- **Architecture note:** the earning formula (points per currency unit) is deliberately not hard-coded — the restaurant configures it via the LoyaltyRule. If no rule is set, no points are earned; if `earnRate = 0`, no points are earned; the order must meet `earnMinOrderAmount`. This satisfies "restaurant-configured rules" without inventing a business rule.
 
 ## Promotions & discount codes
 

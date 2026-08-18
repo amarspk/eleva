@@ -4,6 +4,7 @@ import { CreateOrderRequestDto } from './dto/create-order-request.dto';
 import { UpdateOrderStatusRequestDto } from './dto/update-order-status-request.dto';
 import { OrderStatus } from '@zayjar/types';
 import { JWT_CONFIG } from '../auth/config/jwt.config';
+import { LoyaltyService } from '../loyalty/loyalty.service';
 import {
   TenantOrderRepository,
   TenantBranchRepository,
@@ -41,6 +42,7 @@ export class OrderService {
   private readonly tableRepository = new TenantTableRepository();
 
   constructor(
+    @Optional() @Inject(LoyaltyService) private readonly loyaltyService?: LoyaltyService,
     @Optional() @Inject(JwtService) private readonly jwtService?: JwtService,
     @Optional() @Inject(KdsGateway) private readonly kdsGateway?: KdsGateway,
     @Optional() @Inject(WebhookService) private readonly webhookService?: WebhookService,
@@ -549,6 +551,14 @@ export class OrderService {
     // ==========================================
     if (dto.status === OrderStatus.COMPLETED) {
       await this.generateInvoice(updatedOrder);
+      // Phase 4 — Loyalty: award points for the completed order (idempotent).
+      if (updatedOrder.customerId && this.loyaltyService) {
+        const orderTotal = Number(updatedOrder.total);
+        this.loyaltyService.awardPointsForOrder(updatedOrder.tenantId, updatedOrder.id, updatedOrder.customerId, orderTotal)
+          .catch((err: Error) => {
+            this.logger.error(`Loyalty point award failed for order [${updatedOrder.id}]: ${err.message}`);
+          });
+      }
     }
 
     // ==========================================

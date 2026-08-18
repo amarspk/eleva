@@ -106,6 +106,19 @@ export function fetchCustomerOrders(): Promise<CustomerOrderSummary[]> {
   return request<CustomerOrderSummary[]>('/api/v1/customer/orders', { auth: true });
 }
 
+
+export function fetchLoyaltyBalance(): Promise<{ balance: number }> {
+  return request<{ balance: number }>('/api/v1/customer/loyalty/me', { auth: true });
+}
+
+export function fetchLoyaltyHistory(): Promise<Array<Record<string, unknown>>> {
+  return request<Array<Record<string, unknown>>>('/api/v1/customer/loyalty/history', { auth: true });
+}
+
+export function redeemLoyaltyPoints(points: number): Promise<{ success: boolean; discountCode: string; discountValue: number; balanceAfter: number }> {
+  return request('/api/v1/customer/loyalty/redeem', { method: 'POST', body: { points }, auth: true, csrf: true });
+}
+
 export function customerLogout(): Promise<{ success: boolean }> {
   return request<{ success: boolean }>('/api/v1/customer/logout', { method: 'POST', auth: true, csrf: true });
 }

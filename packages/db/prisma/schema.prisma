@@ -136,6 +136,8 @@ model Tenant {
   media           Media[]
   tenantDesign  TenantDesign?
   designVersions TenantDesignVersion[]
+  loyaltyRules          LoyaltyRule[]
+  loyaltyTransactions   LoyaltyTransaction[]
 
   @@unique([subdomain], map: "idx_tenants_subdomain")
   @@unique([customDomain], map: "idx_tenants_custom_domain")
@@ -550,6 +552,7 @@ model Order {
   payments      Payment[]
   invoices      Invoice?
   kitchenQueues KitchenQueue[]
+  loyaltyTransactions   LoyaltyTransaction[]
 
   @@index([tenantId, branchId], map: "idx_orders_tenant_branch")
   @@index([customerId], map: "idx_orders_customer")
@@ -622,6 +625,7 @@ model Customer {
 
   tenant Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   orders Order[]
+  loyaltyTransactions   LoyaltyTransaction[]
 
   @@unique([email, tenantId], map: "idx_customers_email_tenant")
   @@map("customers")
@@ -665,6 +669,53 @@ model Invoice {
   @@unique([invoiceNumber], map: "idx_invoices_number")
   @@map("invoices")
 }
+
+model LoyaltyRule {
+  id                String   @id @default(uuid()) @db.Uuid
+  tenantId          String   @unique @db.Uuid
+  /// Points awarded per unit of currency (Decimal). E.g., earnRate = 10 means
+  /// 10 points per 1 unit of the restaurant's currency. Set to 0 to disable
+  /// earning (the default until the restaurant configures it).
+  earnRate          Decimal  @default(0) @db.Decimal(10, 2)
+  /// Minimum order total (in restaurant currency) required to earn points.
+  earnMinOrderAmount Decimal @default(0) @db.Decimal(10, 2)
+  /// Minimum points a customer must have to start redeeming.
+  minRedeemPoints   Int      @default(0)
+  /// Monetary value per point (Decimal). E.g., redeemRate = 0.05 means 1
+  /// point = 0.05 currency units (so 100 points = 5 currency units discount).
+  redeemRate        Decimal  @default(0) @db.Decimal(10, 4)
+  createdAt         DateTime @default(now()) @db.Timestamptz
+  updatedAt         DateTime @updatedAt @db.Timestamptz
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("loyalty_rules")
+}
+
+model LoyaltyTransaction {
+  id          String   @id @default(uuid()) @db.Uuid
+  tenantId    String   @db.Uuid
+  customerId  String   @db.Uuid
+  orderId     String?  @db.Uuid
+  /// EARNED | REDEEMED | ADJUSTMENT | EXPIRED
+  type        String   @db.VarChar(20)
+  /// Positive for EARNED/ADJUSTMENT; negative for REDEEMED/EXPIRED.
+  points      Int
+  /// Customer's loyaltyPoints after this transaction.
+  balanceAfter Int
+  description String?  @db.Text
+  createdAt   DateTime @default(now()) @db.Timestamptz
+
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  order    Order?   @relation(fields: [orderId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, customerId], map: "idx_loyalty_tx_tenant_customer")
+  @@index([customerId], map: "idx_loyalty_tx_customer")
+  @@index([orderId], map: "idx_loyalty_tx_order")
+  @@map("loyalty_transactions")
+}
+
 
 model AuditLog {
   id         String   @id @default(uuid()) @db.Uuid
