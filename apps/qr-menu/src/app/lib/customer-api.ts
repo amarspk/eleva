@@ -121,6 +121,20 @@ export function redeemLoyaltyPoints(points: number): Promise<{ success: boolean;
 
 
 
+
+export function listMyComplaints(): Promise<Array<Record<string, unknown>>> {
+  return request('/api/v1/customer/complaints', { auth: true });
+}
+export function getMyComplaint(id: string): Promise<Record<string, unknown>> {
+  return request(`/api/v1/customer/complaints/${id}`, { auth: true });
+}
+export function createComplaint(data: { subject: string; description: string; orderId?: string }): Promise<Record<string, unknown>> {
+  return request('/api/v1/customer/complaints', { method: 'POST', body: data, auth: true, csrf: true });
+}
+export function addComplaintMessage(complaintId: string, message: string): Promise<Record<string, unknown>> {
+  return request(`/api/v1/customer/complaints/${complaintId}/messages`, { method: 'POST', body: { message }, auth: true, csrf: true });
+}
+
 export function fetchWalletBalance(): Promise<{ balance: number; transactions: Array<Record<string, unknown>> }> {
   return request('/api/v1/customer/wallet', { auth: true });
 }

@@ -142,6 +142,7 @@ model Tenant {
   welcomeRedemptions    WelcomeRedemption[]
   customerWallets        CustomerWallet[]
   walletTransactions     WalletTransaction[]
+  complaints             CustomerComplaint[]
 
   @@unique([subdomain], map: "idx_tenants_subdomain")
   @@unique([customDomain], map: "idx_tenants_custom_domain")
@@ -560,6 +561,7 @@ model Order {
   loyaltyTransactions   LoyaltyTransaction[]
   welcomeRedemptions     WelcomeRedemption[]
   walletTransactions     WalletTransaction[]
+  complaints             CustomerComplaint[]
   @@index([tenantId, branchId], map: "idx_orders_tenant_branch")
   @@index([customerId], map: "idx_orders_customer")
   @@index([tableId], map: "idx_orders_table")
@@ -635,6 +637,7 @@ model Customer {
   welcomeRedemptions     WelcomeRedemption[]
   wallet                 CustomerWallet?
   walletTransactions     WalletTransaction[]
+  complaints             CustomerComplaint[]
 
   @@unique([email, tenantId], map: "idx_customers_email_tenant")
   @@map("customers")
@@ -796,6 +799,44 @@ model WalletTransaction {
   @@index([customerId], map: "idx_wlt_tx_customer")
   @@index([orderId], map: "idx_wlt_tx_order")
   @@map("wallet_transactions")
+}
+
+
+model CustomerComplaint {
+  id          String    @id @default(uuid()) @db.Uuid
+  tenantId    String    @db.Uuid
+  customerId  String    @db.Uuid
+  orderId     String?   @db.Uuid
+  subject     String    @db.VarChar(255)
+  description String    @db.Text
+  status      String    @default("NEW") @db.VarChar(20)
+  createdAt   DateTime  @default(now()) @db.Timestamptz
+  updatedAt   DateTime  @updatedAt @db.Timestamptz
+  resolvedAt  DateTime? @db.Timestamptz
+  closedAt    DateTime? @db.Timestamptz
+
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  order    Order?   @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  messages ComplaintMessage[]
+
+  @@index([tenantId], map: "idx_complaints_tenant")
+  @@index([customerId], map: "idx_complaints_customer")
+  @@index([status], map: "idx_complaints_status")
+  @@map("customer_complaints")
+}
+
+model ComplaintMessage {
+  id          String   @id @default(uuid()) @db.Uuid
+  complaintId String   @db.Uuid
+  authorType  String   @db.VarChar(10)
+  message     String   @db.Text
+  createdAt   DateTime @default(now()) @db.Timestamptz
+
+  complaint CustomerComplaint @relation(fields: [complaintId], references: [id], onDelete: Cascade)
+
+  @@index([complaintId], map: "idx_complaint_messages_parent")
+  @@map("complaint_messages")
 }
 
 model AuditLog {

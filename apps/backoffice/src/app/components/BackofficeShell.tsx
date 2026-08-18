@@ -15,6 +15,7 @@ import { ReceiptDesigner } from './ReceiptDesigner';
 import { LoyaltySettings } from './LoyaltySettings';
 import { WelcomeOfferSettings } from './WelcomeOfferSettings';
 import { WalletManager } from './WalletManager';
+import { ComplaintManager } from './ComplaintManager';
 import { DashboardMetrics } from './DashboardMetrics';
 import { clearSession, loadSession } from '../lib/auth';
 
@@ -26,7 +27,7 @@ import { clearSession, loadSession } from '../lib/auth';
  * shared API client.
  */
 
-type TabId = 'dashboard'|'products'|'categories'|'branches'|'tables'|'customers'|'users'|'orders'|'design'|'receipts'|'media'|'settings';
+type TabId = 'dashboard'|'products'|'categories'|'branches'|'tables'|'customers'|'users'|'orders'|'design'|'receipts'|'media'|'complaints'|'settings';
 
 const TABS: { id: TabId; label: string }[] = [
   { id: 'dashboard', label: 'Dashboard' },
@@ -126,6 +127,7 @@ function ShellContent(): React.ReactElement {
         {activeTab === 'orders' ? <OrdersManager tenantId={tenantId}/> : null}
         {activeTab === 'customers' ? <CustomersModule /> : null}
         {activeTab === 'users' ? <StaffModule /> : null}
+        {activeTab === 'complaints' ? <ComplaintManager tenantId={tenantId}/> : null}
         {activeTab === 'design' ? <DesignBuilder tenantId={tenantId}/> : null}
         {activeTab === 'receipts' ? <ReceiptDesigner tenantId={tenantId}/> : null}
         {activeTab === 'media' ? <MediaLibrary tenantId={tenantId}/> : null}

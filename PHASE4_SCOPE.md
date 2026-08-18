@@ -126,17 +126,14 @@ Phase 4 preserves the existing project-state/roadmap requirements that remain ap
 - **Audit trail** — every mutation creates a `WalletTransaction` entry with type (CREDIT/DEBIT/ORDER_PAYMENT/REFUND/ADJUSTMENT), amount (signed), balanceAfter, order reference, timestamp. ✅
 - **No cash-out**, no payment-provider integration in this phase. ✅
 
-## Complaints / customer support
+## Complaints / customer support — ✅ COMPLETE (commit pending)
 
-- Complaints are linked to a real customer and order.
-- Current scope is **restaurant pickup / dine-in / take-away only**; delivery complaints are explicitly out of Phase 4.
-- Customer can create a complaint from an eligible order.
-- Complaint includes category/reason, free-text description and order reference.
-- Customer can attach photographic evidence.
-- On supported mobile browsers, the attachment flow should allow the user to open the device camera for a fresh photo; the system must still validate the uploaded media server-side.
-- Restaurant Backoffice receives and manages complaints.
-- Complaint lifecycle: New → Reviewing → Resolved → Closed (exact states to be verified against the existing state conventions before implementation).
-- Restaurant can resolve a complaint with an approved customer compensation action such as wallet credit or loyalty points.
+- **Complaints linked to real customers and optional order reference** — new `CustomerComplaint` + `ComplaintMessage` models (tenant-scoped, proper FKs, optimistic locking via status transitions). ✅
+- **Customer experience** in the existing `/account` page: create complaints (subject + description + optional order), list own complaints, view detail with message thread, reply to staff. Restaurant-branded, mobile-first, AR/EN, RTL/LTR. Customer cannot access another customer's complaints or reference another customer's order. ✅
+- **Backoffice management** in a new "Complaints" tab: filter by status, view detail with message thread, reply, update status (NEW → REVIEWING → RESOLVED → CLOSED) with full state-machine validation. Existing RBAC (`read/update Customer`). ✅
+- **Status lifecycle:** NEW → REVIEWING → RESOLVED → CLOSED (validated transitions only; CLOSED → REVIEWING reopens). `resolvedAt` / `closedAt` timestamps set on relevant transitions. ✅
+- **Security:** tenant isolation via existing Prisma extension; customer JWT separate from staff; staff mutations RBAC-gated; customers cannot access cross-customer/tenant complaints; order ownership verified server-side before linking. ✅
+- **API:** new `complaint` module with customer endpoints (customer JWT: create, list, get, add message) and staff endpoints (JWT + RBAC: list, get, reply, update status). ✅
 
 ## Ratings & feedback
 

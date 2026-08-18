@@ -13,6 +13,11 @@ import {
   fetchLoyaltyBalance,
   fetchLoyaltyHistory,
   redeemLoyaltyPoints,
+  fetchWalletBalance,
+  listMyComplaints,
+  createComplaint,
+  getMyComplaint,
+  addComplaintMessage,
 } from '../lib/customer-api';
 import type { CustomerProfile, CustomerOrderSummary } from '../lib/customer-types';
 
@@ -58,6 +63,15 @@ const L: Record<Lang, Record<string, string>> = {
     redeemed: 'Redeemed',
     noLoyaltyHistory: 'No loyalty activity yet.',
     loyaltyEarnInfo: 'Earn points by completing orders while signed in.',
+    complaints: 'My complaints',
+    newComplaint: 'New complaint',
+    compSubject: 'Subject',
+    compDesc: 'Description',
+    compSubmit: 'Submit',
+    compNoOrders: 'No complaints yet.',
+    compReplyPlaceholder: 'Type your reply...',
+    compSend: 'Send',
+    compStatus: 'Status',
     langToggle: 'العربية',
   },
   ar: {
@@ -91,6 +105,15 @@ const L: Record<Lang, Record<string, string>> = {
     redeemed: 'مستبدل',
     noLoyaltyHistory: 'لا يوجد نشاط ولاء بعد.',
     loyaltyEarnInfo: 'اكسب النقاط عن طريق إتمام الطلبات أثناء تسجيل الدخول.',
+    complaints: 'شكاوي',
+    newComplaint: 'شكوى جديدة',
+    compSubject: 'الموضوع',
+    compDesc: 'الوصف',
+    compSubmit: 'إرسال',
+    compNoOrders: 'لا توجد شكاوي بعد.',
+    compReplyPlaceholder: 'اكتب ردك...',
+    compSend: 'إرسال',
+    compStatus: 'الحالة',
     langToggle: 'English',
     saving: 'جارٍ الحفظ…',
     saved: 'تم الحفظ',
@@ -135,6 +158,12 @@ export function CustomerAccount({ branding }: { branding: Branding }): React.Rea
   const [loyaltyBalance, setLoyaltyBalance] = useState<number | null>(null);
   const [loyaltyHistory, setLoyaltyHistory] = useState<Array<Record<string, unknown>> | null>(null);
   const [walletBalance, setWalletBalance] = useState<number | null>(null);
+  const [complaints, setComplaints] = useState<Array<Record<string, unknown>> | null>(null);
+  const [viewingComplaint, setViewingComplaint] = useState<Record<string, unknown> | null>(null);
+  const [showComplaintForm, setShowComplaintForm] = useState(false);
+  const [compSubject, setCompSubject] = useState('');
+  const [compDesc, setCompDesc] = useState('');
+  const [compReply, setCompReply] = useState('');
   const [walletHistory, setWalletHistory] = useState<Array<Record<string, unknown>> | null>(null);
   const [redeemInput, setRedeemInput] = useState('');
   const [redeemResult, setRedeemResult] = useState<string | null>(null);
@@ -236,6 +265,8 @@ export function CustomerAccount({ branding }: { branding: Branding }): React.Rea
     setLoyaltyHistory(null);
     setWalletBalance(null);
     setWalletHistory(null);
+    setComplaints(null);
+    setViewingComplaint(null);
     setMode('login');
   };
 
@@ -461,6 +492,72 @@ export function CustomerAccount({ branding }: { branding: Branding }): React.Rea
             )}
             {walletBalance !== null && walletBalance === 0 && (
               <div style={{ fontSize: 13, color: '#6b7280' }}>{lang === 'ar' ? 'رصيد المحفظة صفر' : 'Wallet balance is zero.'}</div>
+            )}
+          </div>
+
+          {/* Complaints section */}
+          <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #e5e7eb', padding: 20 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <div style={{ fontSize: 15, fontWeight: 800 }}>{t.complaints}</div>
+              <button type="button" onClick={() => { setShowComplaintForm(!showComplaintForm); setViewingComplaint(null); }}
+                style={{ padding: '6px 12px', borderRadius: 10, border: 'none', background: branding.primaryColor, color: '#fff', fontSize: 12, fontWeight: 700 }}>
+                {t.newComplaint}
+              </button>
+            </div>
+
+            {showComplaintForm && (
+              <div style={{ marginBottom: 12 }}>
+                <input placeholder={t.compSubject} value={compSubject} onChange={(e) => setCompSubject(e.target.value)}
+                  style={{ width: '100%', padding: '8px 10px', borderRadius: 10, border: '1px solid #d1d5db', fontSize: 13, marginBottom: 8, boxSizing: 'border-box' }} />
+                <textarea placeholder={t.compDesc} value={compDesc} onChange={(e) => setCompDesc(e.target.value)}
+                  style={{ width: '100%', padding: '8px 10px', borderRadius: 10, border: '1px solid #d1d5db', fontSize: 13, minHeight: 60, marginBottom: 8, boxSizing: 'border-box' }} />
+                <button type="button" onClick={() => { createComplaint({ subject: compSubject, description: compDesc }).then(() => { setShowComplaintForm(false); setCompSubject(''); setCompDesc(''); listMyComplaints().then(setComplaints).catch(() => {}); }).catch(() => {}); }}
+                  disabled={!compSubject || !compDesc}
+                  style={{ padding: '8px 16px', borderRadius: 10, border: 'none', background: branding.primaryColor, color: '#fff', fontSize: 13, fontWeight: 700, opacity: !compSubject || !compDesc ? 0.5 : 1 }}>
+                  {t.compSubmit}
+                </button>
+              </div>
+            )}
+
+            {viewingComplaint ? (
+              <div>
+                <button type="button" onClick={() => setViewingComplaint(null)} style={{ background: 'none', border: 'none', color: '#6b7280', fontSize: 12, marginBottom: 8 }}>&larr; Back</button>
+                <div style={{ fontWeight: 700, fontSize: 14 }}>{viewingComplaint.subject as string}</div>
+                <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 4 }}>{viewingComplaint.status as string} &middot; {t.compStatus}: {viewingComplaint.status as string}</div>
+                <div style={{ fontSize: 13, marginBottom: 8 }}>{viewingComplaint.description as string}</div>
+                <div style={{ borderTop: '1px solid #e5e7eb', paddingTop: 8, marginBottom: 8 }}>
+                  {(viewingComplaint.messages as Array<Record<string, unknown>> || []).map((msg: Record<string, unknown>) => (
+                    <div key={msg.id as string} style={{ fontSize: 12, marginBottom: 6, padding: 6, background: msg.authorType === 'STAFF' ? '#f0fdf4' : '#f3f4f6', borderRadius: 8 }}>
+                      <span style={{ fontWeight: 600, fontSize: 10, color: '#6b7280' }}>{msg.authorType === 'STAFF' ? 'Staff' : 'You'}</span>
+                      <div>{msg.message as string}</div>
+                    </div>
+                  ))}
+                </div>
+                {(viewingComplaint.status as string) !== 'CLOSED' && (
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <input placeholder={t.compReplyPlaceholder} value={compReply} onChange={(e) => setCompReply(e.target.value)}
+                      style={{ flex: 1, padding: '8px 10px', borderRadius: 10, border: '1px solid #d1d5db', fontSize: 13, boxSizing: 'border-box' }} />
+                    <button type="button" onClick={() => { addComplaintMessage(viewingComplaint.id as string, compReply).then(() => { setCompReply(''); getMyComplaint(viewingComplaint.id as string).then(setViewingComplaint).catch(() => {}); }).catch(() => {}); }}
+                      disabled={!compReply}
+                      style={{ padding: '8px 14px', borderRadius: 10, border: 'none', background: branding.primaryColor, color: '#fff', fontSize: 13, fontWeight: 700, opacity: !compReply ? 0.5 : 1 }}>
+                      {t.compSend}
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div>
+                {complaints !== null && complaints.length === 0 && <div style={{ fontSize: 13, color: '#6b7280' }}>{t.compNoOrders}</div>}
+                {complaints !== null && complaints.length > 0 && complaints.slice(0, 20).map((comp: Record<string, unknown>) => (
+                  <div key={comp.id as string} onClick={() => { getMyComplaint(comp.id as string).then(setViewingComplaint).catch(() => {}); }}
+                    style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid #f3f4f6', cursor: 'pointer', fontSize: 13 }}>
+                    <div style={{ fontWeight: 600, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{comp.subject as string}</div>
+                    <span style={{ fontSize: 11, padding: '2px 6px', borderRadius: 4, background: comp.status === 'CLOSED' ? '#f3f4f6' : comp.status === 'RESOLVED' ? '#d1fae5' : '#fef3c7', color: comp.status === 'CLOSED' ? '#6b7280' : comp.status === 'RESOLVED' ? '#065f46' : '#92400e' }}>
+                      {String(comp.status)}
+                    </span>
+                  </div>
+                ))}
+              </div>
             )}
           </div>
 
