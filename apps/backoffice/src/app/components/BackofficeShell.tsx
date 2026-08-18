@@ -42,6 +42,7 @@ function ShellContent(): React.ReactElement {
   const [activeTab, setActiveTab] = useState<TabId>('products');
   const session = loadSession();
   const email = session?.user?.email ?? '';
+  const roles: string[] = Array.isArray(session?.user?.roles) ? (session.user.roles as string[]) : [];
 
   const signOut = (): void => {
     clearSession();
@@ -49,23 +50,51 @@ function ShellContent(): React.ReactElement {
   };
 
   const tenantId = session?.user?.tenantId || session?.tenantId || 'demo-tenant';
+
+  /**
+   * Office label derived from the REAL authenticated role set. The numbered
+   * floor ↔ role mapping is an internal detail and is never exposed — the
+   * label is descriptive only and always server-derived.
+   */
+  const officeLabel = ((): string => {
+    if (roles.includes('PLATFORM_OWNER')) return 'Executive Office';
+    if (roles.includes('RESTAURANT_OWNER')) return 'Restaurant Owner Office';
+    if (roles.includes('BRANCH_MANAGER')) return 'Management Office';
+    if (roles.includes('KITCHEN_STAFF')) return 'Kitchen Office';
+    if (roles.includes('CASHIER')) return 'Cashier Terminal';
+    return 'Restaurant Office';
+  })();
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="flex items-center justify-between bg-white px-6 py-3 shadow-sm">
-        <h1 className="text-lg font-bold text-gray-900">Eleva Backoffice</h1>
-        <div className="flex items-center gap-3">
-          <span className="text-xs text-gray-500">{email}</span>
-          <button
-            type="button"
-            onClick={signOut}
-            className="rounded border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50"
-          >
-            Sign out
-          </button>
+    <div className="min-h-screen bg-slate-100">
+      {/* Office header — premium architectural band */}
+      <header className="bg-slate-950 text-white">
+        <div className="mx-auto max-w-7xl px-4 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-orange-500 to-pink-500 flex items-center justify-center font-black text-sm shadow-lg">
+              E
+            </div>
+            <div>
+              <div className="font-black tracking-tight leading-none">ELEVA</div>
+              <div className="text-[10px] text-slate-400 uppercase tracking-widest mt-1">{officeLabel}</div>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="text-xs text-slate-400 hidden sm:block">{email}</span>
+            <button
+              type="button"
+              onClick={signOut}
+              className="rounded-lg border border-white/15 px-3 py-1.5 text-xs text-white/80 hover:bg-white/5 hover:text-white transition-colors"
+            >
+              Sign out
+            </button>
+          </div>
         </div>
+        {/* Accent line */}
+        <div className="h-0.5 bg-gradient-to-r from-orange-500 via-pink-500 to-purple-500" />
       </header>
 
-      <nav className="flex gap-1 overflow-x-auto border-b bg-white px-4" aria-label="Sections">
+      <nav className="sticky top-0 z-10 flex gap-1 overflow-x-auto border-b bg-white/95 backdrop-blur px-4" aria-label="Sections">
         {TABS.map((tab) => (
           <button
             key={tab.id}
@@ -74,7 +103,7 @@ function ShellContent(): React.ReactElement {
             aria-current={activeTab === tab.id ? 'page' : undefined}
             className={`whitespace-nowrap border-b-2 px-3 py-3 text-sm font-semibold ${
               activeTab === tab.id
-                ? 'border-blue-600 text-blue-600'
+                ? 'border-orange-500 text-orange-600'
                 : 'border-transparent text-gray-500 hover:text-gray-700'
             }`}
           >
@@ -83,7 +112,7 @@ function ShellContent(): React.ReactElement {
         ))}
       </nav>
 
-      <main className="p-6">
+      <main className="p-4 sm:p-6">
         {activeTab === 'dashboard' ? <><DashboardMetrics tenantId={tenantId}/><OrdersManager tenantId={tenantId}/></> : null}
         {activeTab === 'products' ? <ProductsModule /> : null}
         {activeTab === 'categories' ? <CategoriesModule /> : null}

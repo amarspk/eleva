@@ -47,11 +47,26 @@ Phase 4 preserves the existing project-state/roadmap requirements that remain ap
 - Professional modern restaurant web design; not a generic CRUD-looking interface. ✅ (first unit)
 - Additional visual polish only when it materially improves usability/hierarchy/accessibility/perceived quality; no decoration-only effects. ⏳
 
-## Eleva brand & marketing platform (P2) — NOT STARTED
+## Eleva brand & marketing platform (P2) — ✅ COMPLETE (ELEVA Tower, commit pending)
 
-- Separate Eleva marketing website, independent from the platform dashboard.
-- Professional marketing homepage: hero + appropriate animations, features, how it works, pricing, about, contact, FAQ, terms, privacy, CTA/signup.
-- Elevator/building metaphor as a UX/branding concept (Floor 1 cashier, Floor 2 management, Floor 3 owner, special platform floor); branding metaphor only, never a security boundary.
+**The ELEVA Tower IS the official ELEVA Brand & Marketing Platform** (per the approved P2 CTO directive — NOT a separate traditional marketing website).
+
+- The Tower is simultaneously ELEVA's visual identity, public marketing website, brand experience, information architecture, public entry point, login gateway, and the transition into authenticated ELEVA offices. ✅
+- **Exterior** — cinematic, architectural ELEVA tower facade with the ELEVA logo integrated; responds to time-of-day (morning/day/sunset/night: sun/moon/stars, sky gradients, illuminated windows at night). ✅
+- **Dynamic environment** — time-of-day computed client-side; real weather fetched from Open-Meteo (Muscat coordinates) with graceful fallback to time-based visuals on failure; weather is purely cosmetic and never gates authorization/permissions/business logic. ✅
+- **Reception** — the tower exterior transitions into a reception lobby with distinct architectural zones (About, What we do, How it works, Restaurant Websites, POS & Integrations, Arabic & English, Pricing, FAQ, Contact, Terms & Privacy); each zone is a visually distinct corner with its own styling. ✅
+- **Elevator = login** — the visitor signs in inside an elevator experience (doors close → floor indicator animates → arrive). The server determines identity, role, restaurant, branch and permissions. The user is NEVER asked to choose a role. ✅
+- **No role→floor disclosure** — the floor/role mapping is an internal implementation detail; never displayed publicly. The authenticated office shows only a descriptive label derived from the real session roles. ✅
+- **Keep me logged in** — existing secure session mechanism: authenticated visitors skip the Tower UI and go straight to their office (server-side auth not bypassed). ✅
+- **Authorized offices** — the authenticated dashboard (BackofficeShell) wears the premium office metaphor (header band, office label from real roles); all RBAC/permissions remain server-authoritative. ✅
+- **Visual identity** — consistent ELEVA logo/typography/color system (orange→pink gradient accent, slate tower palette) across exterior, reception, elevator, and offices; restaurant branding stays logically separate. ✅
+- **Arabic + English / LTR + RTL** — the Tower supports a bilingual toggle; `dir="rtl"` flips the experience; Arabic font stack applied. ✅
+- **Responsive** — exterior/reception stack gracefully on mobile (no clip-path), sticky nav scrolls horizontally. ✅
+- **Accessibility** — `prefers-reduced-motion` respected (global CSS kill-switch), keyboard-navigable buttons, meaningful labels, readable contrast. ✅
+- **Performance** — no heavy 3D engine; CSS gradients/animations only; lazy environment updates. ✅
+- **SEO** — title/description/OpenGraph in the backoffice layout; the exterior hero (ELEVA, tagline, CTAs) is semantic crawlable HTML, not an animation-only canvas. ✅
+- **Architecture rule** — the Tower is a presentation layer; auth/RBAC/tenant isolation/subscriptions remain server-authoritative. ✅
+- **Tests** — all Eleva Tower suites green (28 tests across 5 suites: ElevaTower, ElevaTowerExterior, ElevaReception, ElevaElevator, ElevaEnvironment); backoffice tsc 0 errors; production build succeeds (all routes generated); runtime `/`, `/eleva`, `/login` all HTTP 200 with the Tower/Elevator rendering.
 
 ## Printing & receipts (P3) — NOT STARTED
 

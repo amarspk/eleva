@@ -1,39 +1,36 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { BackofficeShell } from './components/BackofficeShell';
+import { ElevaTower } from './components/ElevaTower';
 import { loadSession } from './lib/auth';
 
 /**
- * Backoffice entry point.
+ * ELEVA entry point.
  *
- * AUDIT-014: renders the CRUD shell. Tenant context comes from the verified
- * session and is attached to every request by the shared API client.
- *
- * Unauthenticated visitors are redirected to the standalone /login screen (the
- * restaurant-creation wizard remains at /setup for brand-new tenants).
+ * Unauthenticated visitors land on the ELEVA Tower (exterior → reception →
+ * elevator login). Authenticated users go straight to their office
+ * (the BackofficeShell). Tenant context comes from the verified session.
  */
 export default function Page(): React.ReactNode {
-  const router = useRouter();
   const [authed, setAuthed] = useState<boolean | null>(null);
 
   useEffect(() => {
-    const session = loadSession();
-    const isAuthed = !!session?.accessToken;
-    setAuthed(isAuthed);
-    if (!isAuthed) {
-      router.replace('/login');
+    try {
+      const session = loadSession();
+      setAuthed(!!session?.accessToken);
+    } catch {
+      setAuthed(false);
     }
-  }, [router]);
+  }, []);
 
-  if (authed === null || !authed) {
+  if (authed === null) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-50">
-        <p className="text-sm text-gray-500">Loading…</p>
+      <div className="flex min-h-screen items-center justify-center bg-slate-950">
+        <p className="text-sm text-slate-400">Entering the ELEVA Tower…</p>
       </div>
     );
   }
 
-  return <BackofficeShell />;
+  return authed ? <BackofficeShell /> : <ElevaTower />;
 }
