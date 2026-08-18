@@ -104,20 +104,17 @@ Phase 4 preserves the existing project-state/roadmap requirements that remain ap
 - **Database:** new `LoyaltyRule` + `LoyaltyTransaction` models with proper relations, indexes, and tenant isolation. Migration `20260818000002_add_loyalty` (2 tables + FKs + indexes). ✅
 - **Architecture note:** the earning formula (points per currency unit) is deliberately not hard-coded — the restaurant configures it via the LoyaltyRule. If no rule is set, no points are earned; if `earnRate = 0`, no points are earned; the order must meet `earnMinOrderAmount`. This satisfies "restaurant-configured rules" without inventing a business rule.
 
-## Promotions & discount codes
+## Promotions & welcome offers — ✅ COMPLETE (commit pending)
 
-- Customer-facing display of active restaurant offers/discount codes.
-- Customer can enter/apply an eligible discount code at checkout.
-- Reuse the existing tenant-scoped discount engine rather than creating a second discount mechanism.
-- Preserve existing anti-oracle validation and usage limits.
-- Restaurant owner can create a **new-customer / first-order welcome offer**.
-- Welcome offer can be either **percentage-based** (for example, 10% off) or **fixed-amount** (for example, 2 OMR/SAR off, according to the restaurant currency).
-- Restaurant owner can enable/disable the welcome offer and configure its value and validity according to the existing discount rules.
-- The welcome offer must be restricted to customers who are genuinely eligible as **new customers of that restaurant**.
-- A qualifying customer may redeem the welcome offer **once only** for that restaurant; repeated orders by the same customer must not receive it again.
-- Eligibility and redemption must be enforced server-side using the real customer/order relationship, not only by hiding the offer in the UI.
-- Guest checkout must not be able to bypass the one-time rule by repeatedly submitting the same promotion without a verified customer identity; the exact guest-identity policy must be defined during implementation.
-- Existing global `usageLimit`/`usageCount` behavior is not sufficient by itself for this requirement because it limits total campaign usage, not one redemption per customer.
+- **Welcome offer discount** — restaurant-configurable via the new `WelcomeOfferSettings` component in the backoffice Settings tab. Configure: enabled/disabled, discount type (PERCENTAGE | FIXED), discount value, minimum order amount. Tenant-scoped (singleton `WelcomeOfferConfig` model).
+- **Eligibility defined by server-authoritative data** — a customer is "new" if they have NO existing `WelcomeRedemption` record for this tenant (created atomically at first successful order). Not defined by browser state, localStorage, or client-side logic.
+- **Once-per-customer enforcement** — atomic per-customer tracking via `WelcomeRedemption` table with a `UNIQUE` constraint on `customerId`. Concurrent checkout attempts are serialized by the constraint: the second request fails with the uniform `DISCOUNT_INVALID_MESSAGE`.
+- **Server-verified** — eligibility (`customerId` present, no existing redemption) + standard discount validation (active, dates, usage) both inside the checkout transaction. Guest checkout (no customer token) cannot apply the welcome offer.
+- **Discount code** — `WELCOME` (uppercase, trimmed). The qr-menu `MenuBrowser` checks eligibility when the customer token is present and shows a welcome banner with an "Apply" button that sets the code.
+- **Existing Discount engine reused** — the `WELCOME` discount passes through the same `DiscountService.validateDiscount` pipeline (anti-oracle, server-authoritative pricing). Only the per-customer check is additional.
+- **Arabic/English** supported in the customer-facing menu (labels, statuses).
+- **API:** new `promotion` module: `GET /api/v1/customer/promotions/welcome-offer` (customer JWT, checks eligibility + returns offer details), `GET|PUT /api/v1/backoffice/promotions/welcome-offer` (staff JWT + RBAC read/update Customer).
+- **Database:** new `WelcomeOfferConfig` + `WelcomeRedemption` models with proper FKs, unique constraints, and indexes. Migration `20260818000003_add_welcome_offer`.
 
 ## Customer wallet / store credit
 

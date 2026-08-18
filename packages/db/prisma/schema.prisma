@@ -138,6 +138,8 @@ model Tenant {
   designVersions TenantDesignVersion[]
   loyaltyRules          LoyaltyRule[]
   loyaltyTransactions   LoyaltyTransaction[]
+  welcomeOfferConfig    WelcomeOfferConfig?
+  welcomeRedemptions    WelcomeRedemption[]
 
   @@unique([subdomain], map: "idx_tenants_subdomain")
   @@unique([customDomain], map: "idx_tenants_custom_domain")
@@ -553,7 +555,7 @@ model Order {
   invoices      Invoice?
   kitchenQueues KitchenQueue[]
   loyaltyTransactions   LoyaltyTransaction[]
-
+  welcomeRedemptions     WelcomeRedemption[]
   @@index([tenantId, branchId], map: "idx_orders_tenant_branch")
   @@index([customerId], map: "idx_orders_customer")
   @@index([tableId], map: "idx_orders_table")
@@ -626,6 +628,7 @@ model Customer {
   tenant Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   orders Order[]
   loyaltyTransactions   LoyaltyTransaction[]
+  welcomeRedemptions     WelcomeRedemption[]
 
   @@unique([email, tenantId], map: "idx_customers_email_tenant")
   @@map("customers")
@@ -716,6 +719,38 @@ model LoyaltyTransaction {
   @@map("loyalty_transactions")
 }
 
+
+
+model WelcomeOfferConfig {
+  id            String       @id @default(uuid()) @db.Uuid
+  tenantId      String       @unique @db.Uuid
+  enabled       Boolean      @default(false)
+  discountType  DiscountType
+  discountValue Decimal      @db.Decimal(10, 2)
+  minOrderAmount Decimal     @default(0) @db.Decimal(10, 2)
+  createdAt     DateTime     @default(now()) @db.Timestamptz
+  updatedAt     DateTime     @updatedAt @db.Timestamptz
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("welcome_offer_configs")
+}
+
+model WelcomeRedemption {
+  id         String   @id @default(uuid()) @db.Uuid
+  tenantId   String   @db.Uuid
+  customerId String   @unique @db.Uuid
+  orderId    String   @db.Uuid
+  createdAt  DateTime @default(now()) @db.Timestamptz
+
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  order    Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, customerId], map: "idx_welcome_redemption_tenant_customer")
+  @@index([customerId], map: "idx_welcome_redemption_customer")
+  @@map("welcome_redemptions")
+}
 
 model AuditLog {
   id         String   @id @default(uuid()) @db.Uuid

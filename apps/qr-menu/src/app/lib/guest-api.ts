@@ -20,6 +20,7 @@ export function buildCheckoutPayload(
     branchId: string;
     paymentMethod: CreateGuestOrderPayload['paymentMethod'];
     specialNotes?: string;
+    discountCode?: string;
   },
 ): CreateGuestOrderPayload {
   const payload: CreateGuestOrderPayload = {
@@ -48,6 +49,10 @@ export function buildCheckoutPayload(
   const notes = context.specialNotes?.trim();
   if (notes) {
     payload.specialNotes = notes;
+  }
+
+  if (context.discountCode?.trim()) {
+    payload.discountCode = context.discountCode.trim();
   }
 
   return payload;

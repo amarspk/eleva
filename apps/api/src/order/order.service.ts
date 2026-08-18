@@ -23,7 +23,7 @@ import { KdsGateway } from '../kds/kds.gateway';
 import { WebhookService } from '../webhook/webhook.service';
 import { EmailService } from '../notification/email/email.service';
 import { SmsService } from '../notification/sms/sms.service';
-import { DiscountService } from '../discount/discount.service';
+import { DiscountService, DISCOUNT_INVALID_MESSAGE } from '../discount/discount.service';
 import { InvoicePdfService } from '../invoice/invoice-pdf.service';
 import { InvoiceStorageService } from '../invoice/invoice-storage.service';
 
@@ -357,6 +357,13 @@ export class OrderService {
           where: { id: discountId },
           data: { usageCount: { increment: 1 } },
         });
+        // Phase 4 — Welcome offer: per-customer eligibility inside the tx.
+        if (discountCode === 'WELCOME' && customerId) {
+          const existingRedem = await tx.welcomeRedemption.findUnique({ where: { customerId } });
+          if (existingRedem) {
+            throw new BadRequestException(DISCOUNT_INVALID_MESSAGE);
+          }
+        }
       }
       const total = Number((subtotal + taxAmount - discountAmount).toFixed(2));
 
@@ -392,6 +399,13 @@ export class OrderService {
           },
         },
       });
+
+      // Phase 4 — Welcome offer: record redemption atomically
+      if (discountCode === 'WELCOME' && customerId) {
+        await tx.welcomeRedemption.create({
+          data: { tenantId: userTenantId, customerId, orderId: createdOrder.id },
+        });
+      }
 
       // Create kitchen_queues entry for KDS ticket tracking
       const ticketNumber = orderNumber.slice(-3);

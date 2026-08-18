@@ -137,6 +137,8 @@ export interface CreateGuestOrderPayload {
   // Phase 3 preorder (mirrors CreateOrderRequestDto, isPreorder/scheduledAt)
   isPreorder?: boolean;
   scheduledAt?: string;
+  /** Phase 4 — Promotions: optional discount code (e.g. WELCOME) */
+  discountCode?: string;
 }
 
 /**

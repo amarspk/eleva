@@ -17,6 +17,7 @@ import {
 } from '../lib/types';
 import { computeCartItemCount, computeCartSubtotal, computeUnitPrice, cartItemKey } from '../lib/pricing';
 import { buildCheckoutPayload, submitGuestOrder } from '../lib/guest-api';
+import { getCustomerToken, checkWelcomeEligibility } from '../lib/customer-api';
 import { resolveSectionProducts } from '../lib/design-sections';
 import type { DesignSection, TenantDesignPayload } from '../lib/design-sections';
 import { formatPrice } from '../lib/format';
@@ -162,10 +163,26 @@ export const MenuBrowser: React.FC<MenuBrowserProps> = ({ initialData, token }) 
   const [isPreorder, setIsPreorder] = useState(false);
   const [scheduledAt, setScheduledAt] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [discountCode, setDiscountCode] = useState<string | null>(null);
+  const [welcomeOffer, setWelcomeOffer] = useState<{discountType:string;discountValue:number;minOrderAmount:number} | null>(null);
+  const [welcomeChecked, setWelcomeChecked] = useState(false);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const [confirmation, setConfirmation] = useState<GuestOrderConfirmation | null>(null);
 
   const scrollYRef = useRef(0);
+
+  useEffect(() => {
+    if (!getCustomerToken() || welcomeChecked) return;
+    (async () => {
+      try {
+        const r = await checkWelcomeEligibility();
+        if (r.eligible && r.offer) setWelcomeOffer(r.offer);
+      } catch {
+        /* not eligible */
+      }
+      setWelcomeChecked(true);
+    })();
+  }, [welcomeChecked]);
 
   const openCart = useCallback(() => {
     scrollYRef.current = window.scrollY;

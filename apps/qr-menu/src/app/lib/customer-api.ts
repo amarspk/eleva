@@ -119,6 +119,11 @@ export function redeemLoyaltyPoints(points: number): Promise<{ success: boolean;
   return request('/api/v1/customer/loyalty/redeem', { method: 'POST', body: { points }, auth: true, csrf: true });
 }
 
+
+export function checkWelcomeEligibility(): Promise<{ eligible: boolean; offer?: { discountType: string; discountValue: number; minOrderAmount: number } }> {
+  return request('/api/v1/customer/promotions/welcome-offer', { auth: true });
+}
+
 export function customerLogout(): Promise<{ success: boolean }> {
   return request<{ success: boolean }>('/api/v1/customer/logout', { method: 'POST', auth: true, csrf: true });
 }
