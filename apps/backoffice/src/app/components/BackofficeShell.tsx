@@ -11,6 +11,7 @@ import { StaffModule } from './modules/StaffModule';
 import { DesignBuilder } from './DesignBuilder';
 import { MediaLibrary } from './MediaLibrary';
 import { OrdersManager } from './OrdersManager';
+import { ReceiptDesigner } from './ReceiptDesigner';
 import { DashboardMetrics } from './DashboardMetrics';
 import { clearSession, loadSession } from '../lib/auth';
 
@@ -22,7 +23,7 @@ import { clearSession, loadSession } from '../lib/auth';
  * shared API client.
  */
 
-type TabId = 'dashboard'|'products'|'categories'|'branches'|'tables'|'customers'|'users'|'orders'|'design'|'media'|'settings';
+type TabId = 'dashboard'|'products'|'categories'|'branches'|'tables'|'customers'|'users'|'orders'|'design'|'receipts'|'media'|'settings';
 
 const TABS: { id: TabId; label: string }[] = [
   { id: 'dashboard', label: 'Dashboard' },
@@ -34,6 +35,7 @@ const TABS: { id: TabId; label: string }[] = [
   { id: 'customers', label: 'Customers' },
   { id: 'users', label: 'Staff' },
   { id: 'design', label: 'Design / Website' },
+  { id: 'receipts', label: 'Receipts' },
   { id: 'media', label: 'Media Library' },
   { id: 'settings', label: 'Settings' },
 ];
@@ -122,6 +124,7 @@ function ShellContent(): React.ReactElement {
         {activeTab === 'customers' ? <CustomersModule /> : null}
         {activeTab === 'users' ? <StaffModule /> : null}
         {activeTab === 'design' ? <DesignBuilder tenantId={tenantId}/> : null}
+        {activeTab === 'receipts' ? <ReceiptDesigner tenantId={tenantId}/> : null}
         {activeTab === 'media' ? <MediaLibrary tenantId={tenantId}/> : null}
         {activeTab === 'settings' ? <div className="bg-white rounded-xl border p-6"><h3 className="font-bold">Settings</h3><p className="text-sm text-gray-600 mt-2">Tenant: {tenantId}</p><p className="text-xs text-gray-500">Subscription, branches, language (AR/EN) and platform branding managed via Eleva design builder. RTL/LTR verified.</p></div> : null}
       </main>

@@ -9,6 +9,7 @@ import { TenantModule } from './tenant/tenant.module';
 import { BranchModule } from './branch/branch.module';
 import { MenuModule } from './menu/menu.module';
 import { OrderModule } from './order/order.module';
+import { ReceiptModule } from './receipt/receipt.module';
 import { DesignModule } from './design/design.module';
 import { KdsModule } from './kds/kds.module';
 import { RestaurantModule } from './restaurant/restaurant.module';
@@ -36,7 +37,7 @@ import { MetricsService } from './common/metrics/metrics.service';
 import { createHttpMetricsMiddleware } from './common/metrics/metrics.middleware';
 
 @Module({
-  imports: [EventEmitterModule.forRoot(), CacheModule, LoggingModule, HealthModule, MetricsModule, CsrfModule, SanitizationModule, AuthModule, TenantModule, BranchModule, MenuModule, RestaurantModule, OrderModule, KdsModule, CustomerModule, BillingModule, AdminModule, AssetModule, WebhookModule, DeviceTokenModule, SubscriptionModule, AuditModule, PaymentModule, MediaModule, UserModule, DesignModule],
+  imports: [EventEmitterModule.forRoot(), CacheModule, LoggingModule, HealthModule, MetricsModule, CsrfModule, SanitizationModule, AuthModule, TenantModule, BranchModule, MenuModule, RestaurantModule, OrderModule, KdsModule, CustomerModule, BillingModule, AdminModule, AssetModule, WebhookModule, DeviceTokenModule, SubscriptionModule, AuditModule, PaymentModule, MediaModule, UserModule, DesignModule, ReceiptModule],
   providers: [
     {
       provide: APP_INTERCEPTOR,

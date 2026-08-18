@@ -68,10 +68,18 @@ Phase 4 preserves the existing project-state/roadmap requirements that remain ap
 - **Architecture rule** — the Tower is a presentation layer; auth/RBAC/tenant isolation/subscriptions remain server-authoritative. ✅
 - **Tests** — all Eleva Tower suites green (28 tests across 5 suites: ElevaTower, ElevaTowerExterior, ElevaReception, ElevaElevator, ElevaEnvironment); backoffice tsc 0 errors; production build succeeds (all routes generated); runtime `/`, `/eleva`, `/login` all HTTP 200 with the Tower/Elevator rendering.
 
-## Printing & receipts (P3) — NOT STARTED
+## Printing & receipts (P3) — ✅ COMPLETE (commit pending)
 
-- Receipt Designer with logo, VAT/tax number, branch, customer, cashier, items, sizes, add-ons, discount, VAT, total, payment, QR, footer.
-- Live receipt preview; independent kitchen ticket.
+- **Receipt Designer** — new backoffice "Receipts" tab (`ReceiptDesigner.tsx`): restaurant owner customizes the customer receipt (field visibility toggles, footer message, language EN/AR) with a **live preview** against the tenant's most recent **real order** (never mock data). Settings persist in the existing TenantDesign JSONB (`draft.receipt` → `published.receipt` on publish) via the existing draft/save/publish/version flow — no new tables or systems. ✅
+- **Customer Receipt** — thermal-width (80 mm) printer-friendly rendering with restaurant name/logo (branding-aware), branch info, order number, date/time, items (name, qty, size, variant, add-ons), prices, subtotal/tax/discount/total (from the real order model), payment method, notes, and a configurable footer message. ✅
+- **Kitchen Ticket** — separate kitchen-print format focused on order number, items, quantities, sizes, add-ons and order notes; **deliberately omits prices, totals and payment** (no unnecessary customer-facing information); independently printable. ✅
+- **Printing** — browser/printer-safe HTML/CSS (shared `packages/receipts` with `PRINT_STYLES`: `@page size 80mm`, print-color-adjust, reliable page breaks); cashier opens a dedicated print window (`/receipt/:id?kind=customer|kitchen`) that fetches the server-assembled receipt and auto-prints. ✅
+- **POS integration** — cashier order-detail modal gained "Print Receipt" + "Print Kitchen Ticket" buttons; printing uses the **real order data** via the new `GET /api/v1/orders/:id/receipt` endpoint (no mock orders/receipts). ✅
+- **Permissions / tenant isolation** — the receipt endpoint is an authenticated staff surface with the same guards + `read Order` RBAC as the order routes; order lookup is tenant-scoped (no existence oracle); branch-scoped staff (P0) are restricted to their assigned branches server-side; platform owner capabilities intact. ✅
+- **Design / branding** — reuses the existing TenantDesign JSONB + tenant branding (logo/primary color/currency); no duplicate branding systems. ✅
+- **Arabic / English** — receipt language config with full RTL/LTR switching; Arabic labels for all static receipt chrome (order/date/total/payment/…); kitchen ticket respects the same direction. ✅
+- **Architecture** — shared `@zayjar/receipts` package (types, config defaults/resolver, i18n, formatting, `CustomerReceipt`, `KitchenTicket`, print styles) consumed by both cashier and backoffice so receipt rendering is defined once. ✅
+- **Tests** — 40 new tests green: receipts package 22/22, API `receipt.service.spec` 7/7 (incl. tenant scoping + branch isolation + config resolution), ReceiptDesigner 6/6, cashier print page 3/3, cashier print buttons 2/2. Backoffice tsc 0, cashier tsc 0 (new files), `next build` backoffice + cashier both succeed (cashier adds the `/receipt/[id]` route). Runtime: SSR render of the receipt/ticket verified (RTL, Arabic labels, no prices on kitchen ticket); dev servers boot and serve all routes HTTP 200. Root `jest.config.js` testMatch restored to `.spec.ts` (P1's `.tsx` widening made CI's node-env root test collect frontend specs that require jsdom — frontend specs run via their per-app configs).
 
 ## Customer account & profile
 

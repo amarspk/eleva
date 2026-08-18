@@ -447,6 +447,24 @@ export const CashierTerminal: React.FC<{ tenantId: string; branchId: string; api
             </div>
             <div className="mt-3 flex justify-end gap-2">
               <button
+                onClick={() => {
+                  const orderId = String((viewingOrder as { id?: string }).id ?? '');
+                  if (orderId) window.open(`/receipt/${orderId}?kind=customer`, '_blank', 'width=420,height=680');
+                }}
+                className="px-3 py-1 rounded bg-blue-600 text-xs text-white hover:bg-blue-700"
+              >
+                Print Receipt
+              </button>
+              <button
+                onClick={() => {
+                  const orderId = String((viewingOrder as { id?: string }).id ?? '');
+                  if (orderId) window.open(`/receipt/${orderId}?kind=kitchen`, '_blank', 'width=420,height=680');
+                }}
+                className="px-3 py-1 rounded bg-slate-700 text-xs text-white hover:bg-slate-800"
+              >
+                Print Kitchen Ticket
+              </button>
+              <button
                 onClick={() => setViewingOrder(null)}
                 className="px-3 py-1 rounded bg-gray-200 text-xs text-gray-700 hover:bg-gray-300"
               >
