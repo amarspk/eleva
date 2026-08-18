@@ -352,6 +352,7 @@ describe('RbacPermissionGuard Unit & ABAC Tests', () => {
         isPreorder: false,
         scheduledAt: null,
         preorderStatus: null,
+        walletUsed: 0,
         status: 'PAID' as any, // Real status in DB is PAID
         subtotal: 10 as any,
         taxAmount: 1 as any,

@@ -14,6 +14,7 @@ import { OrdersManager } from './OrdersManager';
 import { ReceiptDesigner } from './ReceiptDesigner';
 import { LoyaltySettings } from './LoyaltySettings';
 import { WelcomeOfferSettings } from './WelcomeOfferSettings';
+import { WalletManager } from './WalletManager';
 import { DashboardMetrics } from './DashboardMetrics';
 import { clearSession, loadSession } from '../lib/auth';
 
@@ -129,7 +130,8 @@ function ShellContent(): React.ReactElement {
         {activeTab === 'receipts' ? <ReceiptDesigner tenantId={tenantId}/> : null}
         {activeTab === 'media' ? <MediaLibrary tenantId={tenantId}/> : null}
         {activeTab === 'settings' ? <><div className="bg-white rounded-xl border p-6"><h3 className="font-bold">Settings</h3><p className="text-sm text-gray-600 mt-2">Tenant: {tenantId}</p><p className="text-xs text-gray-500">Subscription, branches, language (AR/EN) and platform branding managed via Eleva design builder. RTL/LTR verified.</p></div><div className="mt-4"><LoyaltySettings tenantId={tenantId} /></div>
-        <div className="mt-4"><WelcomeOfferSettings tenantId={tenantId} /></div></> : null}
+        <div className="mt-4"><WelcomeOfferSettings tenantId={tenantId} /></div>
+        <div className="mt-4"><WalletManager tenantId={tenantId} /></div></> : null}
       </main>
     </div>
   );

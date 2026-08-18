@@ -407,6 +407,29 @@ export class OrderService {
         });
       }
 
+      // Phase 4 — Wallet: apply store credit toward the order (atomic debit)
+      if (customerId) {
+        const wallet = await tx.customerWallet.findUnique({ where: { customerId } });
+        if (wallet && Number(wallet.balance) > 0) {
+          const walletAmt = Math.min(Number(wallet.balance), Number(total));
+          if (walletAmt > 0) {
+            const walletAfter = Number(wallet.balance) - walletAmt;
+            await tx.customerWallet.update({
+              where: { id: wallet.id },
+              data: { balance: walletAfter },
+            });
+            await tx.walletTransaction.create({
+              data: {
+                tenantId: userTenantId, customerId, walletId: wallet.id,
+                type: 'ORDER_PAYMENT', amount: -walletAmt,
+                balanceAfter: walletAfter, orderId: createdOrder.id,
+                description: 'Payment for order',
+              },
+            });
+          }
+        }
+      }
+
       // Create kitchen_queues entry for KDS ticket tracking
       const ticketNumber = orderNumber.slice(-3);
       await tx.kitchenQueue.create({

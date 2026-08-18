@@ -120,6 +120,11 @@ export function redeemLoyaltyPoints(points: number): Promise<{ success: boolean;
 }
 
 
+
+export function fetchWalletBalance(): Promise<{ balance: number; transactions: Array<Record<string, unknown>> }> {
+  return request('/api/v1/customer/wallet', { auth: true });
+}
+
 export function checkWelcomeEligibility(): Promise<{ eligible: boolean; offer?: { discountType: string; discountValue: number; minOrderAmount: number } }> {
   return request('/api/v1/customer/promotions/welcome-offer', { auth: true });
 }

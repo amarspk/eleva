@@ -134,6 +134,8 @@ export function CustomerAccount({ branding }: { branding: Branding }): React.Rea
   const [savedFlash, setSavedFlash] = useState(false);
   const [loyaltyBalance, setLoyaltyBalance] = useState<number | null>(null);
   const [loyaltyHistory, setLoyaltyHistory] = useState<Array<Record<string, unknown>> | null>(null);
+  const [walletBalance, setWalletBalance] = useState<number | null>(null);
+  const [walletHistory, setWalletHistory] = useState<Array<Record<string, unknown>> | null>(null);
   const [redeemInput, setRedeemInput] = useState('');
   const [redeemResult, setRedeemResult] = useState<string | null>(null);
   const [redeemCode, setRedeemCode] = useState('');
@@ -232,6 +234,8 @@ export function CustomerAccount({ branding }: { branding: Branding }): React.Rea
     setOrders(null);
     setLoyaltyBalance(null);
     setLoyaltyHistory(null);
+    setWalletBalance(null);
+    setWalletHistory(null);
     setMode('login');
   };
 
@@ -425,6 +429,38 @@ export function CustomerAccount({ branding }: { branding: Branding }): React.Rea
                   ))}
                 </div>
               </>
+            )}
+          </div>
+
+          {/* Wallet */}
+          <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #e5e7eb', padding: 20 }}>
+            <div style={{ fontSize: 15, fontWeight: 800, marginBottom: 8 }}>{lang === 'ar' ? 'محفظتي' : 'My wallet'}</div>
+            {walletBalance !== null && (
+              <div style={{ fontSize: 24, fontWeight: 700, color: '#059669', marginBottom: 4 }}>
+                {new Intl.NumberFormat(lang === 'ar' ? 'ar-EG' : 'en-US', { style: 'currency', currency: branding.currency || 'USD' }).format(walletBalance)}
+              </div>
+            )}
+            {walletHistory !== null && walletHistory.length > 0 && (
+              <>
+                <div style={{ fontSize: 13, fontWeight: 700, margin: '12px 0 6px' }}>{lang === 'ar' ? 'السجل' : 'History'}</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {walletHistory.slice(0, 20).map((tx: Record<string, unknown>) => (
+                    <div key={tx.id as string} style={{ fontSize: 12, display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #f3f4f6', paddingBottom: 4 }}>
+                      <span style={{ color: '#6b7280' }}>
+                        {tx.type === 'CREDIT' ? (lang === 'ar' ? 'إيداع' : 'Credit') :
+                         tx.type === 'ORDER_PAYMENT' ? (lang === 'ar' ? 'طلب' : 'Order payment') :
+                         tx.type === 'REFUND' ? (lang === 'ar' ? 'استرداد' : 'Refund') : String(tx.type)}
+                      </span>
+                      <span style={{ fontWeight: 700, color: Number(tx.amount) < 0 ? '#dc2626' : '#059669' }}>
+                        {Number(tx.amount) < 0 ? '' : '+'}{Number(tx.amount).toFixed(2)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+            {walletBalance !== null && walletBalance === 0 && (
+              <div style={{ fontSize: 13, color: '#6b7280' }}>{lang === 'ar' ? 'رصيد المحفظة صفر' : 'Wallet balance is zero.'}</div>
             )}
           </div>
 

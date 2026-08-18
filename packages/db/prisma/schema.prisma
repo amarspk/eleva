@@ -140,6 +140,8 @@ model Tenant {
   loyaltyTransactions   LoyaltyTransaction[]
   welcomeOfferConfig    WelcomeOfferConfig?
   welcomeRedemptions    WelcomeRedemption[]
+  customerWallets        CustomerWallet[]
+  walletTransactions     WalletTransaction[]
 
   @@unique([subdomain], map: "idx_tenants_subdomain")
   @@unique([customDomain], map: "idx_tenants_custom_domain")
@@ -537,6 +539,7 @@ model Order {
   discountId     String?     @db.Uuid
   discountCode   String?     @db.VarChar(50)
   tipAmount      Decimal     @default(0.00) @db.Decimal(10, 2)
+  walletUsed     Decimal     @default(0.00) @db.Decimal(10, 2)
   total          Decimal     @db.Decimal(10, 2)
   specialNotes   String?     @db.Text
   isPreorder     Boolean     @default(false)
@@ -556,6 +559,7 @@ model Order {
   kitchenQueues KitchenQueue[]
   loyaltyTransactions   LoyaltyTransaction[]
   welcomeRedemptions     WelcomeRedemption[]
+  walletTransactions     WalletTransaction[]
   @@index([tenantId, branchId], map: "idx_orders_tenant_branch")
   @@index([customerId], map: "idx_orders_customer")
   @@index([tableId], map: "idx_orders_table")
@@ -629,6 +633,8 @@ model Customer {
   orders Order[]
   loyaltyTransactions   LoyaltyTransaction[]
   welcomeRedemptions     WelcomeRedemption[]
+  wallet                 CustomerWallet?
+  walletTransactions     WalletTransaction[]
 
   @@unique([email, tenantId], map: "idx_customers_email_tenant")
   @@map("customers")
@@ -750,6 +756,46 @@ model WelcomeRedemption {
   @@index([tenantId, customerId], map: "idx_welcome_redemption_tenant_customer")
   @@index([customerId], map: "idx_welcome_redemption_customer")
   @@map("welcome_redemptions")
+}
+
+
+model CustomerWallet {
+  id         String   @id @default(uuid()) @db.Uuid
+  tenantId   String   @db.Uuid
+  customerId String   @unique @db.Uuid
+  balance    Decimal  @default(0.00) @db.Decimal(10, 2)
+  createdAt  DateTime @default(now()) @db.Timestamptz
+  updatedAt  DateTime @updatedAt @db.Timestamptz
+
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  wallets  WalletTransaction[]
+
+  @@index([tenantId], map: "idx_wallet_tenant")
+  @@map("customer_wallets")
+}
+
+model WalletTransaction {
+  id          String   @id @default(uuid()) @db.Uuid
+  tenantId    String   @db.Uuid
+  customerId  String   @db.Uuid
+  walletId    String   @db.Uuid
+  type        String   @db.VarChar(30)
+  amount      Decimal  @db.Decimal(10, 2)
+  balanceAfter Decimal @db.Decimal(10, 2)
+  orderId     String?  @db.Uuid
+  description String?  @db.Text
+  createdAt   DateTime @default(now()) @db.Timestamptz
+
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  wallet   CustomerWallet @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  order    Order?   @relation(fields: [orderId], references: [id], onDelete: SetNull)
+
+  @@index([walletId], map: "idx_wlt_tx_wallet")
+  @@index([customerId], map: "idx_wlt_tx_customer")
+  @@index([orderId], map: "idx_wlt_tx_order")
+  @@map("wallet_transactions")
 }
 
 model AuditLog {

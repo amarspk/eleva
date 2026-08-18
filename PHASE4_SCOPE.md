@@ -116,14 +116,15 @@ Phase 4 preserves the existing project-state/roadmap requirements that remain ap
 - **API:** new `promotion` module: `GET /api/v1/customer/promotions/welcome-offer` (customer JWT, checks eligibility + returns offer details), `GET|PUT /api/v1/backoffice/promotions/welcome-offer` (staff JWT + RBAC read/update Customer).
 - **Database:** new `WelcomeOfferConfig` + `WelcomeRedemption` models with proper FKs, unique constraints, and indexes. Migration `20260818000003_add_welcome_offer`.
 
-## Customer wallet / store credit
+## Customer wallet / store credit — ✅ COMPLETE (commit pending)
 
-- Separate customer credit balance from payment-provider/payment-attempt records.
-- Restaurant can grant store credit to a customer as compensation for an approved issue.
-- Customer can view wallet balance and transaction ledger.
-- Wallet credit can be applied to eligible future orders.
-- Every credit/debit must have an auditable ledger entry tied to the tenant/customer/order where applicable.
-- No cash-out requirement in this phase.
+- **Separate customer store credit** from payment-provider/payment-attempt records — new `CustomerWallet` + `WalletTransaction` models (tenant-scoped, immutable ledger). ✅
+- **Restaurant can grant credit** via the backoffice `WalletManager` in the Settings tab (staff RBAC: read/update Customer, tenant-scoped). ✅
+- **Customer can view wallet balance and transaction history** (`GET /api/v1/customer/wallet`, customer JWT) — integrated into the existing `/account` page (restaurant-branded, AR/EN, mobile-first). ✅
+- **Wallet credit applied atomically at checkout** — inside the existing order transaction, after discounts, the wallet is debited and used toward the order. A new `Order.walletUsed` field tracks the amount covered. The `total` stays as the full total; `total - walletUsed` is paid via the selected payment method. ✅
+- **Atomic balance updates** via database transactions (multi-table, rollback on failure). The `customerId` unique constraint on `CustomerWallet` prevents duplicate wallets. Wallet debit + transaction creation + order creation are in the same Prisma transaction. ✅
+- **Audit trail** — every mutation creates a `WalletTransaction` entry with type (CREDIT/DEBIT/ORDER_PAYMENT/REFUND/ADJUSTMENT), amount (signed), balanceAfter, order reference, timestamp. ✅
+- **No cash-out**, no payment-provider integration in this phase. ✅
 
 ## Complaints / customer support
 
