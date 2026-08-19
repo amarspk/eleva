@@ -15,3 +15,5 @@ data:
   TWILIO_FROM_NUMBER: "+15005550006"
   UNIFONIC_SENDER_ID: "Zayjar"
   SENDGRID_FROM_EMAIL: "noreply@zayjar.com"
+  # Staff UI origin from k8s/ingress.yml (backoffice.zayjar.com). Not the API host.
+  RESET_URL_BASE: "https://backoffice.zayjar.com"
