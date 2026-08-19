@@ -89,8 +89,8 @@ const docs: ControllerDoc[] = [
     tag: 'Assets',
     description: 'JWT-tenant-scoped presigned asset and optimization operations.',
     endpoints: [
-      { method: 'createPresignedUrl', summary: 'Create a presigned asset upload URL', auth: 'bearer', tenant: 'tenant-jwt', body: 'CreateAssetRequest', response: 'PresignedAsset', errors: [400, 401, 403] },
-      { method: 'optimizeImage', summary: 'Trigger asset image optimization', auth: 'bearer', tenant: 'tenant-jwt', body: 'OptimizeAssetRequest', response: 'OptimizedAsset', errors: [400, 401, 403] },
+      { method: 'createPresignedUrl', summary: 'Create a presigned asset upload URL', auth: 'bearer', tenant: 'tenant-jwt', permission: 'create:Media', body: 'CreateAssetRequest', response: 'PresignedAsset', errors: [400, 401, 403] },
+      { method: 'optimizeImage', summary: 'Trigger asset image optimization', auth: 'bearer', tenant: 'tenant-jwt', permission: 'update:Media', body: 'OptimizeAssetRequest', response: 'OptimizedAsset', errors: [400, 401, 403] },
     ],
   },
   {
@@ -205,12 +205,12 @@ const docs: ControllerDoc[] = [
   {
     controller: MediaController,
     tag: 'Media',
-    description: 'Current runtime behavior is documented as-is: this controller declares no JwtAuthGuard, although handlers read req.user?.tenantId and return 400 when no user tenant is present. AUDIT-011 does not alter this authorization inconsistency.',
+    description: 'JWT + RBAC media library. Tenant identity comes from the verified JWT; Media is a CASL subject without a repository-registry lookup (scoping is in MediaService).',
     endpoints: [
-      { method: 'upload', summary: 'Upload and process media', auth: 'actual-media', tenant: 'tenant-context', body: 'UploadMediaRequest', response: 'Media', status: 201, multipart: true, errors: [400, 403, 404, 409] },
-      { method: 'findAll', summary: 'List media for the resolved user tenant', auth: 'actual-media', tenant: 'tenant-context', response: responseArray('Media'), queries: [q('entityType', 'Optional entity type filter.'), q('entityId', 'Optional entity identifier filter.')], errors: [400, 403] },
-      { method: 'findOne', summary: 'Get one media record', auth: 'actual-media', tenant: 'tenant-context', response: 'Media', params: [p('id', 'Media identifier.', string)], errors: [400, 403, 404] },
-      { method: 'remove', summary: 'Delete one media record', auth: 'actual-media', tenant: 'tenant-context', response: 'MessageResponse', params: [p('id', 'Media identifier.', string)], errors: [400, 403, 404] },
+      { method: 'upload', summary: 'Upload and process media', auth: 'bearer', tenant: 'tenant-jwt', permission: 'create:Media', body: 'UploadMediaRequest', response: 'Media', status: 201, multipart: true, errors: [400, 401, 403, 404, 409] },
+      { method: 'findAll', summary: 'List media for the authenticated tenant', auth: 'bearer', tenant: 'tenant-jwt', permission: 'read:Media', response: responseArray('Media'), queries: [q('entityType', 'Optional entity type filter.'), q('entityId', 'Optional entity identifier filter.')], errors: [400, 401, 403] },
+      { method: 'findOne', summary: 'Get one media record', auth: 'bearer', tenant: 'tenant-jwt', permission: 'read:Media', response: 'Media', params: [p('id', 'Media identifier.', string)], errors: [400, 401, 403, 404] },
+      { method: 'remove', summary: 'Delete one media record', auth: 'bearer', tenant: 'tenant-jwt', permission: 'delete:Media', response: 'MessageResponse', params: [p('id', 'Media identifier.', string)], errors: [400, 401, 403, 404] },
     ],
   },
   {

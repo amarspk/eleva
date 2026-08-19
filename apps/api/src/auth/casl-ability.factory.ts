@@ -33,6 +33,10 @@ export type Subjects =
   // via dbTenantContext — the subject only needs to exist for `can()` to
   // match (no tenantRepositoryRegistry entry required).
   | 'Payment'
+  // Media library + presigned asset uploads. No tenantRepositoryRegistry
+  // entry: Media rows are scoped in MediaService/AssetService via JWT
+  // tenantId (same pattern as Payment).
+  | 'Media'
   | 'all';
 
 export type AppAbility = MongoAbility<[Action, Subjects]>;

@@ -250,6 +250,13 @@ async function main(): Promise<void> {
     // 20260811010000_payment_permissions for upgraded databases.
     { id: '328a0aa5-0576-4750-87bb-01ba2c283f74', action: 'create', resource: 'payment', description: 'Create wallet payments' },
     { id: 'fec355e8-c91f-45b6-83b7-fbb957c180ae', action: 'read', resource: 'payment', description: 'View wallet payments' },
+    // Media library + presigned asset uploads. Owner gets every row;
+    // MANAGER is granted these four explicitly. CASHIER/KITCHEN_STAFF
+    // are not (POS/KDS must not mutate tenant media).
+    { id: 'b005dd96-54ee-4311-a26a-62ca20f35820', action: 'create', resource: 'media', description: 'Upload media assets' },
+    { id: '82c64075-ec52-46e5-8b66-4471caf40afa', action: 'read', resource: 'media', description: 'View media assets' },
+    { id: '35885e3d-f0c2-4a3a-aada-164ef59a73cd', action: 'update', resource: 'media', description: 'Optimize media assets' },
+    { id: '21d7a846-1b80-405f-9d9c-6224e0485524', action: 'delete', resource: 'media', description: 'Delete media assets' },
   ];
 
   const permissions = await Promise.all(
@@ -393,6 +400,10 @@ async function main(): Promise<void> {
     { resource: 'payment', action: 'read' },
     { resource: 'payment', action: 'create' },
     { resource: 'restaurant', action: 'read' },
+    { resource: 'media', action: 'create' },
+    { resource: 'media', action: 'read' },
+    { resource: 'media', action: 'update' },
+    { resource: 'media', action: 'delete' },
   ]);
 
   // CASHIER — POS operations on the cashier's assigned branch(es).

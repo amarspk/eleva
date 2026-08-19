@@ -19,6 +19,7 @@ const OWNER = [
   'tenant:read', 'tenant:update',
   'payment:read', 'payment:create',
   'restaurant:read',
+  'media:create', 'media:read', 'media:update', 'media:delete',
 ];
 
 const MANAGER = [
@@ -30,6 +31,7 @@ const MANAGER = [
   'customer:read', 'customer:create', 'customer:update', 'customer:delete',
   'payment:read', 'payment:create',
   'restaurant:read',
+  'media:create', 'media:read', 'media:update', 'media:delete',
 ];
 
 const CASHIER = [
@@ -61,6 +63,7 @@ describe('nav-permissions (UI visibility only)', () => {
     expect(visible).toContain('products');
     expect(visible).toContain('orders');
     expect(visible).toContain('branches');
+    expect(visible).toContain('media');
     expect(visible).not.toContain('users');
     expect(visible).not.toContain('design');
   });

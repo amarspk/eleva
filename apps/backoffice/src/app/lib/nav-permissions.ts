@@ -65,12 +65,7 @@ export const NAV_TABS: NavTabDefinition[] = [
   { id: 'users', group: 'people', anyOf: [{ resource: 'user', action: 'read' }] },
   { id: 'design', group: 'experience', anyOf: [{ resource: 'tenant', action: 'read' }] },
   { id: 'receipts', group: 'experience', anyOf: [{ resource: 'order', action: 'read' }] },
-  // Media upload/list is JwtAuthGuard-only (no @RequirePermission). Visibility
-  // reuses existing product/tenant update grants used by branding/product images.
-  { id: 'media', group: 'experience', anyOf: [
-    { resource: 'product', action: 'update' },
-    { resource: 'tenant', action: 'update' },
-  ], inferredFromRelatedGrant: true },
+  { id: 'media', group: 'experience', anyOf: [{ resource: 'media', action: 'read' }] },
   { id: 'complaints', group: 'support', anyOf: [{ resource: 'customer', action: 'read' }] },
   { id: 'ratings', group: 'support', anyOf: [{ resource: 'customer', action: 'read' }] },
   { id: 'settings', group: 'settings', anyOf: [{ resource: 'customer', action: 'read' }] },

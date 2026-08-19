@@ -185,10 +185,11 @@ describe('AUDIT-011 OpenAPI runtime contract', () => {
     expect(operation('/api/v1/payments/webhooks/tap', 'post').security).toEqual([{ tapHashstring: [] }]);
   });
 
-  it('documents the actual MediaController ambiguity without inventing bearer auth', () => {
+  it('documents Media as a bearer + RBAC surface', () => {
     const media = operation('/api/v1/media', 'get');
-    expect(media.security).toBeUndefined();
-    expect(media.description).toContain('no JwtAuthGuard is declared');
+    expect(media.security).toEqual(expect.arrayContaining([{ bearer: [] }]));
+    expect(media['x-required-permission']).toBe('read:Media');
+    expect(operation('/api/v1/assets/presigned-url', 'post')['x-required-permission']).toBe('create:Media');
   });
 
   it('documents multipart upload and representative request/response schemas', () => {

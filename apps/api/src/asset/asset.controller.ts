@@ -3,10 +3,12 @@ import { AssetService } from './asset.service';
 import { AssetOptimizationService } from './asset-optimization.service';
 import { CreatePresignedUrlRequestDto } from './dto/create-presigned-url-request.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RbacPermissionGuard } from '../auth/guards/rbac-permission.guard';
+import { RequirePermission } from '../auth/decorators/require-permission.decorator';
 import { AuthenticatedRequest } from '../common/types/request.types';
 
 @Controller('api/v1/assets')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RbacPermissionGuard)
 export class AssetController {
   constructor(
     private readonly assetService: AssetService,
@@ -19,6 +21,7 @@ export class AssetController {
    * Auth: Bearer, Tenant isolation via JWT tenantId, never from client
    */
   @Post('presigned-url')
+  @RequirePermission('create', 'Media')
   @HttpCode(HttpStatus.OK)
   async createPresignedUrl(@Body() dto: CreatePresignedUrlRequestDto, @Req() req: AuthenticatedRequest): Promise<{
     presignedUrl: string;
@@ -48,6 +51,7 @@ export class AssetController {
    * In production, this would be triggered by S3 event -> Lambda. Here exposed for manual trigger and testing.
    */
   @Post('optimize')
+  @RequirePermission('update', 'Media')
   @HttpCode(HttpStatus.OK)
   async optimizeImage(@Body() body: { bucket?: string; key: string; folder?: string }, @Req() req: AuthenticatedRequest): Promise<import('./asset-optimization.service').OptimizedResult> {
     const user = req.user;

@@ -2,6 +2,8 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { MediaController } from './media.controller';
 import { MediaService } from './media.service';
 import { AuthenticatedRequest } from '../common/types/request.types';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RbacPermissionGuard } from '../auth/guards/rbac-permission.guard';
 
 describe('MediaController (integration)', () => {
   let controller: MediaController;
@@ -20,7 +22,12 @@ describe('MediaController (integration)', () => {
       providers: [
         { provide: MediaService, useValue: mockService },
       ],
-    }).compile();
+    })
+      .overrideGuard(JwtAuthGuard)
+      .useValue({ canActivate: () => true })
+      .overrideGuard(RbacPermissionGuard)
+      .useValue({ canActivate: () => true })
+      .compile();
 
     controller = module.get<MediaController>(MediaController);
   });
