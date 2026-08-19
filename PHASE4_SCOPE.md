@@ -1,6 +1,6 @@
 # Phase 4 — Customer Experience & Retention Scope
 
-Status: **IN PROGRESS — Phase 4 P0 complete; P1 restaurant website follow-ups complete.**
+Status: **COMPLETE — defined Phase 4 customer-experience scope (P0–P3, account, loyalty, promotions, wallet, complaints, ratings) plus recorded P1 website follow-ups. Canonical evidence remains `PROJECT_STATE.md` (HEAD `9428081` Media RBAC).**
 
 This document records the full approved Phase 4 scope: the staff/cashier P0 work, the restaurant-experience P1 work, the Eleva brand/marketing P2 work, the printing P3 work, and the customer/retention requirements. Implementation status is marked per section; `PROJECT_STATE.md` remains the canonical engineering state and the only place where verification evidence is recorded.
 
