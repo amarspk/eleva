@@ -447,6 +447,7 @@ async function main(): Promise<void> {
       email: 'platform@zayjar.ai',
       passwordHash: platformPasswordHash,
       isActive: true,
+      emailVerified: true,
     },
   });
 
@@ -460,6 +461,7 @@ async function main(): Promise<void> {
       passwordHash,
       phoneNumber: '+966501234567',
       isActive: true,
+      emailVerified: true,
     },
   });
 
@@ -473,6 +475,7 @@ async function main(): Promise<void> {
       passwordHash,
       phoneNumber: '+966502345678',
       isActive: true,
+      emailVerified: true,
     },
   });
 
@@ -485,6 +488,7 @@ async function main(): Promise<void> {
       email: 'cashier@albaik.com',
       passwordHash,
       isActive: true,
+      emailVerified: true,
     },
   });
 
@@ -497,6 +501,7 @@ async function main(): Promise<void> {
       email: 'kitchen@albaik.com',
       passwordHash,
       isActive: true,
+      emailVerified: true,
     },
   });
 
@@ -511,6 +516,7 @@ async function main(): Promise<void> {
       passwordHash,
       phoneNumber: '+81901234567',
       isActive: true,
+      emailVerified: true,
     },
   });
 

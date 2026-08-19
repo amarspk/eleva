@@ -48,6 +48,7 @@ interface UserFromDb {
   isActive: boolean;
   mfaEnabled: boolean;
   mfaSecret: string | null;
+  emailVerified?: boolean;
   userRoles?: UserRoleWithPermissions[];
 }
 
@@ -477,6 +478,23 @@ export class AuthService {
   // the raw token is never persisted or logged, forgot-password never reveals
   // account existence, and a successful reset revokes all existing sessions.
 
+  /**
+   * AUDIT-005 pre-launch gate: login must require a verified email in
+   * production. Dev/test stay open unless REQUIRE_EMAIL_VERIFIED=true so
+   * seeded/demo flows keep working. Explicit `false` disables even in
+   * production (emergency only — do not ship that way).
+   */
+  isEmailVerificationRequired(): boolean {
+    const flag = (process.env.REQUIRE_EMAIL_VERIFIED ?? '').trim().toLowerCase();
+    if (flag === 'false' || flag === '0') {
+      return false;
+    }
+    if (flag === 'true' || flag === '1') {
+      return true;
+    }
+    return process.env.NODE_ENV === 'production';
+  }
+
   private generateSecureToken(): string {
     return randomBytes(32).toString('hex');
   }
@@ -774,6 +792,7 @@ export class AuthService {
           isActive: true,
           mfaEnabled: false,
           mfaSecret: null,
+          emailVerified: true,
           userRoles: [
             {
               role: {
@@ -799,6 +818,13 @@ export class AuthService {
     const isPasswordValid = await this.comparePassword(password, user.passwordHash);
     if (!isPasswordValid) {
       throw new UnauthorizedException('Invalid credentials');
+    }
+
+    // AUDIT-005 — after credentials succeed, block unverified accounts when
+    // the production gate is on. Checked after the password so we do not
+    // create an email-existence oracle on the public login surface.
+    if (this.isEmailVerificationRequired() && user.emailVerified !== true) {
+      throw new UnauthorizedException('Email verification required');
     }
 
     // Handle MFA if enabled

@@ -73,6 +73,7 @@ describe('AuthService (AUDIT-005 — password reset + email verification)', () =
 
   afterEach(() => {
     delete process.env.RESET_URL_BASE;
+    delete process.env.REQUIRE_EMAIL_VERIFIED;
   });
 
   // ==========================================
@@ -299,5 +300,61 @@ describe('AuthService (AUDIT-005 — password reset + email verification)', () =
     await expect(
       service.sendVerificationEmail('sara@albaik.com', 'Sara', 'rawtoken123', 't1'),
     ).resolves.toBeUndefined();
+  });
+
+  // ==========================================
+  // Login gate — REQUIRE_EMAIL_VERIFIED / production
+  // ==========================================
+
+  const loginUser = {
+    id: 'u-login',
+    email: 'owner@gourmet.com',
+    tenantId: 't1',
+    firstName: 'John',
+    lastName: 'Owner',
+    passwordHash: 'mock-hash',
+    isActive: true,
+    mfaEnabled: false,
+    mfaSecret: null,
+    emailVerified: false,
+    userRoles: [{ role: { name: 'RESTAURANT_OWNER', rolePermissions: [] } }],
+    userBranches: [],
+  };
+
+  it('rejects login when email is unverified and REQUIRE_EMAIL_VERIFIED=true', async () => {
+    process.env.REQUIRE_EMAIL_VERIFIED = 'true';
+    userFindFirst.mockResolvedValue(loginUser);
+
+    await expect(service.validateLogin('owner@gourmet.com', 'Demo1234!', undefined, 't1')).rejects.toMatchObject({
+      message: 'Email verification required',
+    });
+  });
+
+  it('allows login when email is verified and the gate is on', async () => {
+    process.env.REQUIRE_EMAIL_VERIFIED = 'true';
+    userFindFirst.mockResolvedValue({ ...loginUser, emailVerified: true });
+
+    const profile = await service.validateLogin('owner@gourmet.com', 'Demo1234!', undefined, 't1');
+    expect(profile.id).toBe('u-login');
+    delete process.env.REQUIRE_EMAIL_VERIFIED;
+  });
+
+  it('does not reject unverified email when the gate is off (dev/test default)', async () => {
+    delete process.env.REQUIRE_EMAIL_VERIFIED;
+    userFindFirst.mockResolvedValue(loginUser);
+
+    const profile = await service.validateLogin('owner@gourmet.com', 'Demo1234!', undefined, 't1');
+    expect(profile.id).toBe('u-login');
+  });
+
+  it('treats production NODE_ENV as fail-closed unless REQUIRE_EMAIL_VERIFIED=false', () => {
+    const previous = process.env.NODE_ENV;
+    process.env.NODE_ENV = 'production';
+    delete process.env.REQUIRE_EMAIL_VERIFIED;
+    expect(service.isEmailVerificationRequired()).toBe(true);
+    process.env.REQUIRE_EMAIL_VERIFIED = 'false';
+    expect(service.isEmailVerificationRequired()).toBe(false);
+    delete process.env.REQUIRE_EMAIL_VERIFIED;
+    process.env.NODE_ENV = previous;
   });
 });
