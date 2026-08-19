@@ -60,7 +60,9 @@ describe('OrderService — optional customer linking at guest checkout (Phase 4)
   beforeEach(() => {
     jest.clearAllMocks();
     jwt = new MockJwtService();
-    service = new OrderService(jwt as unknown as JwtService);
+    // OrderService constructor is (loyaltyService?, jwtService?, …).
+    // Nest injects by token; this spec only needs jwtService as the 2nd arg.
+    service = new OrderService(undefined, jwt as unknown as JwtService);
     mockDb.tableFindByQrCodeToken.mockResolvedValue({ id: 'table-1', branchId: 'branch-1' });
     mockDb.tenantFindUnique.mockResolvedValue({ status: 'ACTIVE' });
     // createOrder is replaced by a spy so we only exercise the guest wrapper.
