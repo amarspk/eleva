@@ -124,8 +124,9 @@ export async function submitGuestOrder(
  * with the tenant subdomain intact (TenantContextMiddleware resolves the
  * tenant from that Host).
  *
- * Local dev: the API listens on port 3001; the tenant subdomain is preserved
- * (e.g. http://albaik.localhost:3000 -> http://albaik.localhost:3001).
+ * Local dev: the API listens on PORT || 8000 (apps/api/src/main.ts);
+ * the tenant subdomain is preserved
+ * (e.g. http://albaik.localhost:3000 -> http://albaik.localhost:8000).
  * API_INTERNAL_URL overrides everything when set.
  */
 export function resolveServerApiBase(host: string): string {
@@ -136,7 +137,7 @@ export function resolveServerApiBase(host: string): string {
 
   const hostname = host.split(':')[0];
   if (hostname.endsWith('localhost') || hostname === '127.0.0.1') {
-    return `http://${hostname}:3001`;
+    return `http://${hostname}:8000`;
   }
   return `https://${host}`;
 }

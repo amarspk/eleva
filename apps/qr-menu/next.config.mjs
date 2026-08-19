@@ -23,8 +23,10 @@ const nextConfig = {
     // In production nginx terminates /api before the app (these rewrites do
     // not engage); in local dev they proxy to the API service.
     // API_INTERNAL_URL must include the tenant subdomain in dev so
-    // TenantContextMiddleware can resolve tenancy (e.g. http://albaik.localhost:3001).
-    const apiBase = (process.env.API_INTERNAL_URL || 'http://localhost:3001').replace(/\/$/, '');
+    // TenantContextMiddleware can resolve tenancy (e.g. http://albaik.localhost:8000).
+    // Default 8000 matches apps/api/src/main.ts and docker-compose api-core.
+    // Host 3001 is the backoffice frontend (compose 3001:3000), not the API.
+    const apiBase = (process.env.API_INTERNAL_URL || 'http://localhost:8000').replace(/\/$/, '');
     return [{ source: '/api/:path*', destination: `${apiBase}/api/:path*` }];
   },
 };

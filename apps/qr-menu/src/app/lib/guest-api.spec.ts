@@ -113,8 +113,8 @@ describe('resolveServerApiBase', () => {
 
   it('keeps the tenant subdomain and swaps to the API port in local dev', () => {
     delete process.env.API_INTERNAL_URL;
-    expect(resolveServerApiBase('albaik.localhost:3000')).toBe('http://albaik.localhost:3001');
-    expect(resolveServerApiBase('127.0.0.1:3000')).toBe('http://127.0.0.1:3001');
+    expect(resolveServerApiBase('albaik.localhost:3000')).toBe('http://albaik.localhost:8000');
+    expect(resolveServerApiBase('127.0.0.1:3000')).toBe('http://127.0.0.1:8000');
   });
 });
 
