@@ -290,6 +290,13 @@ export const OPENAPI_SCHEMAS: Record<string, SchemaObject> = {
       phoneNumber: nullableString,
       address: nullableString,
     }, ['id', 'name']),
+    branches: array(object({
+      id: uuid(),
+      name: { type: 'string' },
+      phoneNumber: nullableString,
+      address: nullableString,
+    }, ['id', 'name'])),
+    about: nullableString,
     categories: array(ref('PublicCategory')),
     design: { type: 'object', nullable: true, additionalProperties: true },
   }, ['tenant', 'restaurant', 'categories']),

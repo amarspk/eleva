@@ -28,10 +28,19 @@ export interface PublicSocialLinks {
  * (GET /api/v1/public/site). Rendered at the tenant subdomain without a QR
  * table token; the QR ordering flow continues to use /api/v1/public/menu.
  */
+export interface PublicSiteBranch {
+  id: string;
+  name: string;
+  phoneNumber: string | null;
+  address: string | null;
+}
+
 export interface PublicSiteResponse {
   tenant: PublicTenantBranding;
   restaurant: { name: string; currency: string };
-  branch: { id: string; name: string; phoneNumber: string | null; address: string | null } | null;
+  branch: PublicSiteBranch | null;
+  branches?: PublicSiteBranch[];
+  about?: string | null;
   categories: PublicCategory[];
   design?: Record<string, unknown> | null;
 }

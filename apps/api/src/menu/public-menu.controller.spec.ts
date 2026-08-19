@@ -11,7 +11,7 @@ import { prisma } from '@zayjar/db';
 jest.mock('@zayjar/db', () => ({
   prisma: {
     table: { findFirst: jest.fn() },
-    branch: { findFirst: jest.fn() },
+    branch: { findFirst: jest.fn(), findMany: jest.fn() },
     restaurant: { findFirst: jest.fn() },
     tenant: { findUnique: jest.fn() },
     category: { findMany: jest.fn() },
@@ -24,7 +24,7 @@ jest.mock('@zayjar/db', () => ({
 
 const mockPrisma = prisma as unknown as {
   table: { findFirst: jest.Mock };
-  branch: { findFirst: jest.Mock };
+  branch: { findFirst: jest.Mock; findMany: jest.Mock };
   restaurant: { findFirst: jest.Mock };
   tenant: { findUnique: jest.Mock };
   category: { findMany: jest.Mock };
@@ -64,6 +64,7 @@ describe('PublicMenu (QR guest surface)', () => {
 
     mockPrisma.table.findFirst.mockResolvedValue(TABLE_ROW);
     mockPrisma.branch.findFirst.mockResolvedValue(BRANCH_ROW);
+    mockPrisma.branch.findMany.mockResolvedValue([]);
     mockPrisma.restaurant.findFirst.mockResolvedValue(RESTAURANT_ROW);
     mockPrisma.tenant.findUnique.mockResolvedValue(TENANT_ROW);
     mockPrisma.category.findMany.mockResolvedValue([]);
@@ -278,6 +279,7 @@ describe('PublicMenu (QR guest surface)', () => {
       });
       mockPrisma.restaurant.findFirst.mockResolvedValue({ id: 'rest-1', name: 'Albaik', currency: 'SAR' });
       mockPrisma.branch.findFirst.mockResolvedValue({ id: 'branch-1', name: 'Riyadh', phoneNumber: '+96611', address: 'Olaya' });
+      mockPrisma.branch.findMany.mockResolvedValue([{ id: 'branch-1', name: 'Riyadh', phoneNumber: '+96611', address: 'Olaya' }]);
       mockPrisma.category.findMany.mockResolvedValue([CATEGORY_ROW]);
       mockPrisma.tenantDesign.findUnique.mockResolvedValue(null);
 
@@ -291,6 +293,7 @@ describe('PublicMenu (QR guest surface)', () => {
       });
       expect(result.restaurant).toEqual({ name: 'Albaik', currency: 'SAR' });
       expect(result.branch).toEqual({ id: 'branch-1', name: 'Riyadh', phoneNumber: '+96611', address: 'Olaya' });
+      expect(result.branches).toEqual([{ id: 'branch-1', name: 'Riyadh', phoneNumber: '+96611', address: 'Olaya' }]);
       expect(result.categories).toHaveLength(1);
       expect(result.categories[0].products[0].basePrice).toBe(9.5);
       expect(mockPrisma.table.findFirst).not.toHaveBeenCalled();
@@ -300,6 +303,7 @@ describe('PublicMenu (QR guest surface)', () => {
       mockPrisma.tenant.findUnique.mockResolvedValue(TENANT_ROW);
       mockPrisma.restaurant.findFirst.mockResolvedValue({ id: 'rest-1', name: 'Albaik', currency: 'SAR' });
       mockPrisma.branch.findFirst.mockResolvedValue({ id: 'branch-1', name: 'Riyadh', phoneNumber: null, address: null });
+      mockPrisma.branch.findMany.mockResolvedValue([{ id: 'branch-1', name: 'Riyadh', phoneNumber: null, address: null }]);
       mockPrisma.category.findMany.mockResolvedValue([
         { id: 'cat-1', name: 'Burgers', imageUrl: 'https://cdn.example.com/burgers.webp', products: [CATEGORY_ROW.products[0]] },
       ]);
@@ -312,6 +316,7 @@ describe('PublicMenu (QR guest surface)', () => {
       mockPrisma.tenant.findUnique.mockResolvedValue(TENANT_ROW);
       mockPrisma.restaurant.findFirst.mockResolvedValue({ id: 'rest-1', name: 'Albaik', currency: 'SAR' });
       mockPrisma.branch.findFirst.mockResolvedValue(null);
+      mockPrisma.branch.findMany.mockResolvedValue([]);
       mockPrisma.category.findMany.mockResolvedValue([
         { id: 'cat-1', name: 'Burgers', imageUrl: null, products: [CATEGORY_ROW.products[0]] },
       ]);
@@ -323,6 +328,7 @@ describe('PublicMenu (QR guest surface)', () => {
       mockPrisma.tenant.findUnique.mockResolvedValue({ ...TENANT_ROW, branding: { theme: 'dark' } });
       mockPrisma.restaurant.findFirst.mockResolvedValue({ id: 'rest-1', name: 'Albaik', currency: 'SAR' });
       mockPrisma.branch.findFirst.mockResolvedValue({ id: 'branch-1', name: 'Riyadh', phoneNumber: null, address: null });
+      mockPrisma.branch.findMany.mockResolvedValue([{ id: 'branch-1', name: 'Riyadh', phoneNumber: null, address: null }]);
       mockPrisma.category.findMany.mockResolvedValue([]);
 
       const result = await service.getPublicSite(TENANT_ID);
@@ -344,10 +350,29 @@ describe('PublicMenu (QR guest surface)', () => {
       mockPrisma.tenant.findUnique.mockResolvedValue(TENANT_ROW);
       mockPrisma.restaurant.findFirst.mockResolvedValue({ id: 'rest-1', name: 'Albaik', currency: 'SAR' });
       mockPrisma.branch.findFirst.mockResolvedValue(null);
+      mockPrisma.branch.findMany.mockResolvedValue([]);
       mockPrisma.category.findMany.mockResolvedValue([]);
       const result = await service.getPublicSite(TENANT_ID);
       expect(result.branch).toBeNull();
+      expect(result.branches).toEqual([]);
       expect(result.categories).toEqual([]);
+    });
+
+    it('exposes branding.about and every active branch for the restaurant pages', async () => {
+      mockPrisma.tenant.findUnique.mockResolvedValue({
+        ...TENANT_ROW,
+        branding: { about: '  Family grilled chicken since 1974.  ' },
+      });
+      mockPrisma.restaurant.findFirst.mockResolvedValue({ id: 'rest-1', name: 'Albaik', currency: 'SAR' });
+      mockPrisma.branch.findMany.mockResolvedValue([
+        { id: 'branch-1', name: 'Riyadh', phoneNumber: '+96611', address: 'Olaya' },
+        { id: 'branch-2', name: 'Jeddah', phoneNumber: '+96612', address: 'Corniche' },
+      ]);
+      mockPrisma.category.findMany.mockResolvedValue([]);
+      const result = await service.getPublicSite(TENANT_ID);
+      expect(result.about).toBe('Family grilled chicken since 1974.');
+      expect(result.branches).toHaveLength(2);
+      expect(result.branch?.name).toBe('Riyadh');
     });
   });
 

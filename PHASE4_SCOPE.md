@@ -1,6 +1,6 @@
 # Phase 4 — Customer Experience & Retention Scope
 
-Status: **IN PROGRESS — Phase 4 P0 (staff/cashier) complete; P1 (restaurant website) started.**
+Status: **IN PROGRESS — Phase 4 P0 complete; P1 restaurant website follow-ups complete.**
 
 This document records the full approved Phase 4 scope: the staff/cashier P0 work, the restaurant-experience P1 work, the Eleva brand/marketing P2 work, the printing P3 work, and the customer/retention requirements. Implementation status is marked per section; `PROJECT_STATE.md` remains the canonical engineering state and the only place where verification evidence is recorded.
 
@@ -25,7 +25,7 @@ Phase 4 preserves the existing project-state/roadmap requirements that remain ap
 - Seeded cashier/staff accounts work with real Argon2id hashes. ✅
 - Platform Owner remains governed by canonical platform-level rules (no accidental restaurant-order visibility). ✅
 
-## Restaurant experience — website & design (P1) — IN PROGRESS
+## Restaurant experience — website & design (P1) — ✅ COMPLETE
 
 - The restaurant public website is a restaurant website, not a generic Pages CMS.
 - **Token-free public restaurant website** (browsable at the tenant subdomain without a QR table token). ✅ `GET /api/v1/public/site` + qr-menu `/` no-token branch (commit pending).
@@ -35,17 +35,17 @@ Phase 4 preserves the existing project-state/roadmap requirements that remain ap
 - Mobile-first responsive design. ✅
 - Branding-aware colors (tenant primary/secondary) and logo. ✅
 - Real category images (uploaded photographs) instead of emoji/placeholder fallbacks. ✅ Category gained `imageUrl` (migration `20260818000000_add_category_image_url`), create/update/clear via the menu API, exposed in the public site + QR menu, and rendered by the restaurant website with a clean placeholder fallback.
-- Proper Media Library. ⏳ partially present (`MediaLibrary.tsx` in backoffice + `Media` model/API) — category images can reference media URLs; deeper editor wiring is a follow-up.
-- IndexedDB for large demo/frontend media where appropriate. ⏳
-- About / Contact / Branches / Social content remains simple and restaurant-oriented. ⏳
-- Editing controls (website builder) scroll independently from the live preview/page. ⏳
-- Live preview while editing. ⏳ (DesignBuilder preview exists for the QR menu; restaurant-site editing is a follow-up)
-- Dark / Light / Auto themes. ⏳
-- Glassmorphism where it improves the design. ⏳
-- Logo/brand-aware color suggestions. ⏳
+- Proper Media Library. ✅ Design Builder logo/cover pickers embed the existing Media Library (presigned upload + click-to-apply).
+- IndexedDB for large demo/frontend media where appropriate. ✅ `site-media-store` persists uploaded website assets per tenant for the editor.
+- About / Contact / Branches / Social content remains simple and restaurant-oriented. ✅ Public site sections + in-page nav; About from published design / tenant branding; branches from live `findMany`.
+- Editing controls (website builder) scroll independently from the live preview/page. ✅ `design-controls` and `design-preview` each `lg:overflow-y-auto`.
+- Live preview while editing. ✅ DesignBuilder draft preview (desktop/mobile).
+- Dark / Light / Auto themes. ✅ RestaurantSite + DesignBuilder.
+- Glassmorphism where it improves the design. ✅ sticky category nav `backdrop-blur`.
+- Logo/brand-aware color suggestions. ✅ sampled from tenant brand + logo pixels; apply as primary.
 - Responsive layouts. ✅ (mobile-first grid + sticky category nav)
-- Professional modern restaurant web design; not a generic CRUD-looking interface. ✅ (first unit)
-- Additional visual polish only when it materially improves usability/hierarchy/accessibility/perceived quality; no decoration-only effects. ⏳
+- Professional modern restaurant web design; not a generic CRUD-looking interface. ✅
+- Additional visual polish only when it materially improves usability/hierarchy/accessibility/perceived quality; no decoration-only effects. ✅ in-page Menu/About/Branches/Contact nav.
 
 ## Eleva brand & marketing platform (P2) — ✅ COMPLETE (ELEVA Tower, commit pending)
 

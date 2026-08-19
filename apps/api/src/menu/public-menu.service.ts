@@ -57,6 +57,10 @@ export interface PublicSiteResponse {
   tenant: PublicTenantBranding;
   restaurant: PublicRestaurantContext;
   branch: PublicSiteBranchContext | null;
+  /** All active branches for the About / Branches page. */
+  branches: PublicSiteBranchContext[];
+  /** Optional restaurant story from tenant branding JSON. */
+  about: string | null;
   categories: PublicCategory[];
   design?: Record<string, unknown> | null;
 }
@@ -281,13 +285,24 @@ export class PublicMenuService {
         throw new NotFoundException('The requested restaurant could not be resolved.');
       }
 
-      // First active branch — a website shows one menu at a time; branch
-      // selection across branches is a later enhancement.
-      const branch = await prisma.branch.findFirst({
+      const branchRows = await prisma.branch.findMany({
         where: { tenantId, restaurantId: restaurant.id, isActive: true, deletedAt: null },
         orderBy: { name: 'asc' },
+        take: 50,
         select: { id: true, name: true, phoneNumber: true, address: true },
       });
+      const branches: PublicSiteBranchContext[] = branchRows.map((row) => ({
+        id: row.id,
+        name: row.name,
+        phoneNumber: row.phoneNumber,
+        address: row.address,
+      }));
+      const branch = branches[0] ?? null;
+      const brandingJson = (tenant as TenantWithBranding).branding ?? {};
+      const about =
+        typeof brandingJson.about === 'string' && brandingJson.about.trim()
+          ? brandingJson.about.trim()
+          : null;
 
       const categories = await this.loadMenuForRestaurant(restaurant.id);
 
@@ -309,9 +324,9 @@ export class PublicMenuService {
       return {
         tenant: this.toBranding(tenant),
         restaurant: { name: restaurant.name, currency: restaurant.currency },
-        branch: branch
-          ? { id: branch.id, name: branch.name, phoneNumber: branch.phoneNumber, address: branch.address }
-          : null,
+        branch,
+        branches,
+        about,
         categories,
         design: publishedDesign,
       };

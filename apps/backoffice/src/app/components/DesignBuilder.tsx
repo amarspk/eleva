@@ -3,6 +3,8 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { apiErrorMessage } from '../lib/api-client';
 import { designsApi, productsApi } from '../lib/resources';
+import { MediaLibrary } from './MediaLibrary';
+import { suggestFromBrand, suggestFromImageData, uniqueSuggestions } from '../lib/brand-colors';
 
 type Section = { id: string; type: string; enabled: boolean; order: number; config: Record<string, unknown> };
 
@@ -59,6 +61,8 @@ export function DesignBuilder({ tenantId }: { tenantId: string }){
   const [msg,setMsg]=useState<string|null>(null);
   const [products,setProducts]=useState<any[]>([]);
   const [productSearch,setProductSearch]=useState('');
+  const [mediaTarget,setMediaTarget]=useState<'logo'|'cover'|null>(null);
+  const [colorSuggestions,setColorSuggestions]=useState<string[]>([]);
   const revisionRef=useRef(0);
   const latestSaveRequestRef=useRef(0);
   const messageTimerRef=useRef<NodeJS.Timeout|null>(null);
@@ -206,14 +210,46 @@ export function DesignBuilder({ tenantId }: { tenantId: string }){
     });
   };
 
+  useEffect(()=>{
+    setColorSuggestions(suggestFromBrand(draft.colors?.primary, draft.colors?.secondary));
+  },[draft.colors?.primary, draft.colors?.secondary]);
+
+  useEffect(()=>{
+    const src = draft.logo as string | null;
+    if(!src || typeof window === 'undefined') return;
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = 32;
+        canvas.height = 32;
+        const ctx = canvas.getContext('2d');
+        if(!ctx) return;
+        ctx.drawImage(img, 0, 0, 32, 32);
+        const sampled = suggestFromImageData(ctx.getImageData(0, 0, 32, 32).data);
+        setColorSuggestions((current) => uniqueSuggestions(current, sampled));
+      } catch {
+        // Cross-origin logos still keep the tenant brand suggestions.
+      }
+    };
+    img.src = src;
+  },[draft.logo]);
+
+  const applyMedia = (url: string) => {
+    if(mediaTarget==='logo') updateDraft((d:any)=>{ d.logo=url; return d; });
+    if(mediaTarget==='cover') updateDraft((d:any)=>{ d.coverImage=url; return d; });
+    setMediaTarget(null);
+  };
+
   const selected = draft.sections?.find((s:Section)=>s.id===selectedId);
   const selectedProductIds:string[] = Array.isArray(selected?.config?.productIds) ? selected.config.productIds as string[] : [];
   const filteredProducts = products.filter((p:any)=> !productSearch || String(p.name||'').toLowerCase().includes(productSearch.toLowerCase()));
 
   return (
-    <div className="flex flex-col lg:flex-row gap-4">
-      {/* Left controls */}
-      <div className="w-full lg:w-[340px] bg-white rounded-xl border p-4 space-y-4 shrink-0">
+    <div className="flex flex-col lg:flex-row gap-4 lg:h-[calc(100vh-10rem)] lg:min-h-[480px]">
+      {/* Left controls — independent scroll from the live preview */}
+      <div data-testid="design-controls" className="w-full lg:w-[340px] bg-white rounded-xl border p-4 space-y-4 shrink-0 lg:overflow-y-auto">
         <div className="flex items-center justify-between">
           <h3 className="font-bold">Eleva Website Builder</h3>
           <span className="text-xs text-gray-500">{{loading:'Loading…',dirty:'Unsaved changes',saving:'Saving…',saved:`Saved v${currentVersion}`,error:'Save failed'}[saveState]}</span>
@@ -229,15 +265,53 @@ export function DesignBuilder({ tenantId }: { tenantId: string }){
         <div>
           <h4 className="text-xs font-semibold text-gray-600 mb-2">Brand</h4>
           <div className="grid grid-cols-2 gap-2">
-            <label className="text-xs">Primary<input type="color" value={draft.colors?.primary||'#000'} onChange={e=>updateDraft(d=>{d.colors.primary=e.target.value;return d;})} className="w-full h-8"/></label>
-            <label className="text-xs">Secondary<input type="color" value={draft.colors?.secondary||'#fff'} onChange={e=>updateDraft(d=>{d.colors.secondary=e.target.value;return d;})} className="w-full h-8"/></label>
+            <label className="text-xs">Primary<input aria-label="Primary" type="color" value={draft.colors?.primary||'#000'} onChange={e=>updateDraft(d=>{d.colors.primary=e.target.value;return d;})} className="w-full h-8"/></label>
+            <label className="text-xs">Secondary<input aria-label="Secondary" type="color" value={draft.colors?.secondary||'#fff'} onChange={e=>updateDraft(d=>{d.colors.secondary=e.target.value;return d;})} className="w-full h-8"/></label>
           </div>
+          {colorSuggestions.length>0 && (
+            <div className="mt-2">
+              <p className="text-[10px] text-gray-500 mb-1">Suggested from brand / logo</p>
+              <div className="flex flex-wrap gap-1">
+                {colorSuggestions.map((hex)=>(
+                  <button
+                    key={hex}
+                    type="button"
+                    aria-label={`Use ${hex} as primary`}
+                    title={hex}
+                    onClick={()=>updateDraft((d:any)=>{ d.colors = {...(d.colors||{}), primary: hex}; return d; })}
+                    className="w-6 h-6 rounded border"
+                    style={{backgroundColor: hex}}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-2 mt-2">
             <label className="text-xs">Heading font<select value={draft.fonts?.heading} onChange={e=>updateDraft(d=>{d.fonts.heading=e.target.value;return d;})} className="w-full border rounded p-1 text-xs">{FONTS.map(f=><option key={f} value={f}>{f}</option>)}</select></label>
             <label className="text-xs">Body font<select value={draft.fonts?.body} onChange={e=>updateDraft(d=>{d.fonts.body=e.target.value;return d;})} className="w-full border rounded p-1 text-xs">{FONTS.map(f=><option key={f} value={f}>{f}</option>)}</select></label>
           </div>
           <label className="text-xs block mt-2">Logo URL<input value={draft.logo||''} onChange={e=>updateDraft(d=>{d.logo=e.target.value;return d;})} placeholder="https://..." className="w-full border rounded p-1 text-xs"/></label>
           <label className="text-xs block mt-1">Cover URL<input value={draft.coverImage||''} onChange={e=>updateDraft(d=>{d.coverImage=e.target.value;return d;})} placeholder="https://..." className="w-full border rounded p-1 text-xs"/></label>
+          <div className="flex gap-2 mt-2">
+            <button type="button" onClick={()=>setMediaTarget('logo')} className="flex-1 border rounded py-1 text-[11px]">Pick logo from library</button>
+            <button type="button" onClick={()=>setMediaTarget('cover')} className="flex-1 border rounded py-1 text-[11px]">Pick cover from library</button>
+          </div>
+          {mediaTarget && (
+            <div className="mt-2">
+              <p className="text-[10px] text-gray-500 mb-1">Selecting {mediaTarget} — click an uploaded asset</p>
+              <MediaLibrary tenantId={tenantId} compact onSelect={applyMedia} />
+            </div>
+          )}
+          <label className="text-xs block mt-2">About
+            <textarea
+              aria-label="About"
+              value={(draft.about as string) || ''}
+              onChange={e=>updateDraft(d=>{d.about=e.target.value;return d;})}
+              rows={3}
+              placeholder="Short restaurant story shown on the public website"
+              className="w-full border rounded p-1 text-xs"
+            />
+          </label>
         </div>
         {/* Sections */}
         <div>
@@ -315,8 +389,8 @@ export function DesignBuilder({ tenantId }: { tenantId: string }){
           </div>
         )}
       </div>
-      {/* Preview */}
-      <div className="flex-1 bg-white rounded-xl border p-4">
+      {/* Preview — scrolls independently of the controls panel */}
+      <div data-testid="design-preview" className="flex-1 bg-white rounded-xl border p-4 lg:overflow-y-auto">
         <div className="flex gap-2 mb-3">
           <button onClick={()=>setPreviewMode('desktop')} className={`px-3 py-1 rounded text-xs ${previewMode==='desktop'?'bg-black text-white':'border'}`}>Desktop</button>
           <button onClick={()=>setPreviewMode('mobile')} className={`px-3 py-1 rounded text-xs ${previewMode==='mobile'?'bg-black text-white':'border'}`}>Mobile</button>

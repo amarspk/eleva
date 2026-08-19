@@ -53,7 +53,7 @@ describe('RestaurantSite (Phase 4 P1 — token-free restaurant website)', () => 
     render(<RestaurantSite site={sampleSite} />);
     expect(screen.getByText('Albaik Demo')).toBeInTheDocument();
     expect(screen.getByText(/Albaik Chicken/)).toBeInTheDocument();
-    expect(screen.getByText(/Riyadh - Olaya/)).toBeInTheDocument();
+    expect(screen.getAllByText(/Riyadh - Olaya/).length).toBeGreaterThanOrEqual(1);
   });
 
   it('renders real social/contact links when configured', () => {
@@ -206,6 +206,34 @@ describe('RestaurantSite (Phase 4 P1 — token-free restaurant website)', () => 
       render(<RestaurantSite site={sampleSite} />);
       const productCards = document.querySelectorAll('.grid > div');
       expect(productCards.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe('About / Contact / Branches pages', () => {
+    it('renders About from published design copy', () => {
+      render(<RestaurantSite site={{ ...sampleSite, design: { about: 'Family grilled chicken since 1974.' } }} />);
+      expect(screen.getByRole('heading', { name: 'About' })).toBeInTheDocument();
+      expect(screen.getByText('Family grilled chicken since 1974.')).toBeInTheDocument();
+    });
+
+    it('lists every branch with address and phone', () => {
+      render(<RestaurantSite site={{
+        ...sampleSite,
+        branches: [
+          { id: 'branch-1', name: 'Riyadh - Olaya', phoneNumber: '+966112345678', address: 'Olaya St' },
+          { id: 'branch-2', name: 'Jeddah', phoneNumber: '+966126666666', address: 'Corniche' },
+        ],
+      }} />);
+      expect(screen.getByRole('heading', { name: 'Branches' })).toBeInTheDocument();
+      expect(screen.getByText('Jeddah')).toBeInTheDocument();
+      expect(screen.getByText('Corniche')).toBeInTheDocument();
+    });
+
+    it('exposes a Contact section with the real social links', () => {
+      render(<RestaurantSite site={sampleSite} />);
+      expect(screen.getByRole('heading', { name: 'Contact' })).toBeInTheDocument();
+      expect(screen.getByText('Phone +966501234567')).toBeInTheDocument();
+      expect(screen.getByRole('navigation', { name: 'Restaurant pages' })).toBeInTheDocument();
     });
   });
 });

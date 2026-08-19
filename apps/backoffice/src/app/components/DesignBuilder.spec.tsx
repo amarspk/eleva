@@ -199,4 +199,27 @@ describe('DesignBuilder save/publish integrity UI', () => {
     expect(draftPut?.[1].headers.Authorization).toBe('Bearer a4-access-token');
     expect(draftPut?.[1].headers['X-CSRF-Token']).toBe('a4-csrf-token');
   });
+
+  it('keeps editor controls and live preview as independently scrollable panes', async () => {
+    mockLoadedDesign();
+    render(<DesignBuilder tenantId="tenant-a" />);
+    await screen.findByText('Saved v1');
+    expect(screen.getByTestId('design-controls').className).toContain('lg:overflow-y-auto');
+    expect(screen.getByTestId('design-preview').className).toContain('lg:overflow-y-auto');
+  });
+
+  it('opens the media library picker for the logo field', async () => {
+    mockLoadedDesign();
+    render(<DesignBuilder tenantId="tenant-a" />);
+    await screen.findByText('Saved v1');
+    fireEvent.click(screen.getByRole('button', { name: 'Pick logo from library' }));
+    expect(screen.getByText('Choose media')).toBeInTheDocument();
+  });
+
+  it('suggests the current brand primary color', async () => {
+    mockLoadedDesign();
+    render(<DesignBuilder tenantId="tenant-a" />);
+    await screen.findByText('Saved v1');
+    expect(screen.getByLabelText('Use #FF5733 as primary')).toBeInTheDocument();
+  });
 });

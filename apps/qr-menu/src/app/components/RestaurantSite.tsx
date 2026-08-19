@@ -30,6 +30,7 @@ import type { PublicCategory, PublicSiteResponse } from '../lib/types';
  */
 export const RestaurantSite: React.FC<{ site: PublicSiteResponse }> = ({ site }) => {
   const { tenant, restaurant, branch, categories } = site;
+  const branches = site.branches && site.branches.length > 0 ? site.branches : (branch ? [branch] : []);
   const design = site.design as Record<string, unknown> | null | undefined;
   const designColors = (design?.colors as Record<string, string> | undefined) || {};
   const primary = designColors.primary || tenant.primaryColor || '#000000';
@@ -83,6 +84,10 @@ export const RestaurantSite: React.FC<{ site: PublicSiteResponse }> = ({ site })
 
   const selectedCategory = selectedCategoryId === 'all' ? undefined : categories.find((c) => c.id === selectedCategoryId);
   const categoryName = selectedCategory?.name ?? 'Menu';
+  const aboutText =
+    (typeof design?.about === 'string' && design.about.trim()) ||
+    (typeof site.about === 'string' && site.about.trim()) ||
+    '';
 
   return (
     <div data-theme={activeTheme} data-primary={primary} data-secondary={secondary} className="min-h-screen flex flex-col" style={{ fontFamily: bodyFont, backgroundColor: isDark ? '#111' : '#f9fafb', color: isDark ? '#eee' : '#111' }}>
@@ -118,8 +123,14 @@ export const RestaurantSite: React.FC<{ site: PublicSiteResponse }> = ({ site })
             {restaurant.name}
             {branch ? ` • ${branch.name}` : ''}
           </p>
+          <nav aria-label="Restaurant pages" className="flex justify-center gap-2 mt-4 flex-wrap">
+            <a href="#menu" className="px-3 py-1.5 rounded-full bg-white/20 text-xs font-semibold">Menu</a>
+            {aboutText ? <a href="#about" className="px-3 py-1.5 rounded-full bg-white/20 text-xs font-semibold">About</a> : null}
+            {branches.length > 0 ? <a href="#branches" className="px-3 py-1.5 rounded-full bg-white/20 text-xs font-semibold">Branches</a> : null}
+            <a href="#contact" className="px-3 py-1.5 rounded-full bg-white/20 text-xs font-semibold">Contact</a>
+          </nav>
           {/* Phase 4 — customer account entry (restaurant-branded) */}
-          <div className="flex justify-center gap-2 mt-4">
+          <div className="flex justify-center gap-2 mt-3">
             <a
               href="/account"
               className="inline-flex items-center gap-1 px-4 py-1.5 rounded-full bg-white/90 text-gray-800 text-xs font-semibold hover:bg-white"
@@ -175,7 +186,7 @@ export const RestaurantSite: React.FC<{ site: PublicSiteResponse }> = ({ site })
       )}
 
       {/* Product list filtered by the selected category */}
-      <main className="max-w-md mx-auto w-full flex-1 px-4 py-4" style={{backgroundColor: 'var(--bg-main)', color: 'var(--text-main)'}}>
+      <main id="menu" className="max-w-md mx-auto w-full flex-1 px-4 py-4" style={{backgroundColor: 'var(--bg-main)', color: 'var(--text-main)'}}>
         <h2 className="text-sm font-bold mb-3" style={{fontFamily: headingFont, color: 'var(--text-main)'}}>{categoryName}</h2>
         {selectedCategory?.imageUrl ? (
           <div className="rounded-xl overflow-hidden mb-3" style={{boxShadow: 'var(--shadow-card)'}}>
@@ -213,6 +224,43 @@ export const RestaurantSite: React.FC<{ site: PublicSiteResponse }> = ({ site })
           </div>
         )}
       </main>
+
+      {aboutText ? (
+        <section id="about" className="max-w-md mx-auto w-full px-4 pb-6" style={{color: 'var(--text-main)'}}>
+          <h2 className="text-sm font-bold mb-2" style={{fontFamily: headingFont}}>About</h2>
+          <p className="text-sm leading-relaxed" style={{color: 'var(--text-muted)'}}>{aboutText}</p>
+        </section>
+      ) : null}
+
+      {branches.length > 0 ? (
+        <section id="branches" className="max-w-md mx-auto w-full px-4 pb-6" style={{color: 'var(--text-main)'}}>
+          <h2 className="text-sm font-bold mb-2" style={{fontFamily: headingFont}}>Branches</h2>
+          <ul className="space-y-2">
+            {branches.map((b) => (
+              <li key={b.id} className="rounded-xl border p-3 text-sm" style={{borderColor: 'var(--border-subtle)', backgroundColor: 'var(--bg-card)'}}>
+                <div className="font-semibold">{b.name}</div>
+                {b.address ? <div className="text-xs mt-1" style={{color: 'var(--text-muted)'}}>{b.address}</div> : null}
+                {b.phoneNumber ? <a className="text-xs mt-1 inline-block" href={`tel:${b.phoneNumber}`}>{b.phoneNumber}</a> : null}
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
+      <section id="contact" className="max-w-md mx-auto w-full px-4 pb-6" style={{color: 'var(--text-main)'}}>
+        <h2 className="text-sm font-bold mb-2" style={{fontFamily: headingFont}}>Contact</h2>
+        <div className="text-sm space-y-1" style={{color: 'var(--text-muted)'}}>
+          {social?.phone ? <p>Phone {social.phone}</p> : null}
+          {social?.whatsapp ? <p>WhatsApp {social.whatsapp}</p> : null}
+          {social?.instagram ? <p>Instagram @{social.instagram.replace(/^@/, '')}</p> : null}
+          {social?.twitter ? <p>X @{social.twitter.replace(/^@/, '')}</p> : null}
+          {!social?.phone && branch?.phoneNumber ? <p>Phone {branch.phoneNumber}</p> : null}
+          {branch?.address ? <p>{branch.address}</p> : null}
+          {!social?.phone && !social?.whatsapp && !branch?.phoneNumber ? (
+            <p>Visit us{branch?.name ? ` at ${branch.name}` : ''} or scan the table QR to order.</p>
+          ) : null}
+        </div>
+      </section>
 
       <footer className="text-center text-xs py-6 px-4" style={{color: 'var(--text-muted)', fontFamily: bodyFont}}>
         {tenant.name} — order from the table QR to place an order.
