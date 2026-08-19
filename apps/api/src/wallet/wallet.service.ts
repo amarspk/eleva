@@ -9,6 +9,11 @@ export class WalletService {
   private async getOrCreateWallet(customerId: string, tenantId: string): Promise<{ id: string; balance: number }> {
     return dbTenantContext.run({ tenantId }, async () => {
       let wallet = await (prisma as any).customerWallet.findUnique({ where: { customerId } });
+      // findUnique is not tenant-injected; a globally-unique customerId must
+      // still belong to this tenant or staff could credit another restaurant.
+      if (wallet && wallet.tenantId !== tenantId) {
+        throw new NotFoundException('Customer not found.');
+      }
       if (!wallet) {
         wallet = await (prisma as any).customerWallet.create({
           data: { tenantId, customerId, balance: 0 },
@@ -98,7 +103,9 @@ export class WalletService {
     return dbTenantContext.run({ tenantId }, async () => {
       return (prisma as any).$transaction(async (tx: any) => {
         const wallet = await tx.customerWallet.findUnique({ where: { customerId } });
-        if (!wallet) return { walletUsed: 0, remainingTotal: orderTotal };
+        if (!wallet || wallet.tenantId !== tenantId) {
+          return { walletUsed: 0, remainingTotal: orderTotal };
+        }
         const balance = Number(wallet.balance);
         const walletUsed = Math.min(balance, Math.max(0, orderTotal));
         if (walletUsed <= 0) return { walletUsed: 0, remainingTotal: orderTotal };

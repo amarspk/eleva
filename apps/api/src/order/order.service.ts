@@ -178,7 +178,9 @@ export class OrderService {
           );
           if (payload?.type === 'customer' && payload?.sub) {
             const customer = await prisma.customer.findUnique({ where: { id: payload.sub } });
-            if (customer) {
+            // findUnique is not ALS-scoped; reject foreign-tenant customers
+            // so their wallet/loyalty cannot be applied to this tenant's order.
+            if (customer && customer.tenantId === guestTenantId) {
               customerId = customer.id;
             }
           }
@@ -410,7 +412,7 @@ export class OrderService {
       // Phase 4 — Wallet: apply store credit toward the order (atomic debit)
       if (customerId) {
         const wallet = await tx.customerWallet.findUnique({ where: { customerId } });
-        if (wallet && Number(wallet.balance) > 0) {
+        if (wallet && wallet.tenantId === userTenantId && Number(wallet.balance) > 0) {
           const walletAmt = Math.min(Number(wallet.balance), Number(total));
           if (walletAmt > 0) {
             const walletAfter = Number(wallet.balance) - walletAmt;

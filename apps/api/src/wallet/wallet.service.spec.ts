@@ -49,7 +49,7 @@ describe('WalletService (Phase 4 — Store Credit)', () => {
     mockDb.customerWalletUpdate.mockResolvedValue({});
     mockDb.walletTransactionFindMany.mockResolvedValue([]);
     mockDb.walletTransactionCreate.mockResolvedValue({});
-    mockDb.customerFindUnique.mockResolvedValue({ id: 'customer-1' });
+    mockDb.customerFindUnique.mockResolvedValue({ id: 'customer-1', tenantId: 'tenant-1' });
   });
 
   it('returns zero balance for a customer with no wallet (creates one)', async () => {

@@ -1,7 +1,7 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
-import { prisma } from '@zayjar/db';
+import { prisma, dbTenantContext } from '@zayjar/db';
 import { JWT_CONFIG } from '../../auth/config/jwt.config';
 
 interface CustomerTokenPayload {
@@ -46,8 +46,13 @@ export class CustomerJwtStrategy extends PassportStrategy(Strategy, 'customer') 
     if (payload.type !== 'customer' || !payload.sub) {
       throw new UnauthorizedException('Invalid customer session.');
     }
+    // findUnique is NOT tenant-injected by the Prisma extension (only
+    // findFirst/findMany/update/delete/create). Must compare tenantId
+    // against the request ALS or a token minted for tenant A authenticates
+    // on tenant B's host.
     const customer = await prisma.customer.findUnique({ where: { id: payload.sub } });
-    if (!customer) {
+    const requestTenantId = dbTenantContext.getStore()?.tenantId;
+    if (!customer || !requestTenantId || customer.tenantId !== requestTenantId) {
       throw new UnauthorizedException('Customer account not found.');
     }
     return { customerId: customer.id, tenantId: customer.tenantId, email: customer.email };

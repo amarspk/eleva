@@ -138,4 +138,18 @@ describe('OrderService — optional customer linking at guest checkout (Phase 4)
       undefined,
     );
   });
+
+  it('does not link a customer whose tenantId does not match the checkout tenant', async () => {
+    jwt.verifyAsync.mockResolvedValue({ type: 'customer', sub: 'customer-1', tenantId: 'tenant-OTHER' });
+    mockDb.customerFindUnique.mockResolvedValue({ id: 'customer-1', tenantId: 'tenant-OTHER' });
+
+    await service.createGuestOrder(dto, 'tenant-1', 'customer-token');
+
+    expect(OrderService.prototype.createOrder).toHaveBeenCalledWith(
+      expect.anything(),
+      'tenant-1',
+      undefined,
+      undefined,
+    );
+  });
 });
