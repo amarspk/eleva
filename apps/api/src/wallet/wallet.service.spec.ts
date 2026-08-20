@@ -85,6 +85,20 @@ describe('WalletService (Phase 4 — Store Credit)', () => {
     await expect(service.grantCredit('tenant-1', 'missing', 10, '')).rejects.toBeInstanceOf(NotFoundException);
   });
 
+  it('rejects credit for a customer that belongs to another tenant', async () => {
+    mockDb.customerFindUnique.mockResolvedValue({ id: 'customer-1', tenantId: 'tenant-OTHER' });
+    await expect(service.grantCredit('tenant-1', 'customer-1', 10, '')).rejects.toBeInstanceOf(NotFoundException);
+    expect(mockDb.customerWalletUpdate).not.toHaveBeenCalled();
+    expect(mockDb.customerWalletCreate).not.toHaveBeenCalled();
+  });
+
+  it('does not return another tenant wallet to staff', async () => {
+    mockDb.customerWalletFindUnique.mockResolvedValue({ ...walletRow, tenantId: 'tenant-OTHER' });
+    const result = await service.getStaffWallet('tenant-1', 'customer-1');
+    expect(result).toBeNull();
+    expect(mockDb.walletTransactionFindMany).not.toHaveBeenCalled();
+  });
+
   it('deducts wallet balance for an order (useWalletForOrder)', async () => {
     const result = await service.useWalletForOrder('tenant-1', 'customer-1', 'order-1', 30);
     expect(result.walletUsed).toBe(30);

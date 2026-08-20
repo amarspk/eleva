@@ -52,8 +52,13 @@ export class WalletService {
   async grantCredit(tenantId: string, customerId: string, amount: number, description?: string): Promise<{ balance: number }> {
     if (!amount || amount <= 0) throw new BadRequestException('Credit amount must be positive.');
     return dbTenantContext.run({ tenantId }, async () => {
-      const customer = await prisma.customer.findUnique({ where: { id: customerId }, select: { id: true } });
-      if (!customer) throw new NotFoundException('Customer not found.');
+      const customer = await prisma.customer.findUnique({
+        where: { id: customerId },
+        select: { id: true, tenantId: true },
+      });
+      if (!customer || customer.tenantId !== tenantId) {
+        throw new NotFoundException('Customer not found.');
+      }
       const wallet = await this.getOrCreateWallet(customerId, tenantId);
       const newBalance = wallet.balance + amount;
       const data: Record<string, unknown> = {
@@ -79,7 +84,8 @@ export class WalletService {
   async getStaffWallet(tenantId: string, customerId: string): Promise<{ balance: number; transactions: Array<Record<string, unknown>> } | null> {
     return dbTenantContext.run({ tenantId }, async () => {
       const wallet = await (prisma as any).customerWallet.findUnique({ where: { customerId } });
-      if (!wallet) return null;
+      // findUnique is not ALS-scoped; do not return another tenant's ledger.
+      if (!wallet || wallet.tenantId !== tenantId) return null;
       const txs = await (prisma as any).walletTransaction.findMany({
         where: { walletId: wallet.id },
         orderBy: { createdAt: 'desc' },
