@@ -1,5 +1,5 @@
 import { Injectable, Logger, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
-import { prisma } from '@zayjar/db';
+import { prisma, dbTenantContext } from '@zayjar/db';
 import { CreateRatingDto } from './dto/create-rating.dto';
 
 @Injectable()
@@ -9,7 +9,8 @@ export class RatingService {
   /** Customer: rate an eligible completed order (own order, tenant-scoped). */
   async rateOrder(customerId: string, dto: CreateRatingDto): Promise<Record<string, unknown>> {
     const order = await prisma.order.findUnique({ where: { id: dto.orderId } });
-    if (!order || order.customerId !== customerId) {
+    const requestTenantId = dbTenantContext.getStore()?.tenantId;
+    if (!order || order.customerId !== customerId || !requestTenantId || order.tenantId !== requestTenantId) {
       throw new NotFoundException('Order not found.');
     }
     if (order.status !== 'COMPLETED') {

@@ -41,7 +41,7 @@ describe('ComplaintService (Phase 4 — Complaints)', () => {
     mockDb.ccUpdate.mockImplementation(async (args: { data: Record<string, unknown> }) => complaintRow(args.data));
     mockDb.cmFindMany.mockResolvedValue([]);
     mockDb.cmCreate.mockImplementation(async (data: unknown) => ({ ...(data as Record<string, unknown>).data, id: 'm1', createdAt: new Date() }));
-    mockDb.orderFindUnique.mockResolvedValue({ id: 'o1', customerId: 'cust-1' });
+    mockDb.orderFindUnique.mockResolvedValue({ id: 'o1', customerId: 'cust-1', tenantId: 'tenant-1' });
   });
 
   it('customer creates a complaint', async () => {
@@ -51,9 +51,16 @@ describe('ComplaintService (Phase 4 — Complaints)', () => {
   });
 
   it('validates order ownership on creation', async () => {
-    mockDb.orderFindUnique.mockResolvedValue({ id: 'o1', customerId: 'other-cust' });
+    mockDb.orderFindUnique.mockResolvedValue({ id: 'o1', customerId: 'other-cust', tenantId: 'tenant-1' });
     await expect(service.create('cust-1', 'tenant-1', { subject: 'Test', description: 'Issue', orderId: 'o1' }))
       .rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('rejects linking an order from another tenant', async () => {
+    mockDb.orderFindUnique.mockResolvedValue({ id: 'o1', customerId: 'cust-1', tenantId: 'tenant-OTHER' });
+    await expect(service.create('cust-1', 'tenant-1', { subject: 'Test', description: 'Issue', orderId: 'o1' }))
+      .rejects.toBeInstanceOf(NotFoundException);
+    expect(mockDb.ccCreate).not.toHaveBeenCalled();
   });
 
   it('lists own complaints', async () => {

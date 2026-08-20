@@ -11,7 +11,10 @@ jest.mock('@zayjar/db', () => {
       tenant: { findUnique: tenantFindUnique },
       tenantDesign: { findUnique: designFindUnique },
     },
-    dbTenantContext: { run: jest.fn((_ctx: unknown, fn: () => unknown) => fn()) },
+    dbTenantContext: {
+      run: jest.fn((_ctx: unknown, fn: () => unknown) => fn()),
+      getStore: jest.fn(() => ({ tenantId: 'tenant-1' })),
+    },
     __mockOrderFindUnique: orderFindUnique,
     __mockTenantFindUnique: tenantFindUnique,
     __mockDesignFindUnique: designFindUnique,
@@ -142,5 +145,11 @@ describe('ReceiptService (Phase 4 P3 — Printing & Receipts)', () => {
     mockDb.__mockOrderFindUnique.mockResolvedValueOnce(baseOrder).mockResolvedValueOnce(hydratedOrder);
     const data = await service.getReceiptData('order-1', []);
     expect(data.order).toBeTruthy();
+  });
+
+  it('returns 404 for an order that belongs to another tenant (findUnique is not ALS-scoped)', async () => {
+    mockDb.__mockOrderFindUnique.mockReset();
+    mockDb.__mockOrderFindUnique.mockResolvedValue({ ...baseOrder, tenantId: 'tenant-OTHER' });
+    await expect(service.getReceiptData('order-1', [])).rejects.toBeInstanceOf(NotFoundException);
   });
 });

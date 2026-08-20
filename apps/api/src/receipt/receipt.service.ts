@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
-import { prisma } from '@zayjar/db';
+import { prisma, dbTenantContext } from '@zayjar/db';
 import { resolveReceiptConfig } from '@zayjar/receipts/receipt-config';
 import type { ReceiptConfig } from '@zayjar/receipts/receipt-types';
 
@@ -38,9 +38,11 @@ export class ReceiptService {
   }
 
   async getReceiptData(orderId: string, userBranches?: string[]): Promise<Record<string, unknown>> {
-    // 1. Tenant-scoped order lookup (no existence oracle).
+    // 1. Order lookup. findUnique is NOT ALS-scoped — a tenant-wide staff
+    // JWT (empty branches) would otherwise return any tenant's order by UUID.
     const order = await prisma.order.findUnique({ where: { id: orderId } });
-    if (!order) {
+    const requestTenantId = dbTenantContext.getStore()?.tenantId;
+    if (!order || !requestTenantId || order.tenantId !== requestTenantId) {
       throw new NotFoundException(`Order with ID [${orderId}] was not found.`);
     }
 

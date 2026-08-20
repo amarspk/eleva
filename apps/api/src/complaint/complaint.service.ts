@@ -26,7 +26,8 @@ export class ComplaintService {
   ): Promise<Record<string, unknown>> {
     if (data.orderId) {
       const order = await prisma.order.findUnique({ where: { id: data.orderId } });
-      if (!order || order.customerId !== customerId) {
+      // findUnique is not ALS-scoped; require owner AND this tenant.
+      if (!order || order.customerId !== customerId || order.tenantId !== tenantId) {
         throw new NotFoundException('Order not found.');
       }
     }

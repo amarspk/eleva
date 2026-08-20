@@ -11,7 +11,10 @@ jest.mock('@zayjar/db', () => {
       orderRating: { findUnique: orFindUnique, findMany: orFindMany, create: orCreate },
       order: { findUnique: orderFindUnique },
     },
-    dbTenantContext: { run: jest.fn((c: unknown, fn: () => unknown) => fn()) },
+    dbTenantContext: {
+      run: jest.fn((c: unknown, fn: () => unknown) => fn()),
+      getStore: jest.fn(() => ({ tenantId: 't1' })),
+    },
     __m: { orFindUnique, orFindMany, orCreate, orderFindUnique },
   };
 });
