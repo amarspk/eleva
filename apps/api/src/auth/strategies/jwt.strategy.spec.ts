@@ -117,6 +117,19 @@ describe('JwtStrategy — C-1 (AUTHZ-001) tenant reconciliation', () => {
     });
   });
 
+  it('rejects a customer JWT (type:customer) so it cannot satisfy staff JwtAuthGuard', async () => {
+    const customerPayload = {
+      sub: 'customer-1',
+      email: 'sara@example.com',
+      tenantId: 'T-A',
+      roles: [],
+      permissions: [],
+      type: 'customer',
+    };
+    await expect(strategy.validate(makeReq(), customerPayload)).rejects.toThrow(UnauthorizedException);
+    await expect(strategy.validate(makeReq(), customerPayload)).rejects.toThrow('Invalid staff session.');
+  });
+
   it('preserves the pre-existing blacklist rejection (regression)', async () => {
     (authService.isTokenBlacklisted as jest.Mock).mockResolvedValue(true);
     await expect(strategy.validate(makeReq(), staffPayload)).rejects.toThrow(UnauthorizedException);

@@ -12,6 +12,8 @@ interface JwtTokenPayload {
   tenantId: string | null;
   roles: string[];
   permissions: string[];
+  /** Customer tokens carry `type: 'customer'` and must never satisfy staff auth. */
+  type?: string;
   /**
    * Assigned branch IDs (DOC-005 §4.2). Populated from the persistent
    * user_branches relation at login/refresh. Consumed by
@@ -51,6 +53,13 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
    * Verifies that the token has not been blacklisted via logouts.
    */
   async validate(req: JwtRequest, payload: JwtTokenPayload): Promise<AuthenticatedUser> {
+    // Customer JWTs share JWT_SECRET but are a disjoint identity. Accepting
+    // them here would treat a customer UUID as a staff user on JwtAuthGuard
+    // routes (auth/me, device-tokens, webhook list, tenant GET).
+    if (payload.type === 'customer') {
+      throw new UnauthorizedException('Invalid staff session.');
+    }
+
     // Extract raw bearer token from request header to check blacklist
     const authHeader = req.headers.authorization;
     if (authHeader) {
