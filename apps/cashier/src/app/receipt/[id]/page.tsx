@@ -31,7 +31,7 @@ export default function ReceiptPrintPage(): React.ReactNode {
   }, [kind, orderId]);
 
   useEffect(() => {
-    (async () => {
+    (async (): Promise<void> => {
       try {
         const token = window.localStorage.getItem('accessToken') || '';
         const tenantId = window.localStorage.getItem('tenantId') || '';
@@ -56,11 +56,13 @@ export default function ReceiptPrintPage(): React.ReactNode {
   /* Auto-print once data is ready (deduped). */
   useEffect(() => {
     if (data && !printed) {
-      const t = window.setTimeout(() => {
+      const t = window.setTimeout((): void => {
         window.print();
         setPrinted(true);
       }, 300);
-      return () => window.clearTimeout(t);
+      return (): void => {
+        window.clearTimeout(t);
+      };
     }
     return undefined;
   }, [data, printed]);

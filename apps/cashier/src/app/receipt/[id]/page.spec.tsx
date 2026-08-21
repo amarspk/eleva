@@ -43,8 +43,12 @@ describe('Receipt print page (Phase 4 P3)', () => {
     (global.fetch as jest.Mock).mockReset();
     window.localStorage.getItem.mockReset();
     window.localStorage.getItem.mockImplementation((key: string) => {
-      if (key === 'accessToken') return 'token-1';
-      if (key === 'tenantId') return 'tenant-1';
+      if (key === 'accessToken') {
+        return 'token-1';
+      }
+      if (key === 'tenantId') {
+        return 'tenant-1';
+      }
       return null;
     });
     window.print = jest.fn();
