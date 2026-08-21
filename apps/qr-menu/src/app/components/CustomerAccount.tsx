@@ -10,10 +10,7 @@ import {
   customerLogout,
   clearCustomerSession,
   getCustomerToken,
-  fetchLoyaltyBalance,
-  fetchLoyaltyHistory,
   redeemLoyaltyPoints,
-  fetchWalletBalance,
   listMyComplaints,
   createComplaint,
   getMyComplaint,
@@ -166,7 +163,7 @@ export function CustomerAccount({ branding }: { branding: Branding }): React.Rea
   const [compSubject, setCompSubject] = useState('');
   const [compDesc, setCompDesc] = useState('');
   const [compReply, setCompReply] = useState('');
-  const [ratings, setRatings] = useState<Array<Record<string, unknown>> | null>(null);
+  const [, setRatings] = useState<Array<Record<string, unknown>> | null>(null);
   const [showRatingForm, setShowRatingForm] = useState<string | null>(null);
   const [starHover, setStarHover] = useState(0);
   const [selectedRating, setSelectedRating] = useState(0);
@@ -182,8 +179,10 @@ export function CustomerAccount({ branding }: { branding: Branding }): React.Rea
 
   useEffect(() => {
     // Restore an existing customer session on load.
-    if (!getCustomerToken()) return;
-    (async () => {
+    if (!getCustomerToken()) {
+      return;
+    }
+    (async (): Promise<void> => {
       try {
         const profile = await fetchCustomerProfile();
         setCustomer(profile);
@@ -197,8 +196,10 @@ export function CustomerAccount({ branding }: { branding: Branding }): React.Rea
   }, []);
 
   useEffect(() => {
-    if (!customer) return;
-    (async () => {
+    if (!customer) {
+      return;
+    }
+    (async (): Promise<void> => {
       try {
         setOrders(await fetchCustomerOrders());
       } catch {
@@ -232,7 +233,9 @@ export function CustomerAccount({ branding }: { branding: Branding }): React.Rea
 
   const handleRedeem = async (): Promise<void> => {
     const pts = parseInt(redeemInput, 10);
-    if (!pts || pts <= 0) return;
+    if (!pts || pts <= 0) {
+      return;
+    }
     try {
       const result = await redeemLoyaltyPoints(pts);
       setRedeemResult(result.discountValue > 0 ? t.redeemSuccess : '');

@@ -13,12 +13,16 @@ const TOKEN_KEY = 'eleva_customer_token';
 const CSRF_KEY = 'eleva_customer_csrf';
 
 export function getCustomerToken(): string | null {
-  if (typeof window === 'undefined') return null;
+  if (typeof window === 'undefined') {
+    return null;
+  }
   return window.localStorage.getItem(TOKEN_KEY);
 }
 
 export function getCustomerCsrf(): string | null {
-  if (typeof window === 'undefined') return null;
+  if (typeof window === 'undefined') {
+    return null;
+  }
   return window.localStorage.getItem(CSRF_KEY);
 }
 
@@ -45,8 +49,12 @@ export class CustomerApiError extends Error {
 function extractServerMessage(body: unknown, status: number): string {
   if (body && typeof body === 'object' && 'message' in body) {
     const message = (body as { message: unknown }).message;
-    if (typeof message === 'string') return message;
-    if (Array.isArray(message)) return message.filter((m) => typeof m === 'string').join(', ');
+    if (typeof message === 'string') {
+      return message;
+    }
+    if (Array.isArray(message)) {
+      return message.filter((m) => typeof m === 'string').join(', ');
+    }
   }
   return `Request failed (HTTP ${status}).`;
 }
@@ -58,11 +66,15 @@ async function request<T>(
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   if (init.auth) {
     const token = getCustomerToken();
-    if (token) headers['Authorization'] = `Bearer ${token}`;
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
   }
   if (init.csrf) {
     const csrf = getCustomerCsrf();
-    if (csrf) headers['X-CSRF-Token'] = csrf;
+    if (csrf) {
+      headers['X-CSRF-Token'] = csrf;
+    }
   }
   const res = await fetch(path, {
     method: init.method ?? 'GET',

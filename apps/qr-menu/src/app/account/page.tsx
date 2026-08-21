@@ -19,7 +19,7 @@ export default function AccountPage(): React.ReactNode {
   } | null>(null);
 
   useEffect(() => {
-    (async () => {
+    (async (): Promise<void> => {
       try {
         const res = await fetch('/api/v1/public/site', { cache: 'no-store' });
         if (res.ok) {
