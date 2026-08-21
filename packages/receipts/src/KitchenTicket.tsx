@@ -18,9 +18,15 @@ export function KitchenTicket({ data }: { data: ReceiptData }): React.ReactEleme
 
   const itemLines = (item: ReceiptItem): string[] => {
     const lines: string[] = [];
-    if (item.size) lines.push(item.size);
-    if (item.variant) lines.push(item.variant);
-    if (item.addons && item.addons.length > 0) lines.push(item.addons.join(' + '));
+    if (item.size) {
+      lines.push(item.size);
+    }
+    if (item.variant) {
+      lines.push(item.variant);
+    }
+    if (item.addons && item.addons.length > 0) {
+      lines.push(item.addons.join(' + '));
+    }
     return lines;
   };
 

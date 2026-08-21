@@ -16,7 +16,9 @@ export function formatMoney(amount: number, currency: string, language: ReceiptL
 }
 
 export function formatDateTime(iso: string | undefined, language: ReceiptLanguage): { date: string; time: string } {
-  if (!iso) return { date: '—', time: '—' };
+  if (!iso) {
+    return { date: '—', time: '—' };
+  }
   const locale = language === 'ar' ? 'ar-EG' : 'en-US';
   try {
     const d = new Date(iso);

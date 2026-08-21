@@ -22,9 +22,15 @@ export function CustomerReceipt({ data }: { data: ReceiptData }): React.ReactEle
 
   const itemLines = (item: ReceiptItem): string[] => {
     const lines: string[] = [];
-    if (item.size) lines.push(item.size);
-    if (item.variant) lines.push(item.variant);
-    if (item.addons && item.addons.length > 0) lines.push(item.addons.join(' + '));
+    if (item.size) {
+      lines.push(item.size);
+    }
+    if (item.variant) {
+      lines.push(item.variant);
+    }
+    if (item.addons && item.addons.length > 0) {
+      lines.push(item.addons.join(' + '));
+    }
     return lines;
   };
 
@@ -48,7 +54,6 @@ export function CustomerReceipt({ data }: { data: ReceiptData }): React.ReactEle
       {/* Header — logo + restaurant name */}
       <div style={{ textAlign: 'center', marginBottom: 8 }}>
         {config.showLogo && tenant.logoUrl && (
-          // eslint-disable-next-line @next/next/no-img-element
           <img
             src={tenant.logoUrl}
             alt={tenant.name}

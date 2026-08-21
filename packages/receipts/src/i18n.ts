@@ -74,7 +74,9 @@ export function getReceiptLabels(language: ReceiptLanguage): ReceiptLabels {
 
 /** Maps a raw server payment method value to a human label. */
 export function paymentMethodLabel(method: string | null | undefined, language: ReceiptLanguage): string {
-  if (!method) return '—';
+  if (!method) {
+    return '—';
+  }
   const map: Record<string, Record<ReceiptLanguage, string>> = {
     CASH: { en: 'Cash', ar: 'نقداً' },
     CREDIT_CARD: { en: 'Card', ar: 'بطاقة' },
