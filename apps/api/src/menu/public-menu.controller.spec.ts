@@ -384,6 +384,8 @@ describe('PublicMenu (QR guest surface)', () => {
         tenant: { name: 'X', logoUrl: null, bannerUrl: null, primaryColor: '#000', secondaryColor: '#fff', social: null },
         restaurant: { name: 'R', currency: 'USD' },
         branch: null,
+        branches: [],
+        about: null,
         categories: [],
       });
       await controller.getPublicSite(reqWithTenant);

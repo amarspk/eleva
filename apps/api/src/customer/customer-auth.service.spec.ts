@@ -1,6 +1,5 @@
 import { ConflictException, UnauthorizedException } from '@nestjs/common';
 import { CustomerAuthService } from './customer-auth.service';
-import type { AuthService } from '../auth/auth.service';
 
 jest.mock('@zayjar/db', () => {
   const customerFindMany = jest.fn();

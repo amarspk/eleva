@@ -163,7 +163,7 @@ export class LoyaltyService {
    * Idempotent: if a EARNED transaction already exists for this order, skip.
    * Atomic: single DB transaction.
    */
-  async awardPointsForOrder(tenantId: string, orderId: string, customerId: string, orderTotal: number): Promise<void> {
+  async awardPointsForOrder(tenantId: string, orderId: string, customerId: string | null | undefined, orderTotal: number): Promise<void> {
     if (!customerId) {return;}
 
     await dbTenantContext.run({ tenantId }, async () => {
