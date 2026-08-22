@@ -6,6 +6,7 @@ import { CustomerAuthController } from './customer-auth.controller';
 import { CustomerJwtStrategy } from './strategies/customer-jwt.strategy';
 import { CustomerAuthGuard } from './guards/customer-auth.guard';
 import { AuthModule } from '../auth/auth.module';
+import { RateLimitModule } from '../common/rate-limit/rate-limit.module';
 
 /**
  * AUDIT-014 (DEFECT-H): `AuthModule` is imported so `RbacPermissionGuard` can
@@ -17,9 +18,9 @@ import { AuthModule } from '../auth/auth.module';
  * (register/login/me/orders) lives here, fully separate from staff RBAC.
  */
 @Module({
-  imports: [AuthModule],
+  imports: [AuthModule, RateLimitModule],
   controllers: [CustomerController, CustomerAuthController],
   providers: [CustomerService, CustomerAuthService, CustomerJwtStrategy, CustomerAuthGuard],
-  exports: [CustomerService],
+  exports: [CustomerService, CustomerAuthGuard],
 })
 export class CustomerModule {}
