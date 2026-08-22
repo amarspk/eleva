@@ -21,7 +21,7 @@ export class ComplaintController {
   @UseGuards(CustomerAuthGuard)
   @HttpCode(HttpStatus.CREATED)
   async create(@Req() req: CustomerReq, @Body() dto: CreateComplaintDto): Promise<unknown> {
-    const cust = req.customer; if (!cust) return { error: 'Not authenticated.' };
+    const cust = req.customer; if (!cust) {return { error: 'Not authenticated.' };}
     return this.complaintService.create(cust.customerId, cust.tenantId || '', dto);
   }
 
@@ -29,7 +29,7 @@ export class ComplaintController {
   @UseGuards(CustomerAuthGuard)
   @HttpCode(HttpStatus.OK)
   async listMy(@Req() req: CustomerReq): Promise<unknown> {
-    const cust = req.customer; if (!cust) return [];
+    const cust = req.customer; if (!cust) {return [];}
     return this.complaintService.listMy(cust.customerId);
   }
 
@@ -37,7 +37,7 @@ export class ComplaintController {
   @UseGuards(CustomerAuthGuard)
   @HttpCode(HttpStatus.OK)
   async getMy(@Req() req: CustomerReq, @Param('id', ParseUUIDPipe) id: string): Promise<unknown> {
-    const cust = req.customer; if (!cust) return { error: 'Not authenticated.' };
+    const cust = req.customer; if (!cust) {return { error: 'Not authenticated.' };}
     return this.complaintService.getMy(cust.customerId, id);
   }
 
@@ -45,7 +45,7 @@ export class ComplaintController {
   @UseGuards(CustomerAuthGuard)
   @HttpCode(HttpStatus.CREATED)
   async addMessage(@Req() req: CustomerReq, @Param('id', ParseUUIDPipe) id: string, @Body() dto: AddMessageDto): Promise<unknown> {
-    const cust = req.customer; if (!cust) return { error: 'Not authenticated.' };
+    const cust = req.customer; if (!cust) {return { error: 'Not authenticated.' };}
     return this.complaintService.addCustomerMessage(cust.customerId, id, dto.message);
   }
 
@@ -56,7 +56,7 @@ export class ComplaintController {
   @RequirePermission('read', 'Customer')
   @HttpCode(HttpStatus.OK)
   async listStaff(@Req() req: AuthenticatedRequest): Promise<unknown> {
-    if (!req.user?.tenantId) return [];
+    if (!req.user?.tenantId) {return [];}
     return this.complaintService.listStaff(req.user.tenantId);
   }
 
@@ -65,7 +65,7 @@ export class ComplaintController {
   @RequirePermission('read', 'Customer')
   @HttpCode(HttpStatus.OK)
   async getStaff(@Req() req: AuthenticatedRequest, @Param('id', ParseUUIDPipe) id: string): Promise<unknown> {
-    if (!req.user?.tenantId) return { error: 'Tenant required.' };
+    if (!req.user?.tenantId) {return { error: 'Tenant required.' };}
     return this.complaintService.getStaff(req.user.tenantId, id);
   }
 
@@ -74,7 +74,7 @@ export class ComplaintController {
   @RequirePermission('update', 'Customer')
   @HttpCode(HttpStatus.CREATED)
   async staffMessage(@Req() req: AuthenticatedRequest, @Param('id', ParseUUIDPipe) id: string, @Body() dto: AddMessageDto): Promise<unknown> {
-    if (!req.user?.tenantId) return { error: 'Tenant required.' };
+    if (!req.user?.tenantId) {return { error: 'Tenant required.' };}
     return this.complaintService.addStaffMessage(req.user.tenantId, id, dto.message);
   }
 
@@ -83,7 +83,7 @@ export class ComplaintController {
   @RequirePermission('update', 'Customer')
   @HttpCode(HttpStatus.OK)
   async updateStatus(@Req() req: AuthenticatedRequest, @Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdateStatusDto): Promise<unknown> {
-    if (!req.user?.tenantId) return { error: 'Tenant required.' };
+    if (!req.user?.tenantId) {return { error: 'Tenant required.' };}
     return this.complaintService.updateStatus(req.user.tenantId, id, dto.status);
   }
 }

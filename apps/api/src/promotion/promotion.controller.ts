@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Put, Body, Req, HttpCode, HttpStatus, UseGuards } from '@nestjs/common';
+import { Controller, Get, Put, Body, Req, HttpCode, HttpStatus, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RbacPermissionGuard } from '../auth/guards/rbac-permission.guard';
 import { CustomerAuthGuard } from '../customer/guards/customer-auth.guard';
@@ -16,7 +16,7 @@ export class PromotionController {
   @UseGuards(CustomerAuthGuard)
   @HttpCode(HttpStatus.OK)
   async checkWelcomeOffer(@Req() req: CustomerReq): Promise<unknown> {
-    if (!req.customer) return { eligible: false };
+    if (!req.customer) {return { eligible: false };}
     return this.promotionService.checkEligibility(req.customer.customerId);
   }
 
@@ -25,7 +25,7 @@ export class PromotionController {
   @RequirePermission('read', 'Customer')
   @HttpCode(HttpStatus.OK)
   async getStaffConfig(@Req() req: AuthenticatedRequest): Promise<unknown> {
-    if (!req.user?.tenantId) return { error: 'Tenant required.' };
+    if (!req.user?.tenantId) {return { error: 'Tenant required.' };}
     return this.promotionService.getConfig(req.user.tenantId) ?? { enabled: false, discountType: 'PERCENTAGE', discountValue: 0, minOrderAmount: 0 };
   }
 
@@ -36,7 +36,7 @@ export class PromotionController {
   async upsertStaffConfig(@Req() req: AuthenticatedRequest, @Body() body: {
     enabled: boolean; discountType: string; discountValue: number; minOrderAmount?: number;
   }): Promise<unknown> {
-    if (!req.user?.tenantId) return { error: 'Tenant required.' };
+    if (!req.user?.tenantId) {return { error: 'Tenant required.' };}
     return this.promotionService.upsertConfig(req.user.tenantId, body);
   }
 }

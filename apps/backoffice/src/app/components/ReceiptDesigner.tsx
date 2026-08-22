@@ -27,10 +27,10 @@ function useDebouncedSave(value: unknown, onSave: (v: unknown) => void | Promise
   const onSaveRef = useRef(onSave);
   useEffect(() => { onSaveRef.current = onSave; }, [onSave]);
   useEffect(() => {
-    if (timerRef.current) clearTimeout(timerRef.current);
-    if (!enabled) return;
+    if (timerRef.current) {clearTimeout(timerRef.current);}
+    if (!enabled) {return;}
     timerRef.current = setTimeout(() => { void onSaveRef.current(value); }, delay);
-    return () => { if (timerRef.current) clearTimeout(timerRef.current); };
+    return (): void => { if (timerRef.current) {clearTimeout(timerRef.current);} };
   }, [value, delay, enabled]);
 }
 
@@ -55,7 +55,7 @@ export function ReceiptDesigner({ tenantId }: { tenantId: string }): React.React
 
   /* Load the tenant's design draft (existing flow). */
   useEffect(() => {
-    (async () => {
+    (async (): Promise<void> => {
       try {
         const design = await designsApi.get(tenantId);
         const draft = design.draft as DesignData;
@@ -92,7 +92,7 @@ export function ReceiptDesigner({ tenantId }: { tenantId: string }): React.React
 
   /* Live preview against the tenant's most recent REAL order. */
   useEffect(() => {
-    (async () => {
+    (async (): Promise<void> => {
       setPreviewStatus('loading');
       try {
         const orders = await api.get<Array<{ id: string; orderNumber: string; createdAt: string }>>('/api/v1/orders');
@@ -114,7 +114,7 @@ export function ReceiptDesigner({ tenantId }: { tenantId: string }): React.React
   }, [tenantId]);
 
   const publish = async (): Promise<void> => {
-    if (publishing) return;
+    if (publishing) {return;}
     setPublishing(true);
     try {
       if (saveState !== 'saved') {

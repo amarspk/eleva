@@ -35,20 +35,20 @@ export function ElevaElevator(): React.ReactNode {
     const t1 = window.setTimeout(() => setShowPanel(true), 600);
 
     const storedTenant = window.localStorage.getItem('tenantId');
-    if (storedTenant) setTenantId(storedTenant);
+    if (storedTenant) {setTenantId(storedTenant);}
 
     const storedEmail = window.localStorage.getItem('eleva_email');
-    if (storedEmail) setEmail(storedEmail);
+    if (storedEmail) {setEmail(storedEmail);}
 
-    return () => window.clearTimeout(t1);
+    return (): void => { window.clearTimeout(t1); };
   }, []);
 
-  useEffect(() => () => {
+  useEffect((): (() => void) => (): void => {
     timerRef.current.forEach(t => window.clearTimeout(t));
   }, []);
 
   const returnTo = (): string => {
-    if (typeof window === 'undefined') return '/';
+    if (typeof window === 'undefined') {return '/';}
     const params = new URLSearchParams(window.location.search);
     const branchId = params.get('branchId');
     return branchId ? `/?branchId=${encodeURIComponent(branchId)}` : '/';

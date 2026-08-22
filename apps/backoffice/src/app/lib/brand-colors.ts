@@ -7,15 +7,15 @@
  */
 
 export function normalizeHex(value: string | null | undefined): string | null {
-  if (!value) return null;
+  if (!value) {return null;}
   const trimmed = value.trim();
   const match = /^#?([0-9a-fA-F]{6})$/.exec(trimmed);
-  if (!match) return null;
+  if (!match) {return null;}
   return `#${match[1].toUpperCase()}`;
 }
 
 export function rgbToHex(r: number, g: number, b: number): string {
-  const to = (n: number) => Math.max(0, Math.min(255, Math.round(n))).toString(16).padStart(2, '0');
+  const to = (n: number): string => Math.max(0, Math.min(255, Math.round(n))).toString(16).padStart(2, '0');
   return `#${to(r)}${to(g)}${to(b)}`.toUpperCase();
 }
 
@@ -23,8 +23,8 @@ export function suggestFromBrand(primary?: string | null, secondary?: string | n
   const out: string[] = [];
   const p = normalizeHex(primary);
   const s = normalizeHex(secondary);
-  if (p) out.push(p);
-  if (s && s !== p) out.push(s);
+  if (p) {out.push(p);}
+  if (s && s !== p) {out.push(s);}
   return out;
 }
 
@@ -39,14 +39,14 @@ export function suggestFromImageData(data: Uint8ClampedArray): string[] {
     const rr = data[i];
     const gg = data[i + 1];
     const bb = data[i + 2];
-    if (alpha < 32) continue;
-    if (rr > 245 && gg > 245 && bb > 245) continue;
+    if (alpha < 32) {continue;}
+    if (rr > 245 && gg > 245 && bb > 245) {continue;}
     r += rr;
     g += gg;
     b += bb;
     count += 1;
   }
-  if (count === 0) return [];
+  if (count === 0) {return [];}
   return [rgbToHex(r / count, g / count, b / count)];
 }
 
@@ -56,7 +56,7 @@ export function uniqueSuggestions(...groups: string[][]): string[] {
   for (const group of groups) {
     for (const hex of group) {
       const n = normalizeHex(hex);
-      if (!n || seen.has(n)) continue;
+      if (!n || seen.has(n)) {continue;}
       seen.add(n);
       out.push(n);
     }

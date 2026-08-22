@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { prisma, dbTenantContext } from '@zayjar/db';
+import { phase4Prisma } from '../common/phase4-prisma';
 import { resolveReceiptConfig } from '@zayjar/receipts/receipt-config';
 import type { ReceiptConfig } from '@zayjar/receipts/receipt-types';
 
@@ -101,7 +102,7 @@ export class ReceiptService {
 
     // 5. Published receipt design config from the existing TenantDesign
     //    JSONB (no new tables). Falls back to defaults when unset.
-    const design = await (prisma as any).tenantDesign.findUnique({
+    const design = await phase4Prisma(prisma).tenantDesign.findUnique({
       where: { tenantId: order.tenantId },
       select: { published: true },
     });

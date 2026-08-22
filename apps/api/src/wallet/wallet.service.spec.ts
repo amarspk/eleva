@@ -36,8 +36,6 @@ const mockDb = jest.requireMock('@zayjar/db').__m as {
 };
 
 const walletRow = { id: 'w1', customerId: 'customer-1', tenantId: 'tenant-1', balance: { toString: () => '50', toNumber: () => 50 } };
-const walletRow0 = { ...walletRow, balance: { toString: () => '0', toNumber: () => 0 } };
-
 describe('WalletService (Phase 4 — Store Credit)', () => {
   let service: WalletService;
 

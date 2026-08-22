@@ -8,7 +8,7 @@ export function RatingsManager({ tenantId }: { tenantId: string }): React.ReactN
   const [filterRating, setFilterRating] = useState(0);
 
   useEffect(() => {
-    (async () => {
+    (async (): Promise<void> => {
       try { setRatings(await api.get<Array<Record<string, unknown>>>('/api/v1/backoffice/ratings')); }
       catch { setRatings([]); }
     })();

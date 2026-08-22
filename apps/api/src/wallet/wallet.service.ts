@@ -1,5 +1,6 @@
 import { Injectable, Logger, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { prisma, dbTenantContext } from '@zayjar/db';
+import { phase4Prisma } from '../common/phase4-prisma';
 
 @Injectable()
 export class WalletService {
@@ -8,14 +9,14 @@ export class WalletService {
   /** Get or create the wallet for a customer (tenant-scoped). */
   private async getOrCreateWallet(customerId: string, tenantId: string): Promise<{ id: string; balance: number }> {
     return dbTenantContext.run({ tenantId }, async () => {
-      let wallet = await (prisma as any).customerWallet.findUnique({ where: { customerId } });
+      let wallet = await phase4Prisma(prisma).customerWallet.findUnique({ where: { customerId } });
       // findUnique is not tenant-injected; a globally-unique customerId must
       // still belong to this tenant or staff could credit another restaurant.
       if (wallet && wallet.tenantId !== tenantId) {
         throw new NotFoundException('Customer not found.');
       }
       if (!wallet) {
-        wallet = await (prisma as any).customerWallet.create({
+        wallet = await phase4Prisma(prisma).customerWallet.create({
           data: { tenantId, customerId, balance: 0 },
         });
       }
@@ -27,9 +28,9 @@ export class WalletService {
   async getMyWallet(customerId: string): Promise<{ balance: number; transactions: Array<Record<string, unknown>> }> {
     const store = dbTenantContext.getStore();
     const tenantId = store?.tenantId;
-    if (!tenantId) throw new ForbiddenException('Tenant context required.');
+    if (!tenantId) {throw new ForbiddenException('Tenant context required.');}
     const wallet = await this.getOrCreateWallet(customerId, tenantId);
-    const txs = await (prisma as any).walletTransaction.findMany({
+    const txs = await phase4Prisma(prisma).walletTransaction.findMany({
       where: { walletId: wallet.id },
       orderBy: { createdAt: 'desc' },
       take: 100,
@@ -50,7 +51,7 @@ export class WalletService {
 
   /** Staff grant credit (RBAC-guarded, tenant-scoped). */
   async grantCredit(tenantId: string, customerId: string, amount: number, description?: string): Promise<{ balance: number }> {
-    if (!amount || amount <= 0) throw new BadRequestException('Credit amount must be positive.');
+    if (!amount || amount <= 0) {throw new BadRequestException('Credit amount must be positive.');}
     return dbTenantContext.run({ tenantId }, async () => {
       const customer = await prisma.customer.findUnique({
         where: { id: customerId },
@@ -61,15 +62,12 @@ export class WalletService {
       }
       const wallet = await this.getOrCreateWallet(customerId, tenantId);
       const newBalance = wallet.balance + amount;
-      const data: Record<string, unknown> = {
-        data: { balance: newBalance },
-      };
       // Must use proper decimal update
-      await (prisma as any).customerWallet.update({
+      await phase4Prisma(prisma).customerWallet.update({
         where: { id: wallet.id },
         data: { balance: newBalance },
       });
-      await (prisma as any).walletTransaction.create({
+      await phase4Prisma(prisma).walletTransaction.create({
         data: {
           tenantId, customerId, walletId: wallet.id,
           type: 'CREDIT', amount, balanceAfter: newBalance,
@@ -83,10 +81,10 @@ export class WalletService {
   /** Staff view of a customer's wallet (RBAC-guarded, tenant-scoped). */
   async getStaffWallet(tenantId: string, customerId: string): Promise<{ balance: number; transactions: Array<Record<string, unknown>> } | null> {
     return dbTenantContext.run({ tenantId }, async () => {
-      const wallet = await (prisma as any).customerWallet.findUnique({ where: { customerId } });
+      const wallet = await phase4Prisma(prisma).customerWallet.findUnique({ where: { customerId } });
       // findUnique is not ALS-scoped; do not return another tenant's ledger.
-      if (!wallet || wallet.tenantId !== tenantId) return null;
-      const txs = await (prisma as any).walletTransaction.findMany({
+      if (!wallet || wallet.tenantId !== tenantId) {return null;}
+      const txs = await phase4Prisma(prisma).walletTransaction.findMany({
         where: { walletId: wallet.id },
         orderBy: { createdAt: 'desc' },
         take: 100,
@@ -107,14 +105,14 @@ export class WalletService {
     tenantId: string, customerId: string, orderId: string, orderTotal: number,
   ): Promise<{ walletUsed: number; remainingTotal: number }> {
     return dbTenantContext.run({ tenantId }, async () => {
-      return (prisma as any).$transaction(async (tx: any) => {
+      return phase4Prisma(prisma).$transaction(async (tx) => {
         const wallet = await tx.customerWallet.findUnique({ where: { customerId } });
         if (!wallet || wallet.tenantId !== tenantId) {
           return { walletUsed: 0, remainingTotal: orderTotal };
         }
         const balance = Number(wallet.balance);
         const walletUsed = Math.min(balance, Math.max(0, orderTotal));
-        if (walletUsed <= 0) return { walletUsed: 0, remainingTotal: orderTotal };
+        if (walletUsed <= 0) {return { walletUsed: 0, remainingTotal: orderTotal };}
         const newBalance = balance - walletUsed;
         await tx.customerWallet.update({
           where: { id: wallet.id },

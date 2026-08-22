@@ -16,7 +16,7 @@ export class WalletController {
   @UseGuards(CustomerAuthGuard)
   @HttpCode(HttpStatus.OK)
   async myWallet(@Req() req: CustomerReq): Promise<unknown> {
-    if (!req.customer) return { error: 'Not authenticated.' };
+    if (!req.customer) {return { error: 'Not authenticated.' };}
     return this.walletService.getMyWallet(req.customer.customerId);
   }
 
@@ -25,7 +25,7 @@ export class WalletController {
   @RequirePermission('read', 'Customer')
   @HttpCode(HttpStatus.OK)
   async staffWallet(@Req() req: AuthenticatedRequest, @Param('customerId', ParseUUIDPipe) customerId: string): Promise<unknown> {
-    if (!req.user?.tenantId) return { error: 'Tenant required.' };
+    if (!req.user?.tenantId) {return { error: 'Tenant required.' };}
     return this.walletService.getStaffWallet(req.user.tenantId, customerId);
   }
 
@@ -38,7 +38,7 @@ export class WalletController {
     @Param('customerId', ParseUUIDPipe) customerId: string,
     @Body() body: { amount: number; description?: string },
   ): Promise<unknown> {
-    if (!req.user?.tenantId) return { error: 'Tenant required.' };
+    if (!req.user?.tenantId) {return { error: 'Tenant required.' };}
     return this.walletService.grantCredit(req.user.tenantId, customerId, body.amount, body.description);
   }
 }

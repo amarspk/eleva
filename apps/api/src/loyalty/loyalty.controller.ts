@@ -1,9 +1,8 @@
-import { Controller, Post, Get, Put, Body, Param, Req, HttpCode, HttpStatus, UseGuards } from '@nestjs/common';
+import { Controller, Post, Get, Put, Body, Req, HttpCode, HttpStatus, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RbacPermissionGuard } from '../auth/guards/rbac-permission.guard';
 import { RateLimitGuard } from '../common/rate-limit/rate-limit.guard';
 import { RequirePermission } from '../auth/decorators/require-permission.decorator';
-import { Public } from '../auth/decorators/public.decorator';
 import { CustomerAuthGuard } from '../customer/guards/customer-auth.guard';
 import { LoyaltyService } from './loyalty.service';
 import type { AuthenticatedRequest } from '../common/types/request.types';
@@ -57,7 +56,7 @@ export class LoyaltyController {
   @HttpCode(HttpStatus.OK)
   async getStaffRule(@Req() req: AuthenticatedRequest): Promise<unknown> {
     const tenantId = req.user?.tenantId;
-    if (!tenantId) return { error: 'Tenant context required.' };
+    if (!tenantId) {return { error: 'Tenant context required.' };}
     const rule = await this.loyaltyService.getRule(tenantId);
     return rule ?? { earnRate: 0, earnMinOrderAmount: 0, minRedeemPoints: 0, redeemRate: 0 };
   }
@@ -71,12 +70,12 @@ export class LoyaltyController {
     @Body() body: { earnRate: number; earnMinOrderAmount?: number; minRedeemPoints?: number; redeemRate: number },
   ): Promise<unknown> {
     const tenantId = req.user?.tenantId;
-    if (!tenantId) return { error: 'Tenant context required.' };
+    if (!tenantId) {return { error: 'Tenant context required.' };}
     return this.loyaltyService.upsertRule(tenantId, body);
   }
 
   private cust(req: CustomerRequest): { customerId: string } {
-    if (!req.customer) throw new Error('CustomerAuthGuard must run first.');
+    if (!req.customer) {throw new Error('CustomerAuthGuard must run first.');}
     return req.customer;
   }
 }

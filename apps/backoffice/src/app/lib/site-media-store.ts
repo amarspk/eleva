@@ -24,30 +24,30 @@ function openDb(): Promise<IDBDatabase> {
       return;
     }
     const request = indexedDB.open(SITE_MEDIA_DB, 1);
-    request.onupgradeneeded = () => {
+    request.onupgradeneeded = (): void => {
       const db = request.result;
       if (!db.objectStoreNames.contains(SITE_MEDIA_STORE)) {
         const store = db.createObjectStore(SITE_MEDIA_STORE, { keyPath: 'id' });
         store.createIndex('tenantId', 'tenantId', { unique: false });
       }
     };
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error ?? new Error('IndexedDB open failed'));
+    request.onsuccess = (): void => { resolve(request.result); };
+    request.onerror = (): void => { reject(request.error ?? new Error('IndexedDB open failed')); };
   });
 }
 
 export async function listSiteMedia(tenantId: string): Promise<SiteMediaAsset[]> {
-  if (!tenantId) return [];
+  if (!tenantId) {return [];}
   try {
     const db = await openDb();
     return await new Promise((resolve, reject) => {
       const tx = db.transaction(SITE_MEDIA_STORE, 'readonly');
       const req = tx.objectStore(SITE_MEDIA_STORE).index('tenantId').getAll(tenantId);
-      req.onsuccess = () => {
+      req.onsuccess = (): void => {
         const rows = (req.result as SiteMediaAsset[] | undefined) ?? [];
         resolve(rows.sort((a, b) => b.createdAt - a.createdAt));
       };
-      req.onerror = () => reject(req.error);
+      req.onerror = (): void => { reject(req.error); };
     });
   } catch {
     return [];
@@ -60,8 +60,8 @@ export async function putSiteMedia(asset: SiteMediaAsset): Promise<void> {
     await new Promise<void>((resolve, reject) => {
       const tx = db.transaction(SITE_MEDIA_STORE, 'readwrite');
       tx.objectStore(SITE_MEDIA_STORE).put(asset);
-      tx.oncomplete = () => resolve();
-      tx.onerror = () => reject(tx.error);
+      tx.oncomplete = (): void => { resolve(); };
+      tx.onerror = (): void => { reject(tx.error); };
     });
   } catch {
     // Editor still works from in-memory session state.

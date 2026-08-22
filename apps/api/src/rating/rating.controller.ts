@@ -18,7 +18,7 @@ export class RatingController {
   @UseGuards(CustomerAuthGuard)
   @HttpCode(HttpStatus.CREATED)
   async create(@Req() req: CustomerReq, @Body() dto: CreateRatingDto): Promise<unknown> {
-    if (!req.customer) return { error: 'Not authenticated.' };
+    if (!req.customer) {return { error: 'Not authenticated.' };}
     return this.ratingService.rateOrder(req.customer.customerId, dto);
   }
 
@@ -26,7 +26,7 @@ export class RatingController {
   @UseGuards(CustomerAuthGuard)
   @HttpCode(HttpStatus.OK)
   async listMy(@Req() req: CustomerReq): Promise<unknown> {
-    if (!req.customer) return [];
+    if (!req.customer) {return [];}
     return this.ratingService.listMy(req.customer.customerId);
   }
 
@@ -34,7 +34,7 @@ export class RatingController {
   @UseGuards(CustomerAuthGuard)
   @HttpCode(HttpStatus.OK)
   async getMy(@Req() req: CustomerReq, @Param('id', ParseUUIDPipe) id: string): Promise<unknown> {
-    if (!req.customer) return { error: 'Not authenticated.' };
+    if (!req.customer) {return { error: 'Not authenticated.' };}
     return this.ratingService.getMy(req.customer.customerId, id);
   }
 
@@ -43,7 +43,7 @@ export class RatingController {
   @RequirePermission('read', 'Customer')
   @HttpCode(HttpStatus.OK)
   async listStaff(@Req() req: AuthenticatedRequest): Promise<unknown> {
-    if (!req.user?.tenantId) return [];
+    if (!req.user?.tenantId) {return [];}
     return this.ratingService.listStaff(req.user.tenantId);
   }
 

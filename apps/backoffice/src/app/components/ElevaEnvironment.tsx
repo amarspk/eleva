@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 
 /* ─── Time & weather types ─── */
 export type EnvTime = 'morning' | 'day' | 'sunset' | 'night';
@@ -13,9 +13,9 @@ export interface EnvState {
 
 export function computeTimeOfDay(): EnvTime {
   const h = new Date().getHours();
-  if (h >= 5 && h < 9) return 'morning';
-  if (h >= 9 && h < 17) return 'day';
-  if (h >= 17 && h < 20) return 'sunset';
+  if (h >= 5 && h < 9) {return 'morning';}
+  if (h >= 9 && h < 17) {return 'day';}
+  if (h >= 17 && h < 20) {return 'sunset';}
   return 'night';
 }
 
@@ -64,7 +64,7 @@ export function useEnvironment(): EnvState {
     }, 600_000);
 
     /* Attempt weather fetch — graceful fallback */
-    (async () => {
+    (async (): Promise<void> => {
       try {
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), 5000);
@@ -77,14 +77,14 @@ export function useEnvironment(): EnvState {
           const data = await res.json() as { current?: { weather_code?: number } };
           const code = data.current?.weather_code ?? 0;
           let weather: EnvWeather = 'sunny';
-          if (code >= 0 && code <= 3) weather = 'sunny';
-          else if (code >= 4 && code <= 19) weather = 'cloudy';
-          else if (code >= 20 && code <= 29) weather = 'foggy';
-          else if (code >= 30 && code <= 39) weather = 'stormy';
-          else if (code >= 40 && code <= 49) weather = 'foggy';
-          else if (code >= 50 && code <= 69) weather = 'rainy';
-          else if (code >= 70 && code <= 79) weather = 'stormy';
-          else if (code >= 80 && code <= 99) weather = 'rainy';
+          if (code >= 0 && code <= 3) {weather = 'sunny';}
+          else if (code >= 4 && code <= 19) {weather = 'cloudy';}
+          else if (code >= 20 && code <= 29) {weather = 'foggy';}
+          else if (code >= 30 && code <= 39) {weather = 'stormy';}
+          else if (code >= 40 && code <= 49) {weather = 'foggy';}
+          else if (code >= 50 && code <= 69) {weather = 'rainy';}
+          else if (code >= 70 && code <= 79) {weather = 'stormy';}
+          else if (code >= 80 && code <= 99) {weather = 'rainy';}
           setEnv(prev => ({ ...prev, weather }));
         }
       } catch {
@@ -92,7 +92,7 @@ export function useEnvironment(): EnvState {
       }
     })();
 
-    return () => clearInterval(interval);
+    return (): void => { clearInterval(interval); };
   }, []);
 
   return env;

@@ -19,7 +19,7 @@ export function LoyaltySettings({ tenantId }: { tenantId: string }): React.React
   const [msg, setMsg] = useState<string | null>(null);
 
   useEffect(() => {
-    (async () => {
+    (async (): Promise<void> => {
       try {
         const rule = await api.get<{ earnRate: number; earnMinOrderAmount: number; minRedeemPoints: number; redeemRate: number }>(
           '/api/v1/backoffice/loyalty/rule',

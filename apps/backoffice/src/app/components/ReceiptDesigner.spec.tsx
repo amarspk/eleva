@@ -105,7 +105,7 @@ describe('ReceiptDesigner (Phase 4 P3)', () => {
 
   it('shows an empty-state note when the tenant has no orders', async () => {
     mockApiGet.mockImplementation(async (path: string) => {
-      if (path === '/api/v1/orders') return [];
+      if (path === '/api/v1/orders') {return [];}
       throw new Error('unexpected');
     });
     render(<ReceiptDesigner tenantId="tenant-1" />);

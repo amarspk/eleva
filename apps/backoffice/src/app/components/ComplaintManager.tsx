@@ -10,7 +10,7 @@ export function ComplaintManager({ tenantId }: { tenantId: string }): React.Reac
   const [filter, setFilter] = useState('ALL');
 
   useEffect(() => {
-    (async () => {
+    (async (): Promise<void> => {
       try { setComplaints(await api.get<Array<Record<string, unknown>>>('/api/v1/backoffice/complaints')); }
       catch { setComplaints([]); }
     })();
@@ -22,7 +22,7 @@ export function ComplaintManager({ tenantId }: { tenantId: string }): React.Reac
   };
 
   const sendReply = async (): Promise<void> => {
-    if (!detail || !reply.trim()) return;
+    if (!detail || !reply.trim()) {return;}
     await api.post(`/api/v1/backoffice/complaints/${detail.id}/messages`, { message: reply });
     setReply('');
     openDetail(detail.id as string);
@@ -37,7 +37,7 @@ export function ComplaintManager({ tenantId }: { tenantId: string }): React.Reac
 
   const filtered = complaints === null ? null : complaints.filter(c => filter === 'ALL' ? true : c.status === filter);
 
-  if (complaints === null) return <div className="text-sm text-gray-500">Loading complaints…</div>;
+  if (complaints === null) {return <div className="text-sm text-gray-500">Loading complaints…</div>;}
 
   return (
     <div className="space-y-4">

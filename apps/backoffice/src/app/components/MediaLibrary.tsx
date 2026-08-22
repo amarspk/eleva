@@ -29,10 +29,10 @@ export function MediaLibrary({
   useEffect(() => {
     let cancelled = false;
     void listSiteMedia(tenantId).then((stored) => {
-      if (cancelled || stored.length === 0) return;
+      if (cancelled || stored.length === 0) {return;}
       setItems((current) => mergeAssets(stored, current));
     });
-    return () => {
+    return (): void => {
       cancelled = true;
     };
   }, [tenantId]);

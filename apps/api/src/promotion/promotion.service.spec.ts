@@ -1,4 +1,3 @@
-import { BadRequestException } from '@nestjs/common';
 import { PromotionService } from './promotion.service';
 
 jest.mock('@zayjar/db', () => {

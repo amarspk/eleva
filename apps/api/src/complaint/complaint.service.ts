@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
 import { prisma } from '@zayjar/db';
 
 const VALID_TRANSITIONS: Record<string, string[]> = {
@@ -148,8 +148,8 @@ export class ComplaintService {
     }
     this.assertStatusTransition(complaint.status, status);
     const updateData: Record<string, unknown> = { status };
-    if (status === 'RESOLVED') updateData.resolvedAt = new Date();
-    if (status === 'CLOSED') updateData.closedAt = new Date();
+    if (status === 'RESOLVED') {updateData.resolvedAt = new Date();}
+    if (status === 'CLOSED') {updateData.closedAt = new Date();}
     const updated = await prisma.customerComplaint.update({
       where: { id: complaintId },
       data: updateData,

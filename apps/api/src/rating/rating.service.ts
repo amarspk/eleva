@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
 import { prisma, dbTenantContext } from '@zayjar/db';
 import { CreateRatingDto } from './dto/create-rating.dto';
 

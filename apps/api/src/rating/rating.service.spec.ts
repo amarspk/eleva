@@ -25,7 +25,6 @@ const ratingRow = { id: 'r1', tenantId: 't1', customerId: 'c1', orderId: 'o1', r
 
 describe('RatingService (Phase 4 — Ratings & Feedback)', () => {
   let service: RatingService;
-  let initialMock: Record<string, unknown>;
   beforeEach(() => {
     jest.clearAllMocks();
     service = new RatingService();
@@ -33,8 +32,8 @@ describe('RatingService (Phase 4 — Ratings & Feedback)', () => {
     mockDb.orderFindUnique.mockResolvedValue(completedOrder);
     // orFindUnique returns ratingRow for by-id lookup (getMy), null for by-orderId (duplicate check)
     mockDb.orFindUnique.mockImplementation(async (args: Record<string, Record<string, string>>) => {
-      if (args?.where?.id) return ratingRow;
-      if (args?.where?.orderId) return null; // no existing rating for new orders
+      if (args?.where?.id) {return ratingRow;}
+      if (args?.where?.orderId) {return null;} // no existing rating for new orders
       return null;
     });
     mockDb.orCreate.mockImplementation(async (args: { data: Record<string, unknown> }) => ({

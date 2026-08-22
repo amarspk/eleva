@@ -9,7 +9,7 @@ import { api } from '../lib/api-client';
  * Staff can look up a customer's wallet balance and history, and grant
  * store credit. Requires `read` and `update` Customer permissions.
  */
-export function WalletManager({ tenantId }: { tenantId: string }): React.ReactNode {
+export function WalletManager({ tenantId: _tenantId }: { tenantId: string }): React.ReactNode {
   const [customerId, setCustomerId] = useState('');
   const [balance, setBalance] = useState<number | null>(null);
   const [transactions, setTransactions] = useState<Array<Record<string, unknown>> | null>(null);
@@ -19,7 +19,7 @@ export function WalletManager({ tenantId }: { tenantId: string }): React.ReactNo
   const [msg, setMsg] = useState<string | null>(null);
 
   const lookup = async (): Promise<void> => {
-    if (!customerId.trim()) return;
+    if (!customerId.trim()) {return;}
     setBusy(true); setMsg(null);
     try {
       const wallet = await api.get<{ balance: number; transactions: Array<Record<string, unknown>> | null }>(
@@ -35,7 +35,7 @@ export function WalletManager({ tenantId }: { tenantId: string }): React.ReactNo
 
   const grantCredit = async (): Promise<void> => {
     const amt = parseFloat(creditAmount);
-    if (!amt || amt <= 0) return;
+    if (!amt || amt <= 0) {return;}
     setBusy(true); setMsg(null);
     try {
       const result = await api.post<{ balance: number }>(

@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { ElevaTowerExterior } from './ElevaTowerExterior';
-import { ElevaReception, RECEPTION_ZONES } from './ElevaReception';
+import { ElevaReception } from './ElevaReception';
 import { useEnvironment } from './ElevaEnvironment';
 import { loadSession } from '../lib/auth';
 
@@ -30,9 +30,9 @@ export function ElevaTower(): React.ReactNode {
   useEffect(() => {
     const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
     setPrefersReducedMotion(mq.matches);
-    const handler = (e: MediaQueryListEvent) => setPrefersReducedMotion(e.matches);
+    const handler = (e: MediaQueryListEvent): void => { setPrefersReducedMotion(e.matches); };
     mq.addEventListener('change', handler);
-    return () => mq.removeEventListener('change', handler);
+    return (): void => { mq.removeEventListener('change', handler); };
   }, []);
 
   /* If already authenticated, skip the tower and go straight to the office */

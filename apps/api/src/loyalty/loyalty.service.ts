@@ -1,5 +1,6 @@
 import { Injectable, Logger, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { prisma, dbTenantContext } from '@zayjar/db';
+import { phase4Prisma } from '../common/phase4-prisma';
 
 const LOYALTY_TX_TYPES = {
   EARNED: 'EARNED',
@@ -15,9 +16,9 @@ export class LoyaltyService {
   /** Returns the tenant's loyalty rule (or null if not configured). */
   async getRule(tenantId: string): Promise<Record<string, unknown> | null> {
     const rule = await dbTenantContext.run({ tenantId }, () =>
-      (prisma as any).loyaltyRule.findUnique({ where: { tenantId } }),
+      phase4Prisma(prisma).loyaltyRule.findUnique({ where: { tenantId } }),
     );
-    if (!rule) return null;
+    if (!rule) {return null;}
     return {
       id: rule.id,
       earnRate: Number(rule.earnRate),
@@ -33,7 +34,7 @@ export class LoyaltyService {
     data: { earnRate: number; earnMinOrderAmount?: number; minRedeemPoints?: number; redeemRate: number },
   ): Promise<Record<string, unknown>> {
     return dbTenantContext.run({ tenantId }, async () => {
-      const rule = await (prisma as any).loyaltyRule.upsert({
+      const rule = await phase4Prisma(prisma).loyaltyRule.upsert({
         where: { tenantId },
         create: {
           tenantId,
@@ -62,7 +63,7 @@ export class LoyaltyService {
   /** Customer self-service: current balance. */
   async getBalance(customerId: string): Promise<{ balance: number }> {
     const customer = await prisma.customer.findUnique({ where: { id: customerId }, select: { loyaltyPoints: true } });
-    if (!customer) throw new NotFoundException('Customer not found.');
+    if (!customer) {throw new NotFoundException('Customer not found.');}
     return { balance: customer.loyaltyPoints };
   }
 
@@ -92,15 +93,15 @@ export class LoyaltyService {
     balanceAfter: number;
   }> {
     const tenantId = dbTenantContext.getStore()?.tenantId;
-    if (!tenantId) throw new ForbiddenException('Tenant context required.');
+    if (!tenantId) {throw new ForbiddenException('Tenant context required.');}
 
     return dbTenantContext.run({ tenantId }, async () => {
-      const rule = await (prisma as any).loyaltyRule.findUnique({ where: { tenantId } });
-      if (!rule || rule.redeemRate <= 0) {
+      const rule = await phase4Prisma(prisma).loyaltyRule.findUnique({ where: { tenantId } });
+      if (!rule || Number(rule.redeemRate) <= 0) {
         throw new BadRequestException('Loyalty redemption is not configured for this restaurant.');
       }
-      if (rule.minRedeemPoints > 0 && points < rule.minRedeemPoints) {
-        throw new BadRequestException(`Minimum redemption is ${rule.minRedeemPoints} points.`);
+      if (Number(rule.minRedeemPoints) > 0 && points < Number(rule.minRedeemPoints)) {
+        throw new BadRequestException(`Minimum redemption is ${String(rule.minRedeemPoints)} points.`);
       }
       const discountValue = Number((points * Number(rule.redeemRate)).toFixed(2));
       if (discountValue <= 0) {
@@ -108,15 +109,15 @@ export class LoyaltyService {
       }
 
       // Transaction: update balance, create transactions, generate discount code
-      return (prisma as any).$transaction(async (tx: any) => {
+      return phase4Prisma(prisma).$transaction(async (tx) => {
         const customer = await tx.customer.findUnique({ where: { id: customerId }, select: { loyaltyPoints: true } });
-        if (!customer) throw new NotFoundException('Customer not found.');
-        if (customer.loyaltyPoints < points) {
+        if (!customer) {throw new NotFoundException('Customer not found.');}
+        if (Number(customer.loyaltyPoints) < points) {
           throw new BadRequestException('Insufficient loyalty balance.');
         }
 
         const code = `LOYALTY-${customerId.slice(0, 8)}-${Date.now().toString(36).toUpperCase()}`;
-        const balanceAfter = customer.loyaltyPoints - points;
+        const balanceAfter = Number(customer.loyaltyPoints) - points;
 
         // Create redemption discount (1-time use, 7-day validity)
         await tx.discount.create({
@@ -163,7 +164,7 @@ export class LoyaltyService {
    * Atomic: single DB transaction.
    */
   async awardPointsForOrder(tenantId: string, orderId: string, customerId: string, orderTotal: number): Promise<void> {
-    if (!customerId) return;
+    if (!customerId) {return;}
 
     await dbTenantContext.run({ tenantId }, async () => {
       const existing = await prisma.loyaltyTransaction.findFirst({
@@ -174,19 +175,19 @@ export class LoyaltyService {
         return;
       }
 
-      const rule = await (prisma as any).loyaltyRule.findUnique({ where: { tenantId } });
-      if (!rule || Number(rule.earnRate) <= 0) return; // No rule → no points
+      const rule = await phase4Prisma(prisma).loyaltyRule.findUnique({ where: { tenantId } });
+      if (!rule || Number(rule.earnRate) <= 0) {return;} // No rule → no points
 
-      if (orderTotal < Number(rule.earnMinOrderAmount)) return;
+      if (orderTotal < Number(rule.earnMinOrderAmount)) {return;}
 
       const points = Math.floor(orderTotal * Number(rule.earnRate));
-      if (points <= 0) return;
+      if (points <= 0) {return;}
 
-      await (prisma as any).$transaction(async (tx: any) => {
+      await phase4Prisma(prisma).$transaction(async (tx) => {
         const customer = await tx.customer.findUnique({ where: { id: customerId }, select: { loyaltyPoints: true } });
-        if (!customer) return;
+        if (!customer) {return;}
 
-        const balanceAfter = customer.loyaltyPoints + points;
+        const balanceAfter = Number(customer.loyaltyPoints) + points;
         await tx.customer.update({
           where: { id: customerId },
           data: { loyaltyPoints: balanceAfter },

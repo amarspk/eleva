@@ -19,7 +19,7 @@ export function WelcomeOfferSettings({ tenantId }: { tenantId: string }): React.
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    (async () => {
+    (async (): Promise<void> => {
       try {
         const cfg = await api.get<{ enabled: boolean; discountType: string; discountValue: number; minOrderAmount: number }>(
           '/api/v1/backoffice/promotions/welcome-offer',
@@ -51,7 +51,7 @@ export function WelcomeOfferSettings({ tenantId }: { tenantId: string }): React.
     }
   };
 
-  if (loading) return <div className="text-sm text-gray-500">Loading welcome offer settings…</div>;
+  if (loading) {return <div className="text-sm text-gray-500">Loading welcome offer settings…</div>;}
 
   return (
     <div className="bg-white rounded-xl border p-4 space-y-4">
