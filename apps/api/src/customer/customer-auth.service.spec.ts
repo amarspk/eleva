@@ -81,7 +81,7 @@ describe('CustomerAuthService (Phase 4 — Customer Account & Profile)', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    service = new CustomerAuthService(auth as unknown as StaffAuthService, jwt as never, csrf as never);
+    service = new CustomerAuthService(auth as unknown as ConstructorParameters<typeof CustomerAuthService>[0], jwt as never, csrf as never);
     mockDb.customerFindMany.mockResolvedValue([]);
     mockDb.customerCreate.mockResolvedValue(customerRow);
     mockDb.customerFindUnique.mockResolvedValue(customerRow);
