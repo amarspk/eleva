@@ -1,5 +1,6 @@
 import { ConflictException, UnauthorizedException } from '@nestjs/common';
 import { CustomerAuthService } from './customer-auth.service';
+import type { AuthService } from '../auth/auth.service';
 
 jest.mock('@zayjar/db', () => {
   const customerFindMany = jest.fn();
@@ -81,7 +82,7 @@ describe('CustomerAuthService (Phase 4 — Customer Account & Profile)', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    service = new CustomerAuthService(auth, jwt as never, csrf as never);
+    service = new CustomerAuthService(auth as unknown as StaffAuthService, jwt as never, csrf as never);
     mockDb.customerFindMany.mockResolvedValue([]);
     mockDb.customerCreate.mockResolvedValue(customerRow);
     mockDb.customerFindUnique.mockResolvedValue(customerRow);

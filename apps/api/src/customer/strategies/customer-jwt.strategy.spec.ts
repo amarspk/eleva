@@ -35,8 +35,9 @@ describe('CustomerJwtStrategy (Phase 4 — separation from staff auth)', () => {
   });
 
   it('rejects a staff token (no customer type claim)', async () => {
-    await expect(strategy.validate({ sub: 'user-1', type: undefined, tenantId: 'tenant-1' }))
-      .rejects.toBeInstanceOf(UnauthorizedException);
+    await expect(
+      strategy.validate({ sub: 'user-1', tenantId: 'tenant-1' } as Parameters<CustomerJwtStrategy['validate']>[0]),
+    ).rejects.toBeInstanceOf(UnauthorizedException);
   });
 
   it('rejects a token whose subject is not a customer (staff user id)', async () => {

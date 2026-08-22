@@ -40,7 +40,13 @@ describe('ComplaintService (Phase 4 — Complaints)', () => {
     mockDb.ccCreate.mockResolvedValue(complaintRow());
     mockDb.ccUpdate.mockImplementation(async (args: { data: Record<string, unknown> }) => complaintRow(args.data));
     mockDb.cmFindMany.mockResolvedValue([]);
-    mockDb.cmCreate.mockImplementation(async (data: unknown) => ({ ...(data as Record<string, unknown>).data, id: 'm1', createdAt: new Date() }));
+    mockDb.cmCreate.mockImplementation(async (data: unknown) => {
+      const payload =
+        data && typeof data === 'object' && 'data' in data && (data as { data: unknown }).data && typeof (data as { data: unknown }).data === 'object'
+          ? (data as { data: Record<string, unknown> }).data
+          : {};
+      return { ...payload, id: 'm1', createdAt: new Date() };
+    });
     mockDb.orderFindUnique.mockResolvedValue({ id: 'o1', customerId: 'cust-1', tenantId: 'tenant-1' });
   });
 

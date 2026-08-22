@@ -16,14 +16,26 @@ jest.mock('@zayjar/db', () => {
   };
 });
 
-// Mock LoyaltyRule/loyaltyRule as prisma.loyaltyRule + prisma.$transaction
-// We can't add properties to the prisma mock easily so we extend it
-const mockDb = jest.requireMock('@zayjar/db') as Record<string, unknown>;
-(mockDb.prisma as Record<string, unknown>).loyaltyRule = {
+type LoyaltyTx = {
+  customer: { findUnique: jest.Mock; update: jest.Mock };
+  discount: { create: jest.Mock };
+  loyaltyTransaction: { create: jest.Mock };
+};
+type LoyaltyPrisma = {
+  customer: { findUnique: jest.Mock; update: jest.Mock };
+  loyaltyTransaction: { findFirst: jest.Mock; findMany: jest.Mock };
+  loyaltyRule: { findUnique: jest.Mock; upsert: jest.Mock };
+  $transaction: jest.Mock;
+};
+const mockDb = jest.requireMock('@zayjar/db') as {
+  prisma: LoyaltyPrisma;
+  __m: { tx: LoyaltyTx };
+};
+mockDb.prisma.loyaltyRule = {
   findUnique: jest.fn(),
   upsert: jest.fn(),
 };
-(mockDb.prisma as Record<string, unknown>).$transaction = jest.fn((fn: (tx: unknown) => unknown) => fn(mockDb.__m.tx));
+mockDb.prisma.$transaction = jest.fn((fn: (tx: LoyaltyTx) => unknown) => fn(mockDb.__m.tx));
 
 const ruleRow = {
   id: 'rule-1', tenantId: 'tenant-1',
