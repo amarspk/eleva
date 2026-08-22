@@ -809,7 +809,7 @@ They are intentionally NOT created now. Until then, this PROJECT_STATE.md remain
 | Frontend | **AUDIT-019** — mobile/responsive viewport metadata | ✅ Complete in QR Menu, Backoffice and Cashier layouts |
 | Security | **Customer module** — guards + full CRUD + soft delete/restore | ✅ Complete |
 | Security | **CSRF enforcement** across all 51 mutating routes | ✅ Complete |
-| API | **Restaurant read endpoints** (`GET /restaurants`, `/restaurants/:id`) | ✅ Complete (reads only; writes are AUDIT-008) |
+| API | **Restaurant endpoints** (`GET/POST /restaurants`, `GET/PUT/DELETE /restaurants/:id`, `POST /restaurants/:id/restore`) | ✅ Complete — reads AUDIT-014; **writes AUDIT-008 COMPLETE** |
 | Phase 2 | **Backoffice — Products UI** | ✅ Production-ready |
 | Phase 2 | **Backoffice — Categories UI** | ✅ Production-ready |
 | Phase 2 | **Backoffice — Branches UI** | ✅ Production-ready (full CRUD, 409 guard, cascade to tables, validation + unit tests) |
@@ -900,7 +900,7 @@ boundary input, field smuggling (`tenantId`/`deletedAt`/`id` all rejected by
 
 **Current P1 backlog:** a **product decision on staff-role menu permissions** (currently owner-only). Product decision — requires explicit CTO approval. *(The full-app adversarial pass is CLOSED 2026-08-14 — §19 row 59; independent closure audit PASS.)*
 
-**P2 engineering backlog** — AUDIT-008 (restaurant write management), AUDIT-009 (discount management API/UI), AUDIT-010 (invoice retrieval/resend), AUDIT-017 (subscription lifecycle), AUDIT-021 (real Unifonic path), AUDIT-022 (notification inbox/preferences), AUDIT-024 (`packages/db` direct tests). **Architecture decision:** AUDIT-025 / parked M4. **Product-scope decisions, not authorized engineering tasks:** AUDIT-013, AUDIT-015, AUDIT-018.
+**P2 engineering backlog** — ~~AUDIT-008 (restaurant write management)~~ **COMPLETE**, AUDIT-009 (discount management API/UI), AUDIT-010 (invoice retrieval/resend), AUDIT-017 (subscription lifecycle), AUDIT-021 (real Unifonic path), AUDIT-022 (notification inbox/preferences), AUDIT-024 (`packages/db` direct tests). **Architecture decision:** AUDIT-025 / parked M4. **Product-scope decisions, not authorized engineering tasks:** AUDIT-013, AUDIT-015, AUDIT-018.
 
 ### ⚠️ Deployment caution
 
@@ -917,6 +917,8 @@ indexes is reverted to FULL or its authoritative predicate is altered.
 ## 29.6 Next recommended task
 
 **Next milestone: Phase 5 — Launch / Operations Gate.**
+
+**AUDIT-008 — Restaurant write management — COMPLETE.** Tenant-scoped POST/PUT/DELETE/restore on `/api/v1/restaurants` using existing Restaurant columns (`name`, `currency`, `timezone`, `taxPercentage`), CASL `create/update/delete Restaurant`, SubscriptionPlan.maxRestaurants on create, 404 for foreign ids, 409 while live branches exist. Backoffice Restaurants tab. Do not start AUDIT-009 without CTO approval.
 
 **Phase 4 Release Verification = COMPLETE** (2026-08-23). Named gates on SHA `5799dd1` / Actions run `32604333941`: Prisma generate CI **PASS**; `pnpm build` / API TypeScript **PASS**; e2e-live **PASS**; API boot + `/health` **PASS**; QR boot + Playwright live **PASS**. AUDIT-023 (`/live`, `/ready`, `/metrics`) **COMPLETE**. Partial-index regression guard **COMPLETE**. SendGrid live click-through and similar production-infra items remain **BLOCKED/OPS**, not engineering tickets. Do not reopen Phase 4. Do not invent Phase 5 product features.
 

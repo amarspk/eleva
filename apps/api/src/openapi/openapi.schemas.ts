@@ -162,6 +162,13 @@ export const OPENAPI_SCHEMAS: Record<string, SchemaObject> = {
     { id: uuid(), tenantId: uuid(), name: { type: 'string' }, currency: { type: 'string' }, timezone: { type: 'string' }, taxPercentage: money, ...timestampFields },
     ['id', 'tenantId', 'name', 'currency', 'timezone', 'taxPercentage'],
   ),
+  CreateRestaurantRequest: object(
+    { name: { type: 'string', minLength: 2, maxLength: 255 }, currency: { type: 'string', minLength: 3, maxLength: 3 }, timezone: { type: 'string' }, taxPercentage: { type: 'number', minimum: 0, maximum: 100 } },
+    ['name'],
+  ),
+  UpdateRestaurantRequest: object({
+    name: { type: 'string', minLength: 2, maxLength: 255 }, currency: { type: 'string', minLength: 3, maxLength: 3 }, timezone: { type: 'string' }, taxPercentage: { type: 'number', minimum: 0, maximum: 100 },
+  }),
   CreateBranchRequest: object(
     {
       restaurantId: uuid(), name: { type: 'string', minLength: 2, maxLength: 100 }, address: { type: 'string' },

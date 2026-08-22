@@ -276,10 +276,14 @@ const docs: ControllerDoc[] = [
   {
     controller: RestaurantController,
     tag: 'Restaurants',
-    description: 'Read-only tenant restaurant-brand endpoints.',
+    description: 'Tenant restaurant-brand management (AUDIT-008 writes + AUDIT-014 reads).',
     endpoints: [
       { method: 'findAll', summary: 'List restaurant brands', auth: 'bearer', tenant: 'tenant-jwt', permission: 'read:Restaurant', response: responseArray('Restaurant'), queries: [q('includeDeleted', 'Include archived restaurants.', boolean)], errors: [400, 401, 403] },
+      { method: 'create', summary: 'Create a restaurant brand', auth: 'bearer', tenant: 'tenant-jwt', permission: 'create:Restaurant', body: 'CreateRestaurantRequest', response: 'Restaurant', status: 201, errors: [400, 401, 403] },
       { method: 'findOne', summary: 'Get one restaurant brand', auth: 'bearer', tenant: 'tenant-jwt', permission: 'read:Restaurant', response: 'Restaurant', params: [p('id', 'Restaurant UUID.')], errors: [400, 401, 403, 404] },
+      { method: 'update', summary: 'Update a restaurant brand', auth: 'bearer', tenant: 'tenant-jwt', permission: 'update:Restaurant', body: 'UpdateRestaurantRequest', response: 'Restaurant', params: [p('id', 'Restaurant UUID.')], errors: [400, 401, 403, 404] },
+      { method: 'remove', summary: 'Soft-delete a restaurant brand', auth: 'bearer', tenant: 'tenant-jwt', permission: 'delete:Restaurant', response: 'DeleteResponse', params: [p('id', 'Restaurant UUID.')], errors: [401, 403, 404, 409] },
+      { method: 'restore', summary: 'Restore a soft-deleted restaurant brand', auth: 'bearer', tenant: 'tenant-jwt', permission: 'update:Restaurant', response: 'RestoreResponse', params: [p('id', 'Restaurant UUID.')], errors: [401, 403, 404] },
     ],
   },
   {

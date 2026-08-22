@@ -239,6 +239,11 @@ async function main(): Promise<void> {
     // restaurantId, but nothing exposed one (GET /api/v1/restaurants was a hard
     // 404). Mirrored by migration 20260804020000_restaurant_read_permission.
     { id: 'e639eecc-9662-4413-b0fa-7268801aca3f', action: 'read', resource: 'restaurant', description: 'View restaurant brands' },
+    // AUDIT-008 — restaurant write management. Same CASL vocabulary as
+    // AUDIT-006/007. Mirrored by migration 20260823000000_restaurant_write_permissions.
+    { id: '8b0a0a8f-d547-445c-a490-19e80a3c2140', action: 'create', resource: 'restaurant', description: 'Create restaurant brands' },
+    { id: '8a069985-e595-4d35-8d79-5ebf83542603', action: 'update', resource: 'restaurant', description: 'Update restaurant brands' },
+    { id: 'c3074e8c-e8c3-4650-9fde-b1f2d828e3f8', action: 'delete', resource: 'restaurant', description: 'Delete restaurant brands' },
     // AUDIT-002 Finding #5 (RBAC). The wallet payment endpoints require the
     // `payment:create` / `payment:read` permissions (CASL vocabulary, matching
     // the guard's Subjects union). The owner is linked to EVERY row, so seeded
@@ -400,6 +405,7 @@ async function main(): Promise<void> {
     { resource: 'payment', action: 'read' },
     { resource: 'payment', action: 'create' },
     { resource: 'restaurant', action: 'read' },
+    { resource: 'restaurant', action: 'update' },
     { resource: 'media', action: 'create' },
     { resource: 'media', action: 'read' },
     { resource: 'media', action: 'update' },

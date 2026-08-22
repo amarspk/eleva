@@ -137,7 +137,22 @@ export interface Restaurant {
  * could be submitted at all.
  */
 export const restaurantsApi = {
-  list: (): Promise<Restaurant[]> => api.get<Restaurant[]>('/api/v1/restaurants'),
+  list: (includeDeleted = false): Promise<Restaurant[]> =>
+    api.get<Restaurant[]>(`/api/v1/restaurants${buildQuery({ includeDeleted })}`),
+  create: (body: {
+    name: string;
+    currency?: string;
+    timezone?: string;
+    taxPercentage?: number;
+  }): Promise<Restaurant> => api.post<Restaurant>('/api/v1/restaurants', body),
+  update: (
+    id: string,
+    body: { name?: string; currency?: string; timezone?: string; taxPercentage?: number },
+  ): Promise<Restaurant> => api.put<Restaurant>(`/api/v1/restaurants/${id}`, body),
+  remove: (id: string): Promise<SoftDeleteResult> =>
+    api.del<SoftDeleteResult>(`/api/v1/restaurants/${id}`),
+  restore: (id: string): Promise<RestoreResult> =>
+    api.post<RestoreResult>(`/api/v1/restaurants/${id}/restore`),
 };
 
 // ---------------------------------------------------------------- categories

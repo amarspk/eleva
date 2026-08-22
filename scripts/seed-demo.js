@@ -146,6 +146,9 @@ const PERMISSIONS = [
   { id: 'b2f0df84-5159-4e76-9aa9-32633d49ba7f', action: 'update', resource: 'customer', description: 'Update customers' },
   { id: 'e388594d-c749-480a-9045-514e01197bc3', action: 'delete', resource: 'customer', description: 'Delete customers' },
   { id: 'e639eecc-9662-4413-b0fa-7268801aca3f', action: 'read',   resource: 'restaurant', description: 'View restaurant brands' },
+  { id: '8b0a0a8f-d547-445c-a490-19e80a3c2140', action: 'create', resource: 'restaurant', description: 'Create restaurant brands' },
+  { id: '8a069985-e595-4d35-8d79-5ebf83542603', action: 'update', resource: 'restaurant', description: 'Update restaurant brands' },
+  { id: 'c3074e8c-e8c3-4650-9fde-b1f2d828e3f8', action: 'delete', resource: 'restaurant', description: 'Delete restaurant brands' },
   { id: '328a0aa5-0576-4750-87bb-01ba2c283f74', action: 'create', resource: 'payment', description: 'Create wallet payments' },
   { id: 'fec355e8-c91f-45b6-83b7-fbb957c180ae', action: 'read',   resource: 'payment', description: 'View wallet payments' },
 ];
@@ -250,6 +253,7 @@ async function main() {
     { resource: 'customer', action: 'update' }, { resource: 'customer', action: 'delete' },
     { resource: 'payment', action: 'read' }, { resource: 'payment', action: 'create' },
     { resource: 'restaurant', action: 'read' },
+    { resource: 'restaurant', action: 'update' },
   ]);
 
   // CASHIER — POS operations on the cashier's assigned branch(es).

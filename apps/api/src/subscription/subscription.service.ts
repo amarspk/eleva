@@ -1,12 +1,13 @@
 import { Injectable, Logger, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { prisma, dbTenantContext } from '@zayjar/db';
-import { TenantBranchRepository, TenantProductRepository } from '@zayjar/db';
+import { TenantBranchRepository, TenantProductRepository, TenantRestaurantRepository } from '@zayjar/db';
 
 @Injectable()
 export class SubscriptionService {
   private readonly logger = new Logger(SubscriptionService.name);
   private readonly branchRepository = new TenantBranchRepository();
   private readonly productRepository = new TenantProductRepository();
+  private readonly restaurantRepository = new TenantRestaurantRepository();
 
   /**
    * Retrieves active subscription and plan for tenant with tenant isolation

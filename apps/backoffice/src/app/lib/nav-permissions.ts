@@ -17,6 +17,7 @@ export type NavTabId =
   | 'dashboard'
   | 'products'
   | 'categories'
+  | 'restaurants'
   | 'branches'
   | 'tables'
   | 'customers'
@@ -60,6 +61,7 @@ export const NAV_TABS: NavTabDefinition[] = [
   { id: 'tables', group: 'operations', anyOf: [{ resource: 'table', action: 'read' }] },
   { id: 'products', group: 'catalog', anyOf: [{ resource: 'product', action: 'read' }] },
   { id: 'categories', group: 'catalog', anyOf: [{ resource: 'category', action: 'read' }] },
+  { id: 'restaurants', group: 'locations', anyOf: [{ resource: 'restaurant', action: 'read' }] },
   { id: 'branches', group: 'locations', anyOf: [{ resource: 'branch', action: 'read' }] },
   { id: 'customers', group: 'people', anyOf: [{ resource: 'customer', action: 'read' }] },
   { id: 'users', group: 'people', anyOf: [{ resource: 'user', action: 'read' }] },
@@ -87,6 +89,7 @@ export const NAV_LABELS: Record<'en' | 'ar', { tabs: Record<NavTabId, string>; g
       dashboard: 'Dashboard',
       products: 'Products',
       categories: 'Categories',
+      restaurants: 'Restaurants',
       branches: 'Branches',
       tables: 'Tables',
       customers: 'Customers',
@@ -114,6 +117,7 @@ export const NAV_LABELS: Record<'en' | 'ar', { tabs: Record<NavTabId, string>; g
       dashboard: 'لوحة التحكم',
       products: 'المنتجات',
       categories: 'التصنيفات',
+      restaurants: 'المطاعم',
       branches: 'الفروع',
       tables: 'الطاولات',
       customers: 'العملاء',

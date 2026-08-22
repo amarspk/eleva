@@ -4,6 +4,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ProductsModule } from './modules/ProductsModule';
 import { CategoriesModule } from './modules/CategoriesModule';
+import { RestaurantsModule } from './modules/RestaurantsModule';
 import { BranchesModule } from './modules/BranchesModule';
 import { TablesModule } from './modules/TablesModule';
 import { CustomersModule } from './modules/CustomersModule';
@@ -186,6 +187,7 @@ function ShellContent(): React.ReactElement {
         ) : null}
         {activeTab === 'products' && visibleIds.includes('products') ? <ProductsModule /> : null}
         {activeTab === 'categories' && visibleIds.includes('categories') ? <CategoriesModule /> : null}
+        {activeTab === 'restaurants' && visibleIds.includes('restaurants') ? <RestaurantsModule /> : null}
         {activeTab === 'branches' && visibleIds.includes('branches') ? <BranchesModule /> : null}
         {activeTab === 'tables' && visibleIds.includes('tables') ? <TablesModule /> : null}
         {activeTab === 'orders' && visibleIds.includes('orders') ? <OrdersManager tenantId={tenantId} /> : null}

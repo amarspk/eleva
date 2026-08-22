@@ -4,6 +4,7 @@ import { NotFoundException } from '@nestjs/common';
 import { RestaurantService } from './restaurant.service';
 import { RestaurantController } from './restaurant.controller';
 import { REQUIRE_PERMISSION_KEY } from '../auth/decorators/require-permission.decorator';
+import { SubscriptionService } from '../subscription/subscription.service';
 
 /**
  * AUDIT-014 DEFECT-L regression.
@@ -38,13 +39,18 @@ jest.mock('@zayjar/db', () => {
       return null;
     }
   }
+  class TenantBranchRepository {
+    async count(): Promise<number> {
+      return 0;
+    }
+  }
   return {
     TenantRestaurantRepository,
+    TenantBranchRepository,
     TenantProductRepository: Stub,
     TenantCategoryRepository: Stub,
     TenantCustomerRepository: Stub,
     TenantOrderRepository: Stub,
-    TenantBranchRepository: Stub,
     TenantUserRepository: Stub,
     TenantTableRepository: Stub,
     prisma: { tenant: { findUnique: jest.fn() } },
@@ -58,7 +64,10 @@ describe('RestaurantService (AUDIT-014 DEFECT-L)', () => {
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      providers: [RestaurantService],
+      providers: [
+        RestaurantService,
+        { provide: SubscriptionService, useValue: { checkRestaurantLimit: jest.fn() } },
+      ],
     }).compile();
     service = module.get<RestaurantService>(RestaurantService);
     repoState.list = [{ id: RESTAURANT_ID, name: 'Al-Baik Chicken' }];

@@ -1,31 +1,36 @@
 import {
   Controller,
   Get,
+  Post,
+  Put,
+  Delete,
   Param,
   Query,
+  Body,
+  Req,
   UseGuards,
   HttpCode,
   HttpStatus,
   ParseUUIDPipe,
 } from '@nestjs/common';
-import { RestaurantService } from './restaurant.service';
+import { RestaurantService, SoftDeleteResult, RestoreResult } from './restaurant.service';
+import { CreateRestaurantRequestDto } from './dto/create-restaurant-request.dto';
+import { UpdateRestaurantRequestDto } from './dto/update-restaurant-request.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RbacPermissionGuard } from '../auth/guards/rbac-permission.guard';
 import { RequirePermission } from '../auth/decorators/require-permission.decorator';
+import { IncludeSoftDeleted } from '../auth/decorators/include-soft-deleted.decorator';
 import { BooleanQueryPipe } from '../common/pipes/boolean-query.pipe';
+import { AuthenticatedRequest } from '../common/types/request.types';
 
 /**
- * Restaurant (brand) read endpoints — AUDIT-014 DEFECT-L.
+ * Restaurant (brand) endpoints.
  *
- * Both `POST /api/v1/menu/categories` and `POST /api/v1/branches` require a
- * `restaurantId`, but nothing exposed one (`GET /api/v1/restaurants` was a hard
- * 404), so neither could be driven from a UI.
+ * Reads: AUDIT-014 DEFECT-L.
+ * Writes: AUDIT-008 — create / update / soft-delete / restore.
  *
- * Guarded by a dedicated `Restaurant` CASL subject. Reusing `Branch` was tried
- * first and is WRONG: `RbacPermissionGuard` re-resolves the `:id` path param
- * against the repository registered for the subject, so a Branch-guarded
- * `/restaurants/:id` searched the BRANCHES table and returned 404 for a valid
- * restaurant (runtime-proven). Write operations remain out of scope (AUDIT-008).
+ * Guarded by the dedicated `Restaurant` CASL subject so RbacPermissionGuard
+ * re-resolves `:id` against TenantRestaurantRepository (never Branch).
  */
 @Controller('api/v1/restaurants')
 @UseGuards(JwtAuthGuard, RbacPermissionGuard)
@@ -41,10 +46,46 @@ export class RestaurantController {
     return this.restaurantService.findAll(includeDeleted as unknown as boolean);
   }
 
+  @Post()
+  @RequirePermission('create', 'Restaurant')
+  @HttpCode(HttpStatus.CREATED)
+  async create(
+    @Body() dto: CreateRestaurantRequestDto,
+    @Req() req: AuthenticatedRequest,
+  ): Promise<unknown> {
+    const tenantId = req.user?.tenantId ?? req.tenantId;
+    return this.restaurantService.create(dto, tenantId as string);
+  }
+
   @Get(':id')
   @RequirePermission('read', 'Restaurant')
   @HttpCode(HttpStatus.OK)
   async findOne(@Param('id', new ParseUUIDPipe()) id: string): Promise<unknown> {
     return this.restaurantService.findOne(id);
+  }
+
+  @Put(':id')
+  @RequirePermission('update', 'Restaurant')
+  @HttpCode(HttpStatus.OK)
+  async update(
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Body() dto: UpdateRestaurantRequestDto,
+  ): Promise<unknown> {
+    return this.restaurantService.update(id, dto);
+  }
+
+  @Delete(':id')
+  @RequirePermission('delete', 'Restaurant')
+  @HttpCode(HttpStatus.OK)
+  async remove(@Param('id', new ParseUUIDPipe()) id: string): Promise<SoftDeleteResult> {
+    return this.restaurantService.remove(id);
+  }
+
+  @Post(':id/restore')
+  @RequirePermission('update', 'Restaurant')
+  @IncludeSoftDeleted()
+  @HttpCode(HttpStatus.OK)
+  async restore(@Param('id', new ParseUUIDPipe()) id: string): Promise<RestoreResult> {
+    return this.restaurantService.restore(id);
   }
 }
