@@ -2,7 +2,8 @@
 
 > **Phase 3 — Eleva Builder / Preorder Integration — CLOSED 2026-08-14 (Asia/Dubai)**
 > **Phase 4 product work — CLOSED.** **Phase 4 Release Verification — COMPLETE** (2026-08-23, GitHub Actions run `32604333941` on SHA `5799dd13e1dad9fcd50a9c27dd6602488ef5bea6`).
-> **Branch:** `phase-3/eleva-builder` | **Current HEAD (source of truth):** `5799dd13e1dad9fcd50a9c27dd6602488ef5bea6` (`fix(api): import Auth/RateLimit modules so Nest can boot`) | Phase 3 closure history (`b2ecdaf`, `f27263f`, `main` `ec48f114`) remains valid ancestry, not current HEAD.
+> **AUDIT-009 — Discount Management API/UI — COMPLETE** (2026-08-23, GitHub Actions run `32608754231` on SHA `b446d25b9381f641a8c7b3d8567fdec4be349b16`). Named gates: code-quality PASS; Prisma generate PASS; `pnpm build` PASS; e2e-live PASS. Job 2 `pnpm test` still FAIL (pre-existing; not a named AUDIT-009 gate; docker skipped). Do **not** start AUDIT-010 without CTO approval.
+> **Branch:** `phase-3/eleva-builder` | **Current HEAD (source of truth):** `b446d25b9381f641a8c7b3d8567fdec4be349b16` (`fix(backoffice): remaining eqeqeq in DiscountManager usageLimit`) | Phase 3 closure history (`b2ecdaf`, `f27263f`, `main` `ec48f114`) remains valid ancestry, not current HEAD.
 >
 > ### Phase 4 Release Verification scoreboard (environment of record = GitHub CI, SHA `5799dd1`)
 > - Prisma generate in GitHub CI = **PASS** (test, build, and e2e-live jobs).
@@ -900,7 +901,7 @@ boundary input, field smuggling (`tenantId`/`deletedAt`/`id` all rejected by
 
 **Current P1 backlog:** a **product decision on staff-role menu permissions** (currently owner-only). Product decision — requires explicit CTO approval. *(The full-app adversarial pass is CLOSED 2026-08-14 — §19 row 59; independent closure audit PASS.)*
 
-**P2 engineering backlog** — ~~AUDIT-008 (restaurant write management)~~ **COMPLETE**, AUDIT-009 (discount management API/UI), AUDIT-010 (invoice retrieval/resend), AUDIT-017 (subscription lifecycle), AUDIT-021 (real Unifonic path), AUDIT-022 (notification inbox/preferences), AUDIT-024 (`packages/db` direct tests). **Architecture decision:** AUDIT-025 / parked M4. **Product-scope decisions, not authorized engineering tasks:** AUDIT-013, AUDIT-015, AUDIT-018.
+**P2 engineering backlog** — ~~AUDIT-008 (restaurant write management)~~ **COMPLETE**, ~~AUDIT-009 (discount management API/UI)~~ **COMPLETE**, AUDIT-010 (invoice retrieval/resend), AUDIT-017 (subscription lifecycle), AUDIT-021 (real Unifonic path), AUDIT-022 (notification inbox/preferences), AUDIT-024 (`packages/db` direct tests). **Architecture decision:** AUDIT-025 / parked M4. **Product-scope decisions, not authorized engineering tasks:** AUDIT-013, AUDIT-015, AUDIT-018.
 
 ### ⚠️ Deployment caution
 
@@ -931,3 +932,4 @@ Tenant-scoped POST/PUT/DELETE/restore on `/api/v1/restaurants` using existing Re
 **PHASE 4 P1 — Category Images — IMPLEMENTED (2026-08-17).** Category gained `imageUrl` (nullable `VarChar(2048)`, migration `20260818000000_add_category_image_url`, following Product's convention); `create/update` category DTOs + service persist/clear it; `loadMenuForRestaurant` selects and exposes it in both `GET /api/v1/public/site` and `GET /api/v1/public/menu`; the restaurant website renders the selected category image with a clean placeholder fallback; category filtering preserved. Tests: menu.service +4, public-menu +2, RestaurantSite +2; root `pnpm test` 1146 passed / 0 failed, lint 6/6, build 6/6; runtime-verified create→update→clear→public-site exposure + QR-menu regression 200.
 
 **AUDIT-005 frontend pages — COMPLETE (`45bfa9b`, 2026-08-20).** Files exist on GitHub `phase-3/eleva-builder`: `apps/backoffice/src/app/reset-password/page.tsx`, `apps/backoffice/src/app/verify-email/page.tsx`, plus `ResetPasswordForm` / `VerifyEmailForm` / `lib/account-recovery.ts`. They POST the existing public `POST /api/v1/auth/reset-password` and `POST /api/v1/auth/verify-email` endpoints. `RESET_URL_BASE` = `https://backoffice.zayjar.com` from in-repo ingress/nginx staff origin (not the API host). Live emailed-link click-through **NOT VERIFIED**. Do not start a later task without explicit CTO approval.
+fa9b`, 2026-08-20).** Files exist on GitHub `phase-3/eleva-builder`: `apps/backoffice/src/app/reset-password/page.tsx`, `apps/backoffice/src/app/verify-email/page.tsx`, plus `ResetPasswordForm` / `VerifyEmailForm` / `lib/account-recovery.ts`. They POST the existing public `POST /api/v1/auth/reset-password` and `POST /api/v1/auth/verify-email` endpoints. `RESET_URL_BASE` = `https://backoffice.zayjar.com` from in-repo ingress/nginx staff origin (not the API host). Live emailed-link click-through **NOT VERIFIED**. Do not start a later task without explicit CTO approval.
