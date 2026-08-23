@@ -155,6 +155,9 @@ const PERMISSIONS = [
   { id: '2d3a2e90-b039-4e0f-a7b8-997f4a4f0f20', action: 'delete', resource: 'discount', description: 'Delete discount codes' },
   { id: '63925a50-623b-47d5-b2d2-97135cb19c89', action: 'read',   resource: 'invoice', description: 'View invoices' },
   { id: '9ad98f03-c7af-459c-82f9-41bbeb8c5a45', action: 'update', resource: 'invoice', description: 'Resend invoices' },
+  { id: 'f6262c6c-e4f3-44fa-9da1-a0d2419f4247', action: 'read',   resource: 'agent', description: 'View ELEVA Agent sessions and reports' },
+  { id: 'f37db619-1b5c-4296-bdd7-0870baf560e5', action: 'create', resource: 'agent', description: 'Create ELEVA Agent sessions and invoke safe tools' },
+  { id: 'a4ef38b5-7df9-4309-8cee-d7860d02a143', action: 'update', resource: 'agent', description: 'Approve or reject ELEVA Agent actions' },
   { id: '328a0aa5-0576-4750-87bb-01ba2c283f74', action: 'create', resource: 'payment', description: 'Create wallet payments' },
   { id: 'fec355e8-c91f-45b6-83b7-fbb957c180ae', action: 'read',   resource: 'payment', description: 'View wallet payments' },
 ];

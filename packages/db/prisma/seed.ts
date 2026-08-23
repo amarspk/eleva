@@ -254,6 +254,11 @@ async function main(): Promise<void> {
     // 20260824000000_invoice_permissions.
     { id: '63925a50-623b-47d5-b2d2-97135cb19c89', action: 'read', resource: 'invoice', description: 'View invoices' },
     { id: '9ad98f03-c7af-459c-82f9-41bbeb8c5a45', action: 'update', resource: 'invoice', description: 'Resend invoices' },
+    // ELEVA AI Agent V1 — PLATFORM_OWNER only (excluded from restaurant owner
+    // auto-grant below). Mirrored by migration 20260825000000_agent_v1_foundation.
+    { id: 'f6262c6c-e4f3-44fa-9da1-a0d2419f4247', action: 'read', resource: 'agent', description: 'View ELEVA Agent sessions and reports' },
+    { id: 'f37db619-1b5c-4296-bdd7-0870baf560e5', action: 'create', resource: 'agent', description: 'Create ELEVA Agent sessions and invoke safe tools' },
+    { id: 'a4ef38b5-7df9-4309-8cee-d7860d02a143', action: 'update', resource: 'agent', description: 'Approve or reject ELEVA Agent actions' },
     // AUDIT-002 Finding #5 (RBAC). The wallet payment endpoints require the
     // `payment:create` / `payment:read` permissions (CASL vocabulary, matching
     // the guard's Subjects union). The owner is linked to EVERY row, so seeded
@@ -350,10 +355,11 @@ async function main(): Promise<void> {
   // ==========================================
   // 6. ROLE-PERMISSION MAPPING
   // ==========================================
-  // Owner gets everything
+  // Owner gets everything except platform-only Agent grants.
   const allPermissions = permissions;
+  const restaurantOwnerPermissions = allPermissions.filter((p) => p.resource !== 'agent');
   await Promise.all(
-    allPermissions.map((p) =>
+    restaurantOwnerPermissions.map((p) =>
       prisma.rolePermission.create({
         data: { roleId: ownerRole.id, permissionId: p.id },
       }),

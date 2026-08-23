@@ -29,6 +29,7 @@ import { PaymentController } from '../payment/payment.controller';
 import { RestaurantController } from '../restaurant/restaurant.controller';
 import { DiscountController } from '../discount/discount.controller';
 import { InvoiceController } from '../invoice/invoice.controller';
+import { AgentController } from '../agent/agent.controller';
 import { TenantController } from '../tenant/tenant.controller';
 import { UserController } from '../user/user.controller';
 import { WebhookController } from '../webhook/webhook.controller';
@@ -308,6 +309,17 @@ const docs: ControllerDoc[] = [
       { method: 'findAll', summary: 'List invoices', auth: 'bearer', tenant: 'tenant-jwt', permission: 'read:Invoice', response: responseArray('Invoice'), errors: [401, 403] },
       { method: 'findOne', summary: 'Get one invoice', auth: 'bearer', tenant: 'tenant-jwt', permission: 'read:Invoice', response: 'Invoice', params: [p('id', 'Invoice UUID.')], errors: [400, 401, 403, 404] },
       { method: 'resend', summary: 'Resend an invoice email via EmailService', auth: 'bearer', tenant: 'tenant-jwt', permission: 'update:Invoice', response: 'InvoiceResendResponse', params: [p('id', 'Invoice UUID.')], errors: [400, 401, 403, 404] },
+    ],
+  },
+  {
+    controller: AgentController,
+    tag: 'Agent',
+    description: 'ELEVA AI Agent V1 Slice 1. PLATFORM_OWNER only. Safe inspection tools; no sensitive execution.',
+    endpoints: [
+      { method: 'createSession', summary: 'Create an Agent session', auth: 'bearer', tenant: 'platform-global', permission: 'PLATFORM_OWNER (create:Agent)', body: 'CreateAgentSessionRequest', response: 'AgentSession', status: 201, errors: [400, 401, 403] },
+      { method: 'listSessions', summary: 'List Agent sessions', auth: 'bearer', tenant: 'platform-global', permission: 'PLATFORM_OWNER (read:Agent)', response: responseArray('AgentSession'), errors: [401, 403] },
+      { method: 'getSession', summary: 'Get one Agent session', auth: 'bearer', tenant: 'platform-global', permission: 'PLATFORM_OWNER (read:Agent)', response: 'AgentSession', params: [p('sessionId', 'Agent session UUID.')], errors: [400, 401, 403, 404] },
+      { method: 'invoke', summary: 'Invoke a V1 SAFE Agent tool', auth: 'bearer', tenant: 'platform-global', permission: 'PLATFORM_OWNER (create:Agent)', body: 'InvokeAgentToolRequest', response: 'AgentInvokeResponse', params: [p('sessionId', 'Agent session UUID.')], errors: [400, 401, 403, 404] },
     ],
   },
   {

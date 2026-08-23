@@ -24,7 +24,7 @@ function buildTenantScopedExtension(): Record<string, unknown> {
           const tenantId = context?.tenantId;
           const isPlatformOwner = context?.isPlatformOwner || false;
 
-          const unscopedModels = ['Tenant', 'SubscriptionPlan', 'AuditLog', 'Notification'];
+          const unscopedModels = ['Tenant', 'SubscriptionPlan', 'AuditLog', 'Notification', 'AgentSession', 'AgentMessage', 'AgentAction', 'AgentApproval'];
 
           // ==========================================
           // 1. Fail-safe context verification

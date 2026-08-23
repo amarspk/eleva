@@ -194,6 +194,30 @@ export const OPENAPI_SCHEMAS: Record<string, SchemaObject> = {
     },
     ['id', 'tenantId', 'orderId', 'invoiceNumber', 'pdfUrl', 'createdAt'],
   ),
+  CreateAgentSessionRequest: object({ title: { type: 'string', maxLength: 200 } }),
+  AgentSession: object(
+    {
+      id: uuid(), userId: uuid(), title: { type: 'string' }, status: { type: 'string' },
+      createdAt: dateTime(), updatedAt: dateTime(),
+    },
+    ['id', 'userId', 'title', 'status'],
+  ),
+  InvokeAgentToolRequest: object(
+    {
+      tool: { type: 'string', enum: ['read_project_state', 'read_repo_file', 'git_status', 'git_log'] },
+      args: { type: 'object', additionalProperties: true },
+    },
+    ['tool'],
+  ),
+  AgentInvokeResponse: object(
+    {
+      sessionId: uuid(), actionId: uuid(), tool: { type: 'string' },
+      status: { type: 'string', enum: ['EXECUTED', 'FAILED'] },
+      sensitivity: { type: 'string', enum: ['SAFE'] },
+      result: { type: 'object', additionalProperties: true },
+    },
+    ['sessionId', 'actionId', 'tool', 'status', 'sensitivity'],
+  ),
   InvoiceResendResponse: object(
     {
       id: uuid(), sent: { type: 'boolean' }, to: { type: 'string', format: 'email' },

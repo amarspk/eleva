@@ -107,8 +107,8 @@ describe('AUDIT-011 OpenAPI runtime contract', () => {
 
     expect(DOCUMENTED_CONTROLLER_COUNT).toBe(controllersWithRoutes.size);
     expect(DOCUMENTED_HANDLER_COUNT).toBe(handlerKeys.size);
-    expect(DOCUMENTED_CONTROLLER_COUNT).toBe(21);
-    expect(DOCUMENTED_HANDLER_COUNT).toBe(94);
+    expect(DOCUMENTED_CONTROLLER_COUNT).toBe(24);
+    expect(DOCUMENTED_HANDLER_COUNT).toBe(106);
 
     const missingRoutes = [...expectedRoutes].filter((key) => {
       const [verb, path] = key.split(' ');

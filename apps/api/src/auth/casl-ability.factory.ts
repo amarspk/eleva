@@ -43,6 +43,9 @@ export type Subjects =
   // AUDIT-010: staff Invoice list/get/resend. Dedicated subject so the guard
   // re-resolves `:id` against TenantInvoiceRepository.
   | 'Invoice'
+  // ELEVA AI Agent V1: platform-only. No tenantRepositoryRegistry entry —
+  // routes use :sessionId (not :id) so the guard does not re-resolve a row.
+  | 'Agent'
   | 'all';
 
 export type AppAbility = MongoAbility<[Action, Subjects]>;

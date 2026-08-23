@@ -227,6 +227,8 @@ model User {
   userBranches UserBranch[]
   deviceTokens DeviceToken[]
   sessionLogs  SessionLog[]
+  agentSessions AgentSession[]
+  agentApprovals AgentApproval[]
 
   @@unique([email, tenantId], map: "idx_users_email_tenant")
   @@index([tenantId], map: "idx_users_tenant_id")
@@ -1038,3 +1040,70 @@ model PlatformDesign {
 
   @@map("platform_designs")
 }
+
+/// ELEVA AI Agent V1 — platform-owned (no tenantId). Unscoped in the Prisma
+/// extension. Access is PLATFORM_OWNER + agent:* only.
+model AgentSession {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
+  title     String   @default("Agent session") @db.VarChar(200)
+  status    String   @default("OPEN") @db.VarChar(20)
+  createdAt DateTime @default(now()) @db.Timestamptz
+  updatedAt DateTime @updatedAt @db.Timestamptz
+
+  user     User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages AgentMessage[]
+  actions  AgentAction[]
+
+  @@index([userId], map: "idx_agent_sessions_user")
+  @@index([status], map: "idx_agent_sessions_status")
+  @@map("agent_sessions")
+}
+
+model AgentMessage {
+  id        String   @id @default(uuid()) @db.Uuid
+  sessionId String   @db.Uuid
+  role      String   @db.VarChar(20)
+  content   String   @db.Text
+  createdAt DateTime @default(now()) @db.Timestamptz
+
+  session AgentSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId], map: "idx_agent_messages_session")
+  @@map("agent_messages")
+}
+
+model AgentAction {
+  id          String   @id @default(uuid()) @db.Uuid
+  sessionId   String   @db.Uuid
+  tool        String   @db.VarChar(80)
+  input       Json?
+  result      Json?
+  status      String   @db.VarChar(20)
+  sensitivity String   @default("SAFE") @db.VarChar(20)
+  createdAt   DateTime @default(now()) @db.Timestamptz
+  updatedAt   DateTime @updatedAt @db.Timestamptz
+
+  session   AgentSession    @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  approvals AgentApproval[]
+
+  @@index([sessionId], map: "idx_agent_actions_session")
+  @@index([status], map: "idx_agent_actions_status")
+  @@map("agent_actions")
+}
+
+model AgentApproval {
+  id             String   @id @default(uuid()) @db.Uuid
+  actionId       String   @db.Uuid
+  approverUserId String   @db.Uuid
+  decision       String   @db.VarChar(20)
+  reason         String?  @db.Text
+  decidedAt      DateTime @default(now()) @db.Timestamptz
+
+  action   AgentAction @relation(fields: [actionId], references: [id], onDelete: Cascade)
+  approver User        @relation(fields: [approverUserId], references: [id], onDelete: Restrict)
+
+  @@index([actionId], map: "idx_agent_approvals_action")
+  @@map("agent_approvals")
+}
+
