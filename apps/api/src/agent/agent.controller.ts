@@ -16,7 +16,9 @@ import { RbacPermissionGuard } from '../auth/guards/rbac-permission.guard';
 import { RequirePermission } from '../auth/decorators/require-permission.decorator';
 import { AuthenticatedRequest } from '../common/types/request.types';
 import { AgentService } from './agent.service';
+import { AgentOrchestrator } from './agent-orchestrator';
 import {
+  ChatAgentDto,
   CreateAgentSessionDto,
   DecideAgentActionDto,
   InvokeAgentToolDto,
@@ -30,7 +32,10 @@ import {
 @Controller('api/v1/agent')
 @UseGuards(JwtAuthGuard, RbacPermissionGuard)
 export class AgentController {
-  constructor(private readonly agentService: AgentService) {}
+  constructor(
+    private readonly agentService: AgentService,
+    private readonly orchestrator: AgentOrchestrator,
+  ) {}
 
   @Post('sessions')
   @RequirePermission('create', 'Agent')
@@ -81,6 +86,24 @@ export class AgentController {
       user.id,
       dto.tool,
       dto.args,
+      String(req.ip || 'unknown'),
+      String(req.headers['user-agent'] || 'unknown'),
+    );
+  }
+
+  @Post('sessions/:sessionId/chat')
+  @RequirePermission('create', 'Agent')
+  @HttpCode(HttpStatus.OK)
+  async chat(
+    @Req() req: AuthenticatedRequest,
+    @Param('sessionId', new ParseUUIDPipe()) sessionId: string,
+    @Body() dto: ChatAgentDto,
+  ): Promise<unknown> {
+    const user = this.assertPlatformOwner(req);
+    return this.orchestrator.chat(
+      sessionId,
+      user.id,
+      dto.message,
       String(req.ip || 'unknown'),
       String(req.headers['user-agent'] || 'unknown'),
     );

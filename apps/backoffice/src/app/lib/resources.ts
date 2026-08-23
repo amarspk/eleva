@@ -236,6 +236,13 @@ export const agentApi = {
     api.post<AgentDecisionResult>(`/api/v1/agent/sessions/${sessionId}/actions/${actionId}/approve`, { reason }),
   reject: (sessionId: string, actionId: string, reason?: string): Promise<AgentDecisionResult> =>
     api.post<AgentDecisionResult>(`/api/v1/agent/sessions/${sessionId}/actions/${actionId}/reject`, { reason }),
+  chat: (sessionId: string, message: string): Promise<{
+    reply: string;
+    intent: string;
+    questions: string[];
+    proposed: boolean;
+    executed: false;
+  }> => api.post(`/api/v1/agent/sessions/${sessionId}/chat`, { message }),
 };
 
 export const invoicesApi = {

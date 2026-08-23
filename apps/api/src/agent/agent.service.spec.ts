@@ -231,6 +231,7 @@ describe('AgentController authorization', () => {
     ['listSessions', 'read'],
     ['getSession', 'read'],
     ['invoke', 'create'],
+    ['chat', 'create'],
     ['approveAction', 'update'],
     ['rejectAction', 'update'],
   ] as const)('%s requires %s on Agent', (method, action) => {
@@ -239,7 +240,7 @@ describe('AgentController authorization', () => {
   });
 
   it('403s restaurant staff even if the request is authenticated', async () => {
-    const controller = new AgentController({} as AgentService);
+    const controller = new AgentController({} as AgentService, {} as never);
     const req = {
       user: { id: 'u1', roles: ['RESTAURANT_OWNER'], permissions: ['agent:read', 'agent:update'] },
     } as AuthenticatedRequest;
@@ -251,7 +252,7 @@ describe('AgentController authorization', () => {
 
   it('allows PLATFORM_OWNER to reach listSessions', async () => {
     const listSessions = jest.fn().mockResolvedValue([]);
-    const controller = new AgentController({ listSessions } as unknown as AgentService);
+    const controller = new AgentController({ listSessions } as unknown as AgentService, {} as never);
     const req = {
       user: { id: 'u1', roles: ['PLATFORM_OWNER'], permissions: ['agent:read'] },
     } as AuthenticatedRequest;

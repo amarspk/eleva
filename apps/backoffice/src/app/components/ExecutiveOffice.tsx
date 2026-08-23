@@ -34,6 +34,7 @@ export function ExecutiveOffice(): React.ReactElement {
   const [tool, setTool] = useState<string>('read_project_state');
   const [filePath, setFilePath] = useState('package.json');
   const [planSummary, setPlanSummary] = useState('');
+  const [chatMessage, setChatMessage] = useState('');
   const [notice, setNotice] = useState('');
 
   const sessionsQuery = useQuery({ queryKey: ['agent-sessions'], queryFn: () => agentApi.listSessions() });
@@ -68,6 +69,20 @@ export function ExecutiveOffice(): React.ReactElement {
     },
     onSuccess: (result) => {
       setNotice(`${result.tool} → ${result.status}${result.executed ? '' : ' (not executed)'}`);
+      void queryClient.invalidateQueries({ queryKey: ['agent-session', sessionId] });
+    },
+  });
+
+  const chatMutation = useMutation({
+    mutationFn: async () => {
+      if (!sessionId) {
+        throw new Error('Create or select a session first.');
+      }
+      return agentApi.chat(sessionId, chatMessage);
+    },
+    onSuccess: (result) => {
+      setNotice(result.proposed ? 'Plan proposed (not executed).' : result.reply.slice(0, 240));
+      setChatMessage('');
       void queryClient.invalidateQueries({ queryKey: ['agent-session', sessionId] });
     },
   });
@@ -158,6 +173,22 @@ export function ExecutiveOffice(): React.ReactElement {
             ) : null}
             <Button variant="primary" disabled={invokeMutation.isPending} onClick={() => invokeMutation.mutate()}>
               Run
+            </Button>
+          </div>
+          <div className="flex flex-wrap gap-2 items-end">
+            <textarea
+              className="min-h-[4rem] min-w-[20rem] flex-1 rounded border px-2 py-1 text-sm"
+              value={chatMessage}
+              onChange={(event) => setChatMessage(event.target.value)}
+              aria-label="Agent message"
+              placeholder="Arabic or English — e.g. أريد أضيف منتج جديد"
+            />
+            <Button
+              variant="primary"
+              disabled={chatMutation.isPending || chatMessage.trim().length === 0}
+              onClick={() => chatMutation.mutate()}
+            >
+              Ask
             </Button>
           </div>
         </div>

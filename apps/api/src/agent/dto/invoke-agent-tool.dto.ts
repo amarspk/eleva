@@ -1,4 +1,4 @@
-import { IsIn, IsObject, IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsIn, IsObject, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
 import { INVOCABLE_AGENT_TOOLS } from '../agent-tools';
 
 export class InvokeAgentToolDto {
@@ -23,4 +23,11 @@ export class CreateAgentSessionDto {
   @IsString()
   @MaxLength(200)
   title?: string;
+}
+
+export class ChatAgentDto {
+  @IsString()
+  @MinLength(1)
+  @MaxLength(4000)
+  message!: string;
 }

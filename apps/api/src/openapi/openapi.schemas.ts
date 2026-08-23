@@ -226,6 +226,18 @@ export const OPENAPI_SCHEMAS: Record<string, SchemaObject> = {
     },
     ['sessionId', 'actionId', 'tool', 'status', 'sensitivity', 'executed'],
   ),
+  ChatAgentRequest: object({ message: { type: 'string', maxLength: 4000 } }, ['message']),
+  AgentChatResponse: object(
+    {
+      sessionId: uuid(), reply: { type: 'string' }, language: { type: 'string' }, intent: { type: 'string' },
+      questions: { type: 'array', items: { type: 'string' } },
+      executedSafeTools: { type: 'array', items: { type: 'string' } },
+      proposed: { type: 'boolean' }, executed: { type: 'boolean', enum: [false] },
+      actionIds: { type: 'array', items: uuid() }, provider: { type: 'string' },
+      projectStateUsed: { type: 'boolean', enum: [true] },
+    },
+    ['sessionId', 'reply', 'language', 'intent', 'questions', 'executedSafeTools', 'proposed', 'executed', 'provider', 'projectStateUsed'],
+  ),
   DecideAgentActionRequest: object({ reason: { type: 'string', maxLength: 2000 } }),
   AgentDecisionResponse: object(
     {

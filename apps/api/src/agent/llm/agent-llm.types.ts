@@ -1,0 +1,63 @@
+import { SAFE_AGENT_TOOLS, SENSITIVE_AGENT_TOOLS, PLAN_AGENT_TOOLS } from '../agent-tools';
+
+export const AGENT_LLM_PROVIDER = 'AGENT_LLM_PROVIDER';
+
+export type AgentReplyLanguage = 'ar' | 'en' | 'mixed';
+export type AgentIntent = 'clarify' | 'inspect' | 'plan' | 'refuse';
+
+export interface AgentLlmMessage {
+  role: 'system' | 'user' | 'assistant' | 'tool';
+  content: string;
+}
+
+export interface AgentLlmToolCall {
+  tool: string;
+  args?: Record<string, unknown>;
+}
+
+export interface AgentStructuredPlan {
+  summary: string;
+  steps: string[];
+  risks: string[];
+  affectedAreas: string[];
+  missingInformation: string[];
+}
+
+export interface AgentLlmDecision {
+  language: AgentReplyLanguage;
+  intent: AgentIntent;
+  reply: string;
+  questions: string[];
+  safeTools: AgentLlmToolCall[];
+  propose: boolean;
+  plan?: AgentStructuredPlan;
+}
+
+export interface AgentLlmCompleteInput {
+  messages: AgentLlmMessage[];
+  projectStateExcerpt: string;
+  allowlistedSafeTools: readonly string[];
+}
+
+export interface AgentLlmProvider {
+  readonly name: string;
+  complete(input: AgentLlmCompleteInput): Promise<AgentLlmDecision>;
+}
+
+export const ALLOWLISTED_SAFE_TOOLS: readonly string[] = [...SAFE_AGENT_TOOLS];
+export const BLOCKED_EXECUTION_TOOLS: readonly string[] = [
+  ...SENSITIVE_AGENT_TOOLS,
+  ...PLAN_AGENT_TOOLS,
+];
+
+export function emptyDecision(partial: Partial<AgentLlmDecision> = {}): AgentLlmDecision {
+  return {
+    language: 'en',
+    intent: 'refuse',
+    reply: '',
+    questions: [],
+    safeTools: [],
+    propose: false,
+    ...partial,
+  };
+}

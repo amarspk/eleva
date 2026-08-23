@@ -18,6 +18,7 @@ jest.mock('../lib/resources', () => ({
     invoke: (...args: unknown[]) => invoke(...args),
     approve: (...args: unknown[]) => approve(...args),
     reject: (...args: unknown[]) => reject(...args),
+    chat: jest.fn(),
   },
 }));
 
@@ -65,6 +66,7 @@ describe('ExecutiveOffice', () => {
     renderOffice();
     fireEvent.click(screen.getByRole('button', { name: 'New session' }));
     await waitFor(() => expect(createSession).toHaveBeenCalled());
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Run' })).toBeInTheDocument());
     fireEvent.click(screen.getByRole('button', { name: 'Run' }));
     await waitFor(() => expect(invoke).toHaveBeenCalled());
     await waitFor(() => expect(screen.getByText('# PROJECT STATE')).toBeInTheDocument());
