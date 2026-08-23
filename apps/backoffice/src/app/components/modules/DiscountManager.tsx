@@ -162,7 +162,7 @@ export function DiscountManager(): React.ReactElement {
                             type: row.type,
                             value: String(row.value),
                             active: row.active,
-                            usageLimit: row.usageLimit != null ? String(row.usageLimit) : '',
+                            usageLimit: row.usageLimit !== null ? String(row.usageLimit) : '',
                           });
                           setFormError('');
                           setEditing(row);
