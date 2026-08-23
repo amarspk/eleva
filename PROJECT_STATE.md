@@ -918,7 +918,9 @@ indexes is reverted to FULL or its authoritative predicate is altered.
 
 **Next milestone: Phase 5 — Launch / Operations Gate.**
 
-**AUDIT-008 — Restaurant write management — COMPLETE.** Tenant-scoped POST/PUT/DELETE/restore on `/api/v1/restaurants` using existing Restaurant columns (`name`, `currency`, `timezone`, `taxPercentage`), CASL `create/update/delete Restaurant`, SubscriptionPlan.maxRestaurants on create, 404 for foreign ids, 409 while live branches exist. Backoffice Restaurants tab. Do not start AUDIT-009 without CTO approval.
+**AUDIT-008 — Restaurant write management — COMPLETE** (CI SHA `304cf33`, run `32607887017`).
+Named gates: code-quality PASS; Prisma generate PASS; `pnpm build` PASS; e2e-live PASS (API `/health` + QR + Playwright). Job 2 `pnpm test` still FAIL (pre-existing; not a named AUDIT-008/release gate; docker skipped).
+Tenant-scoped POST/PUT/DELETE/restore on `/api/v1/restaurants` using existing Restaurant columns; `SubscriptionService.checkRestaurantLimit` mirrors `checkBranchLimit` (`plan.maxRestaurants`; soft-deleted brands excluded by repository `count`). Do not start AUDIT-009 without CTO approval.
 
 **Phase 4 Release Verification = COMPLETE** (2026-08-23). Named gates on SHA `5799dd1` / Actions run `32604333941`: Prisma generate CI **PASS**; `pnpm build` / API TypeScript **PASS**; e2e-live **PASS**; API boot + `/health` **PASS**; QR boot + Playwright live **PASS**. AUDIT-023 (`/live`, `/ready`, `/metrics`) **COMPLETE**. Partial-index regression guard **COMPLETE**. SendGrid live click-through and similar production-infra items remain **BLOCKED/OPS**, not engineering tickets. Do not reopen Phase 4. Do not invent Phase 5 product features.
 
