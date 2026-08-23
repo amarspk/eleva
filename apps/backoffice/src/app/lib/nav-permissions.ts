@@ -30,7 +30,8 @@ export type NavTabId =
   | 'ratings'
   | 'discounts'
   | 'invoices'
-  | 'settings';
+  | 'settings'
+  | 'agent';
 
 export type NavGroupId =
   | 'operations'
@@ -39,7 +40,8 @@ export type NavGroupId =
   | 'people'
   | 'experience'
   | 'support'
-  | 'settings';
+  | 'settings'
+  | 'executive';
 
 export interface NavTabDefinition {
   id: NavTabId;
@@ -75,9 +77,11 @@ export const NAV_TABS: NavTabDefinition[] = [
   { id: 'discounts', group: 'settings', anyOf: [{ resource: 'discount', action: 'read' }] },
   { id: 'invoices', group: 'settings', anyOf: [{ resource: 'invoice', action: 'read' }] },
   { id: 'settings', group: 'settings', anyOf: [{ resource: 'customer', action: 'read' }] },
+  { id: 'agent', group: 'executive', anyOf: [{ resource: 'agent', action: 'read' }] },
 ];
 
 export const NAV_GROUP_ORDER: NavGroupId[] = [
+  'executive',
   'operations',
   'catalog',
   'locations',
@@ -107,8 +111,10 @@ export const NAV_LABELS: Record<'en' | 'ar', { tabs: Record<NavTabId, string>; g
       discounts: 'Discounts',
       invoices: 'Invoices',
       settings: 'Settings',
+      agent: 'Executive Office',
     },
     groups: {
+      executive: 'Platform',
       operations: 'Operations',
       catalog: 'Menu',
       locations: 'Locations',
@@ -137,8 +143,10 @@ export const NAV_LABELS: Record<'en' | 'ar', { tabs: Record<NavTabId, string>; g
       discounts: 'الخصومات',
       invoices: 'الفواتير',
       settings: 'الإعدادات',
+      agent: 'المكتب التنفيذي',
     },
     groups: {
+      executive: 'المنصة',
       operations: 'التشغيل',
       catalog: 'القائمة',
       locations: 'المواقع',
@@ -176,6 +184,9 @@ export function canSeeNavTab(
   permissions: readonly string[],
   roles: readonly string[],
 ): boolean {
+  if (tab.id === 'agent') {
+    return roles.includes('PLATFORM_OWNER');
+  }
   if (roles.includes('PLATFORM_OWNER')) {
     return true;
   }

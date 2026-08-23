@@ -58,8 +58,10 @@ describe('nav-permissions (UI visibility only)', () => {
     expect(hasPermission(['product:read'], { resource: 'user', action: 'read' })).toBe(false);
   });
 
-  it('shows the full restaurant-owner set from seeded owner grants', () => {
-    expect(ids(OWNER, ['RESTAURANT_OWNER'])).toEqual(NAV_TABS.map((tab) => tab.id));
+  it('shows the full restaurant-owner set from seeded owner grants (no Agent console)', () => {
+    expect(ids(OWNER, ['RESTAURANT_OWNER'])).toEqual(
+      NAV_TABS.filter((tab) => tab.id !== 'agent').map((tab) => tab.id),
+    );
   });
 
   it('hides staff and website design from a manager (no user:* / tenant:* grants)', () => {

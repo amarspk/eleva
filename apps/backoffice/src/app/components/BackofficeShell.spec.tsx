@@ -26,6 +26,7 @@ jest.mock('./WalletManager', () => ({ WalletManager: () => <div>Wallet settings<
 jest.mock('./ComplaintManager', () => ({ ComplaintManager: () => <div>Complaints module</div> }));
 jest.mock('./RatingsManager', () => ({ RatingsManager: () => <div>Ratings module</div> }));
 jest.mock('./DashboardMetrics', () => ({ DashboardMetrics: () => <div>Dashboard metrics</div> }));
+jest.mock('./ExecutiveOffice', () => ({ ExecutiveOffice: () => <div>Agent console</div> }));
 
 function session(partial: { roles: string[]; permissions: string[]; email?: string; tenantId?: string | null }): StaffSession {
   return {
@@ -113,7 +114,19 @@ describe('BackofficeShell navigation visibility', () => {
     }));
     render(<BackofficeShell />);
     expect(screen.getByRole('button', { name: 'Staff' })).toBeInTheDocument();
-    expect(screen.getByText('Executive Office')).toBeInTheDocument();
+    expect(screen.getAllByText('Executive Office').length).toBeGreaterThan(0);
+    fireEvent.click(screen.getByRole('button', { name: 'Executive Office' }));
+    expect(screen.getByText('Agent console')).toBeInTheDocument();
+  });
+
+  it('does not show the Agent console tab to a restaurant owner', () => {
+    mockLoadSession.mockReturnValue(session({
+      roles: ['RESTAURANT_OWNER'],
+      permissions: ['order:read', 'product:read', 'agent:read'],
+    }));
+    render(<BackofficeShell />);
+    expect(screen.queryByRole('button', { name: 'Executive Office' })).not.toBeInTheDocument();
+    expect(screen.queryByText('Agent console')).not.toBeInTheDocument();
   });
 
   it('does not render a hidden module when the tab is missing', () => {

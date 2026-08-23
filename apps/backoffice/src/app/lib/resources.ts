@@ -166,6 +166,78 @@ export interface InvoiceResendResult {
   messageId?: string;
 }
 
+export interface AgentSession {
+  id: string;
+  userId: string;
+  title: string;
+  status: string;
+  createdAt?: string;
+  updatedAt?: string;
+  messages?: AgentMessage[];
+  actions?: AgentAction[];
+}
+
+export interface AgentMessage {
+  id?: string;
+  role: string;
+  content: string;
+  createdAt?: string;
+}
+
+export interface AgentApproval {
+  id: string;
+  actionId: string;
+  approverUserId: string;
+  decision: string;
+  reason?: string | null;
+  decidedAt?: string;
+}
+
+export interface AgentAction {
+  id: string;
+  sessionId?: string;
+  tool: string;
+  input?: unknown;
+  result?: unknown;
+  status: string;
+  sensitivity: string;
+  createdAt?: string;
+  approvals?: AgentApproval[];
+}
+
+export interface AgentInvokeResult {
+  sessionId: string;
+  actionId: string;
+  tool: string;
+  status: string;
+  sensitivity: string;
+  executed: boolean;
+  result: unknown;
+}
+
+export interface AgentDecisionResult {
+  actionId: string;
+  sessionId: string;
+  approvalId: string;
+  decision: string;
+  status: string;
+  executed: false;
+}
+
+export const agentApi = {
+  listSessions: (): Promise<AgentSession[]> => api.get<AgentSession[]>('/api/v1/agent/sessions'),
+  createSession: (title?: string): Promise<AgentSession> =>
+    api.post<AgentSession>('/api/v1/agent/sessions', title ? { title } : {}),
+  getSession: (sessionId: string): Promise<AgentSession> =>
+    api.get<AgentSession>(`/api/v1/agent/sessions/${sessionId}`),
+  invoke: (sessionId: string, tool: string, args?: Record<string, unknown>): Promise<AgentInvokeResult> =>
+    api.post<AgentInvokeResult>(`/api/v1/agent/sessions/${sessionId}/invoke`, { tool, args }),
+  approve: (sessionId: string, actionId: string, reason?: string): Promise<AgentDecisionResult> =>
+    api.post<AgentDecisionResult>(`/api/v1/agent/sessions/${sessionId}/actions/${actionId}/approve`, { reason }),
+  reject: (sessionId: string, actionId: string, reason?: string): Promise<AgentDecisionResult> =>
+    api.post<AgentDecisionResult>(`/api/v1/agent/sessions/${sessionId}/actions/${actionId}/reject`, { reason }),
+};
+
 export const invoicesApi = {
   list: (): Promise<Invoice[]> => api.get<Invoice[]>('/api/v1/invoices'),
   get: (id: string): Promise<Invoice> => api.get<Invoice>(`/api/v1/invoices/${id}`),

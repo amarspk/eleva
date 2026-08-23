@@ -204,7 +204,14 @@ export const OPENAPI_SCHEMAS: Record<string, SchemaObject> = {
   ),
   InvokeAgentToolRequest: object(
     {
-      tool: { type: 'string', enum: ['read_project_state', 'read_repo_file', 'git_status', 'git_log'] },
+      tool: {
+        type: 'string',
+        enum: [
+          'read_project_state', 'read_repo_file', 'git_status', 'git_log', 'propose_plan',
+          'apply_patch', 'deploy', 'run_migration', 'change_secrets', 'stripe_action',
+          'sendgrid_send', 'backup_restore', 'delete_tenant', 'delete_user', 'change_rbac', 'stop_service',
+        ],
+      },
       args: { type: 'object', additionalProperties: true },
     },
     ['tool'],
@@ -212,11 +219,22 @@ export const OPENAPI_SCHEMAS: Record<string, SchemaObject> = {
   AgentInvokeResponse: object(
     {
       sessionId: uuid(), actionId: uuid(), tool: { type: 'string' },
-      status: { type: 'string', enum: ['EXECUTED', 'FAILED'] },
-      sensitivity: { type: 'string', enum: ['SAFE'] },
+      status: { type: 'string', enum: ['EXECUTED', 'FAILED', 'PROPOSED'] },
+      sensitivity: { type: 'string', enum: ['SAFE', 'SENSITIVE'] },
+      executed: { type: 'boolean' },
       result: { type: 'object', additionalProperties: true },
     },
-    ['sessionId', 'actionId', 'tool', 'status', 'sensitivity'],
+    ['sessionId', 'actionId', 'tool', 'status', 'sensitivity', 'executed'],
+  ),
+  DecideAgentActionRequest: object({ reason: { type: 'string', maxLength: 2000 } }),
+  AgentDecisionResponse: object(
+    {
+      actionId: uuid(), sessionId: uuid(), approvalId: uuid(),
+      decision: { type: 'string', enum: ['APPROVED', 'REJECTED'] },
+      status: { type: 'string', enum: ['APPROVED', 'REJECTED'] },
+      executed: { type: 'boolean', enum: [false] },
+    },
+    ['actionId', 'sessionId', 'approvalId', 'decision', 'status', 'executed'],
   ),
   InvoiceResendResponse: object(
     {

@@ -314,12 +314,14 @@ const docs: ControllerDoc[] = [
   {
     controller: AgentController,
     tag: 'Agent',
-    description: 'ELEVA AI Agent V1 Slice 1. PLATFORM_OWNER only. Safe inspection tools; no sensitive execution.',
+    description: 'ELEVA AI Agent V1 Slice 2. PLATFORM_OWNER only. SAFE tools execute immediately. SENSITIVE tools and propose_plan persist PROPOSED records; approval records a decision and never executes.',
     endpoints: [
       { method: 'createSession', summary: 'Create an Agent session', auth: 'bearer', tenant: 'platform-global', permission: 'PLATFORM_OWNER (create:Agent)', body: 'CreateAgentSessionRequest', response: 'AgentSession', status: 201, errors: [400, 401, 403] },
       { method: 'listSessions', summary: 'List Agent sessions', auth: 'bearer', tenant: 'platform-global', permission: 'PLATFORM_OWNER (read:Agent)', response: responseArray('AgentSession'), errors: [401, 403] },
       { method: 'getSession', summary: 'Get one Agent session', auth: 'bearer', tenant: 'platform-global', permission: 'PLATFORM_OWNER (read:Agent)', response: 'AgentSession', params: [p('sessionId', 'Agent session UUID.')], errors: [400, 401, 403, 404] },
-      { method: 'invoke', summary: 'Invoke a V1 SAFE Agent tool', auth: 'bearer', tenant: 'platform-global', permission: 'PLATFORM_OWNER (create:Agent)', body: 'InvokeAgentToolRequest', response: 'AgentInvokeResponse', params: [p('sessionId', 'Agent session UUID.')], errors: [400, 401, 403, 404] },
+      { method: 'invoke', summary: 'Invoke a V1 Agent tool (SAFE executes; SENSITIVE/propose_plan only proposes)', auth: 'bearer', tenant: 'platform-global', permission: 'PLATFORM_OWNER (create:Agent)', body: 'InvokeAgentToolRequest', response: 'AgentInvokeResponse', params: [p('sessionId', 'Agent session UUID.')], errors: [400, 401, 403, 404] },
+      { method: 'approveAction', summary: 'Record PLATFORM_OWNER approval of a proposed Agent action (does not execute)', auth: 'bearer', tenant: 'platform-global', permission: 'PLATFORM_OWNER (update:Agent)', body: 'DecideAgentActionRequest', response: 'AgentDecisionResponse', params: [p('sessionId', 'Agent session UUID.'), p('actionId', 'Agent action UUID.')], errors: [400, 401, 403, 404, 409] },
+      { method: 'rejectAction', summary: 'Record PLATFORM_OWNER rejection of a proposed Agent action', auth: 'bearer', tenant: 'platform-global', permission: 'PLATFORM_OWNER (update:Agent)', body: 'DecideAgentActionRequest', response: 'AgentDecisionResponse', params: [p('sessionId', 'Agent session UUID.'), p('actionId', 'Agent action UUID.')], errors: [400, 401, 403, 404, 409] },
     ],
   },
   {

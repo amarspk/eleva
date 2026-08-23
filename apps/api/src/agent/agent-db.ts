@@ -14,6 +14,11 @@ export interface AgentDelegates {
   };
   agentAction: {
     create: (args: unknown) => Promise<Record<string, unknown>>;
+    findFirst: (args: unknown) => Promise<Record<string, unknown> | null>;
+    update: (args: unknown) => Promise<Record<string, unknown>>;
+  };
+  agentApproval: {
+    create: (args: unknown) => Promise<Record<string, unknown>>;
   };
 }
 

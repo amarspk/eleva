@@ -21,6 +21,7 @@ import { WalletManager } from './WalletManager';
 import { ComplaintManager } from './ComplaintManager';
 import { RatingsManager } from './RatingsManager';
 import { DashboardMetrics } from './DashboardMetrics';
+import { ExecutiveOffice } from './ExecutiveOffice';
 import { clearSession, loadSession } from '../lib/auth';
 import {
   NAV_LABELS,
@@ -181,6 +182,7 @@ function ShellContent(): React.ReactElement {
       </nav>
 
       <main className="p-4 sm:p-6">
+        {activeTab === 'agent' && visibleIds.includes('agent') ? <ExecutiveOffice /> : null}
         {activeTab === 'dashboard' && visibleIds.includes('dashboard') ? (
           <>
             <DashboardMetrics tenantId={tenantId} />

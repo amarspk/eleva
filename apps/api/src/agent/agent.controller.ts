@@ -16,12 +16,16 @@ import { RbacPermissionGuard } from '../auth/guards/rbac-permission.guard';
 import { RequirePermission } from '../auth/decorators/require-permission.decorator';
 import { AuthenticatedRequest } from '../common/types/request.types';
 import { AgentService } from './agent.service';
-import { CreateAgentSessionDto, InvokeAgentToolDto } from './dto/invoke-agent-tool.dto';
+import {
+  CreateAgentSessionDto,
+  DecideAgentActionDto,
+  InvokeAgentToolDto,
+} from './dto/invoke-agent-tool.dto';
 
 /**
- * ELEVA AI Agent V1 Slice 1 — PLATFORM_OWNER only.
- * Routes use :sessionId (not :id) so RbacPermissionGuard does not look up a
- * tenant repository.
+ * ELEVA AI Agent V1 Slice 2 — PLATFORM_OWNER only.
+ * Routes use :sessionId / :actionId (not :id) so RbacPermissionGuard does not
+ * look up a tenant repository.
  */
 @Controller('api/v1/agent')
 @UseGuards(JwtAuthGuard, RbacPermissionGuard)
@@ -72,11 +76,53 @@ export class AgentController {
     @Body() dto: InvokeAgentToolDto,
   ): Promise<unknown> {
     const user = this.assertPlatformOwner(req);
-    return this.agentService.invokeSafeTool(
+    return this.agentService.invokeTool(
       sessionId,
       user.id,
       dto.tool,
       dto.args,
+      String(req.ip || 'unknown'),
+      String(req.headers['user-agent'] || 'unknown'),
+    );
+  }
+
+  @Post('sessions/:sessionId/actions/:actionId/approve')
+  @RequirePermission('update', 'Agent')
+  @HttpCode(HttpStatus.OK)
+  async approveAction(
+    @Req() req: AuthenticatedRequest,
+    @Param('sessionId', new ParseUUIDPipe()) sessionId: string,
+    @Param('actionId', new ParseUUIDPipe()) actionId: string,
+    @Body() dto: DecideAgentActionDto,
+  ): Promise<unknown> {
+    const user = this.assertPlatformOwner(req);
+    return this.agentService.decideAction(
+      sessionId,
+      actionId,
+      user.id,
+      'APPROVED',
+      dto.reason,
+      String(req.ip || 'unknown'),
+      String(req.headers['user-agent'] || 'unknown'),
+    );
+  }
+
+  @Post('sessions/:sessionId/actions/:actionId/reject')
+  @RequirePermission('update', 'Agent')
+  @HttpCode(HttpStatus.OK)
+  async rejectAction(
+    @Req() req: AuthenticatedRequest,
+    @Param('sessionId', new ParseUUIDPipe()) sessionId: string,
+    @Param('actionId', new ParseUUIDPipe()) actionId: string,
+    @Body() dto: DecideAgentActionDto,
+  ): Promise<unknown> {
+    const user = this.assertPlatformOwner(req);
+    return this.agentService.decideAction(
+      sessionId,
+      actionId,
+      user.id,
+      'REJECTED',
+      dto.reason,
       String(req.ip || 'unknown'),
       String(req.headers['user-agent'] || 'unknown'),
     );

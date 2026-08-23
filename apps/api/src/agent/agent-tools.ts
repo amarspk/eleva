@@ -5,6 +5,35 @@ import { spawnSync } from 'child_process';
 export const SAFE_AGENT_TOOLS = ['read_project_state', 'read_repo_file', 'git_status', 'git_log'] as const;
 export type SafeAgentTool = (typeof SAFE_AGENT_TOOLS)[number];
 
+/** Slice 2 planning tool — persists a PROPOSED action only. */
+export const PLAN_AGENT_TOOLS = ['propose_plan'] as const;
+export type PlanAgentTool = (typeof PLAN_AGENT_TOOLS)[number];
+
+/**
+ * Sensitive tools remain disabled in Slice 2. Invoking them records a
+ * PROPOSED AgentAction and never executes the named operation — even after approval.
+ */
+export const SENSITIVE_AGENT_TOOLS = [
+  'apply_patch',
+  'deploy',
+  'run_migration',
+  'change_secrets',
+  'stripe_action',
+  'sendgrid_send',
+  'backup_restore',
+  'delete_tenant',
+  'delete_user',
+  'change_rbac',
+  'stop_service',
+] as const;
+export type SensitiveAgentTool = (typeof SENSITIVE_AGENT_TOOLS)[number];
+
+export const INVOCABLE_AGENT_TOOLS = [
+  ...SAFE_AGENT_TOOLS,
+  ...PLAN_AGENT_TOOLS,
+  ...SENSITIVE_AGENT_TOOLS,
+] as const;
+
 const DENY_BASENAMES = new Set([
   '.env',
   '.env.local',
