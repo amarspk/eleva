@@ -2,8 +2,9 @@
 
 > **Phase 3 — Eleva Builder / Preorder Integration — CLOSED 2026-08-14 (Asia/Dubai)**
 > **Phase 4 product work — CLOSED.** **Phase 4 Release Verification — COMPLETE** (2026-08-23, GitHub Actions run `32604333941` on SHA `5799dd13e1dad9fcd50a9c27dd6602488ef5bea6`).
-> **AUDIT-009 — Discount Management API/UI — COMPLETE** (2026-08-23, GitHub Actions run `32608754231` on SHA `b446d25b9381f641a8c7b3d8567fdec4be349b16`). Named gates: code-quality PASS; Prisma generate PASS; `pnpm build` PASS; e2e-live PASS. Job 2 `pnpm test` still FAIL (pre-existing; not a named AUDIT-009 gate; docker skipped). Do **not** start AUDIT-010 without CTO approval.
-> **Branch:** `phase-3/eleva-builder` | **Current HEAD (source of truth):** `b446d25b9381f641a8c7b3d8567fdec4be349b16` (`fix(backoffice): remaining eqeqeq in DiscountManager usageLimit`) | Phase 3 closure history (`b2ecdaf`, `f27263f`, `main` `ec48f114`) remains valid ancestry, not current HEAD.
+> **AUDIT-009 — Discount Management API/UI — COMPLETE** (2026-08-23, GitHub Actions run `32608754231` on SHA `b446d25b9381f641a8c7b3d8567fdec4be349b16`).
+> **AUDIT-010 — Invoice retrieval/resend — COMPLETE** (2026-08-24, GitHub Actions run `32670029615` on SHA `e0bf2f1c6f721b02cd025daefc72c4011b3f36a9`). Named gates: code-quality PASS; Prisma generate PASS; `pnpm build` PASS; e2e-live PASS. Job 2 `pnpm test` still FAIL (pre-existing; not a named AUDIT-010 gate; docker skipped). Do **not** start AUDIT-011 or later backlog items without CTO approval.
+> **Branch:** `phase-3/eleva-builder` | **Current HEAD (source of truth):** `e0bf2f1c6f721b02cd025daefc72c4011b3f36a9` (`feat: AUDIT-010 staff invoice retrieval and resend`) | Phase 3 closure history (`b2ecdaf`, `f27263f`, `main` `ec48f114`) remains valid ancestry, not current HEAD.
 >
 > ### Phase 4 Release Verification scoreboard (environment of record = GitHub CI, SHA `5799dd1`)
 > - Prisma generate in GitHub CI = **PASS** (test, build, and e2e-live jobs).
@@ -901,7 +902,7 @@ boundary input, field smuggling (`tenantId`/`deletedAt`/`id` all rejected by
 
 **Current P1 backlog:** a **product decision on staff-role menu permissions** (currently owner-only). Product decision — requires explicit CTO approval. *(The full-app adversarial pass is CLOSED 2026-08-14 — §19 row 59; independent closure audit PASS.)*
 
-**P2 engineering backlog** — ~~AUDIT-008 (restaurant write management)~~ **COMPLETE**, ~~AUDIT-009 (discount management API/UI)~~ **COMPLETE**, AUDIT-010 (invoice retrieval/resend), AUDIT-017 (subscription lifecycle), AUDIT-021 (real Unifonic path), AUDIT-022 (notification inbox/preferences), AUDIT-024 (`packages/db` direct tests). **Architecture decision:** AUDIT-025 / parked M4. **Product-scope decisions, not authorized engineering tasks:** AUDIT-013, AUDIT-015, AUDIT-018.
+**P2 engineering backlog** — ~~AUDIT-008 (restaurant write management)~~ **COMPLETE**, ~~AUDIT-009 (discount management API/UI)~~ **COMPLETE**, ~~AUDIT-010 (invoice retrieval/resend)~~ **COMPLETE**, AUDIT-017 (subscription lifecycle), AUDIT-021 (real Unifonic path), AUDIT-022 (notification inbox/preferences), AUDIT-024 (`packages/db` direct tests). **Architecture decision:** AUDIT-025 / parked M4. **Product-scope decisions, not authorized engineering tasks:** AUDIT-013, AUDIT-015, AUDIT-018.
 
 ### ⚠️ Deployment caution
 
@@ -921,7 +922,11 @@ indexes is reverted to FULL or its authoritative predicate is altered.
 
 **AUDIT-008 — Restaurant write management — COMPLETE** (CI SHA `304cf33`, run `32607887017`).
 Named gates: code-quality PASS; Prisma generate PASS; `pnpm build` PASS; e2e-live PASS (API `/health` + QR + Playwright). Job 2 `pnpm test` still FAIL (pre-existing; not a named AUDIT-008/release gate; docker skipped).
-Tenant-scoped POST/PUT/DELETE/restore on `/api/v1/restaurants` using existing Restaurant columns; `SubscriptionService.checkRestaurantLimit` mirrors `checkBranchLimit` (`plan.maxRestaurants`; soft-deleted brands excluded by repository `count`). Do not start AUDIT-009 without CTO approval.
+Tenant-scoped POST/PUT/DELETE/restore on `/api/v1/restaurants` using existing Restaurant columns; `SubscriptionService.checkRestaurantLimit` mirrors `checkBranchLimit` (`plan.maxRestaurants`; soft-deleted brands excluded by repository `count`).
+
+**AUDIT-010 — Invoice retrieval/resend — COMPLETE** (CI SHA `e0bf2f1`, run `32670029615`).
+Named gates: code-quality PASS; Prisma generate PASS; `pnpm build` PASS; e2e-live PASS. Job 2 `pnpm test` still FAIL (pre-existing; not a named AUDIT-010 gate; docker skipped).
+Staff GET list/GET :id/POST :id/resend on existing `Invoice` rows. Resend uses `EmailService.sendInvoiceEmail` to the order customer email. Missing/foreign id 404. No customer email → 400. Generation/checkout/payment unchanged. Do **not** start the next backlog item without CTO approval.
 
 **Phase 4 Release Verification = COMPLETE** (2026-08-23). Named gates on SHA `5799dd1` / Actions run `32604333941`: Prisma generate CI **PASS**; `pnpm build` / API TypeScript **PASS**; e2e-live **PASS**; API boot + `/health` **PASS**; QR boot + Playwright live **PASS**. AUDIT-023 (`/live`, `/ready`, `/metrics`) **COMPLETE**. Partial-index regression guard **COMPLETE**. SendGrid live click-through and similar production-infra items remain **BLOCKED/OPS**, not engineering tickets. Do not reopen Phase 4. Do not invent Phase 5 product features.
 
