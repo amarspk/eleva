@@ -28,6 +28,7 @@ import { PublicOrderController } from '../order/public-order.controller';
 import { PaymentController } from '../payment/payment.controller';
 import { RestaurantController } from '../restaurant/restaurant.controller';
 import { DiscountController } from '../discount/discount.controller';
+import { InvoiceController } from '../invoice/invoice.controller';
 import { TenantController } from '../tenant/tenant.controller';
 import { UserController } from '../user/user.controller';
 import { WebhookController } from '../webhook/webhook.controller';
@@ -297,6 +298,16 @@ const docs: ControllerDoc[] = [
       { method: 'findOne', summary: 'Get one discount code', auth: 'bearer', tenant: 'tenant-jwt', permission: 'read:Discount', response: 'Discount', params: [p('id', 'Discount UUID.')], errors: [400, 401, 403, 404] },
       { method: 'update', summary: 'Update a discount code', auth: 'bearer', tenant: 'tenant-jwt', permission: 'update:Discount', body: 'UpdateDiscountRequest', response: 'Discount', params: [p('id', 'Discount UUID.')], errors: [400, 401, 403, 404, 409] },
       { method: 'remove', summary: 'Delete a discount code', auth: 'bearer', tenant: 'tenant-jwt', permission: 'delete:Discount', response: 'DeleteResponse', params: [p('id', 'Discount UUID.')], errors: [401, 403, 404] },
+    ],
+  },
+  {
+    controller: InvoiceController,
+    tag: 'Invoices',
+    description: 'Tenant-scoped staff retrieval and resend of generated invoices (AUDIT-010). PDFs are produced by the existing checkout completion path.',
+    endpoints: [
+      { method: 'findAll', summary: 'List invoices', auth: 'bearer', tenant: 'tenant-jwt', permission: 'read:Invoice', response: responseArray('Invoice'), errors: [401, 403] },
+      { method: 'findOne', summary: 'Get one invoice', auth: 'bearer', tenant: 'tenant-jwt', permission: 'read:Invoice', response: 'Invoice', params: [p('id', 'Invoice UUID.')], errors: [400, 401, 403, 404] },
+      { method: 'resend', summary: 'Resend an invoice email via EmailService', auth: 'bearer', tenant: 'tenant-jwt', permission: 'update:Invoice', response: 'InvoiceResendResponse', params: [p('id', 'Invoice UUID.')], errors: [400, 401, 403, 404] },
     ],
   },
   {

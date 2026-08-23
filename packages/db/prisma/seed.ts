@@ -250,6 +250,10 @@ async function main(): Promise<void> {
     { id: '4fa165bc-d656-49d7-8b91-e98c266c1fe3', action: 'create', resource: 'discount', description: 'Create discount codes' },
     { id: 'ad5d6460-5701-4594-8998-9de09fb072d6', action: 'update', resource: 'discount', description: 'Update discount codes' },
     { id: '2d3a2e90-b039-4e0f-a7b8-997f4a4f0f20', action: 'delete', resource: 'discount', description: 'Delete discount codes' },
+    // AUDIT-010 — invoice retrieval/resend. Mirrored by migration
+    // 20260824000000_invoice_permissions.
+    { id: '63925a50-623b-47d5-b2d2-97135cb19c89', action: 'read', resource: 'invoice', description: 'View invoices' },
+    { id: '9ad98f03-c7af-459c-82f9-41bbeb8c5a45', action: 'update', resource: 'invoice', description: 'Resend invoices' },
     // AUDIT-002 Finding #5 (RBAC). The wallet payment endpoints require the
     // `payment:create` / `payment:read` permissions (CASL vocabulary, matching
     // the guard's Subjects union). The owner is linked to EVERY row, so seeded
@@ -415,6 +419,8 @@ async function main(): Promise<void> {
     { resource: 'discount', action: 'read' },
     { resource: 'discount', action: 'create' },
     { resource: 'discount', action: 'update' },
+    { resource: 'invoice', action: 'read' },
+    { resource: 'invoice', action: 'update' },
     { resource: 'media', action: 'create' },
     { resource: 'media', action: 'read' },
     { resource: 'media', action: 'update' },

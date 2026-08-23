@@ -187,6 +187,20 @@ export const OPENAPI_SCHEMAS: Record<string, SchemaObject> = {
     },
     ['code', 'type', 'value'],
   ),
+  Invoice: object(
+    {
+      id: uuid(), tenantId: uuid(), orderId: uuid(), invoiceNumber: { type: 'string' },
+      pdfUrl: { type: 'string' }, createdAt: dateTime(),
+    },
+    ['id', 'tenantId', 'orderId', 'invoiceNumber', 'pdfUrl', 'createdAt'],
+  ),
+  InvoiceResendResponse: object(
+    {
+      id: uuid(), sent: { type: 'boolean' }, to: { type: 'string', format: 'email' },
+      mocked: { type: 'boolean' }, messageId: { type: 'string' },
+    },
+    ['id', 'sent', 'to'],
+  ),
   UpdateDiscountRequest: object({
     code: { type: 'string', minLength: 1, maxLength: 50 }, name: { type: 'string', nullable: true }, description: { type: 'string', nullable: true },
     type: { type: 'string', enum: ['PERCENTAGE', 'FIXED_AMOUNT'] }, value: { type: 'number', minimum: 0.01 },

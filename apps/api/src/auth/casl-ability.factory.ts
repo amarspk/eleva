@@ -40,6 +40,9 @@ export type Subjects =
   // AUDIT-009: staff Discount management. Dedicated subject so the guard
   // re-resolves `:id` against TenantDiscountRepository.
   | 'Discount'
+  // AUDIT-010: staff Invoice list/get/resend. Dedicated subject so the guard
+  // re-resolves `:id` against TenantInvoiceRepository.
+  | 'Invoice'
   | 'all';
 
 export type AppAbility = MongoAbility<[Action, Subjects]>;

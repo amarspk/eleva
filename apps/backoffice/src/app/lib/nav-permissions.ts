@@ -29,6 +29,7 @@ export type NavTabId =
   | 'complaints'
   | 'ratings'
   | 'discounts'
+  | 'invoices'
   | 'settings';
 
 export type NavGroupId =
@@ -72,6 +73,7 @@ export const NAV_TABS: NavTabDefinition[] = [
   { id: 'complaints', group: 'support', anyOf: [{ resource: 'customer', action: 'read' }] },
   { id: 'ratings', group: 'support', anyOf: [{ resource: 'customer', action: 'read' }] },
   { id: 'discounts', group: 'settings', anyOf: [{ resource: 'discount', action: 'read' }] },
+  { id: 'invoices', group: 'settings', anyOf: [{ resource: 'invoice', action: 'read' }] },
   { id: 'settings', group: 'settings', anyOf: [{ resource: 'customer', action: 'read' }] },
 ];
 
@@ -103,6 +105,7 @@ export const NAV_LABELS: Record<'en' | 'ar', { tabs: Record<NavTabId, string>; g
       complaints: 'Complaints',
       ratings: 'Ratings',
       discounts: 'Discounts',
+      invoices: 'Invoices',
       settings: 'Settings',
     },
     groups: {
@@ -132,6 +135,7 @@ export const NAV_LABELS: Record<'en' | 'ar', { tabs: Record<NavTabId, string>; g
       complaints: 'الشكاوى',
       ratings: 'التقييمات',
       discounts: 'الخصومات',
+      invoices: 'الفواتير',
       settings: 'الإعدادات',
     },
     groups: {

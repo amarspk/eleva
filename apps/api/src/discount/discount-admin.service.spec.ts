@@ -54,6 +54,7 @@ jest.mock('@zayjar/db', () => {
   const DiscountType = { PERCENTAGE: 'PERCENTAGE', FIXED_AMOUNT: 'FIXED_AMOUNT' };
   return {
     TenantDiscountRepository,
+    TenantInvoiceRepository: Stub,
     TenantProductRepository: Stub,
     TenantCategoryRepository: Stub,
     TenantCustomerRepository: Stub,

@@ -153,6 +153,8 @@ const PERMISSIONS = [
   { id: '4fa165bc-d656-49d7-8b91-e98c266c1fe3', action: 'create', resource: 'discount', description: 'Create discount codes' },
   { id: 'ad5d6460-5701-4594-8998-9de09fb072d6', action: 'update', resource: 'discount', description: 'Update discount codes' },
   { id: '2d3a2e90-b039-4e0f-a7b8-997f4a4f0f20', action: 'delete', resource: 'discount', description: 'Delete discount codes' },
+  { id: '63925a50-623b-47d5-b2d2-97135cb19c89', action: 'read',   resource: 'invoice', description: 'View invoices' },
+  { id: '9ad98f03-c7af-459c-82f9-41bbeb8c5a45', action: 'update', resource: 'invoice', description: 'Resend invoices' },
   { id: '328a0aa5-0576-4750-87bb-01ba2c283f74', action: 'create', resource: 'payment', description: 'Create wallet payments' },
   { id: 'fec355e8-c91f-45b6-83b7-fbb957c180ae', action: 'read',   resource: 'payment', description: 'View wallet payments' },
 ];

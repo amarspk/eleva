@@ -6,6 +6,7 @@ import { ProductsModule } from './modules/ProductsModule';
 import { CategoriesModule } from './modules/CategoriesModule';
 import { RestaurantsModule } from './modules/RestaurantsModule';
 import { DiscountManager } from './modules/DiscountManager';
+import { InvoiceManager } from './modules/InvoiceManager';
 import { BranchesModule } from './modules/BranchesModule';
 import { TablesModule } from './modules/TablesModule';
 import { CustomersModule } from './modules/CustomersModule';
@@ -197,6 +198,7 @@ function ShellContent(): React.ReactElement {
         {activeTab === 'complaints' && visibleIds.includes('complaints') ? <ComplaintManager tenantId={tenantId} /> : null}
         {activeTab === 'ratings' && visibleIds.includes('ratings') ? <RatingsManager tenantId={tenantId} /> : null}
         {activeTab === 'discounts' && visibleIds.includes('discounts') ? <DiscountManager /> : null}
+        {activeTab === 'invoices' && visibleIds.includes('invoices') ? <InvoiceManager /> : null}
         {activeTab === 'design' && visibleIds.includes('design') ? <DesignBuilder tenantId={tenantId} /> : null}
         {activeTab === 'receipts' && visibleIds.includes('receipts') ? <ReceiptDesigner tenantId={tenantId} /> : null}
         {activeTab === 'media' && visibleIds.includes('media') ? <MediaLibrary tenantId={tenantId} /> : null}

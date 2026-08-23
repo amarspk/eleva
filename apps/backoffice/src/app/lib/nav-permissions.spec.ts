@@ -20,6 +20,7 @@ const OWNER = [
   'payment:read', 'payment:create',
   'restaurant:read', 'restaurant:create', 'restaurant:update', 'restaurant:delete',
   'discount:read', 'discount:create', 'discount:update', 'discount:delete',
+  'invoice:read', 'invoice:update',
   'media:create', 'media:read', 'media:update', 'media:delete',
 ];
 
@@ -33,6 +34,7 @@ const MANAGER = [
   'payment:read', 'payment:create',
   'restaurant:read', 'restaurant:update',
   'discount:read', 'discount:create', 'discount:update',
+  'invoice:read', 'invoice:update',
   'media:create', 'media:read', 'media:update', 'media:delete',
 ];
 

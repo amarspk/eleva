@@ -150,6 +150,29 @@ export interface Discount {
   usageCount: number;
 }
 
+export interface Invoice {
+  id: string;
+  orderId: string;
+  invoiceNumber: string;
+  pdfUrl: string;
+  createdAt: string;
+}
+
+export interface InvoiceResendResult {
+  id: string;
+  sent: boolean;
+  to: string;
+  mocked?: boolean;
+  messageId?: string;
+}
+
+export const invoicesApi = {
+  list: (): Promise<Invoice[]> => api.get<Invoice[]>('/api/v1/invoices'),
+  get: (id: string): Promise<Invoice> => api.get<Invoice>(`/api/v1/invoices/${id}`),
+  resend: (id: string): Promise<InvoiceResendResult> =>
+    api.post<InvoiceResendResult>(`/api/v1/invoices/${id}/resend`),
+};
+
 export const discountsApi = {
   list: (): Promise<Discount[]> => api.get<Discount[]>('/api/v1/discounts'),
   create: (body: {
