@@ -2,7 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { SubscriptionService } from './subscription.service';
 import { prisma, dbTenantContext } from '@zayjar/db';
 import { ForbiddenException } from '@nestjs/common';
-import { TenantBranchRepository, TenantProductRepository } from '@zayjar/db';
+import { TenantBranchRepository, TenantProductRepository, TenantRestaurantRepository } from '@zayjar/db';
 
 jest.mock('argon2', () => ({
   hash: jest.fn().mockResolvedValue('mock-hash'),
@@ -106,6 +106,57 @@ describe('SubscriptionService Unit Tests - TSK-3.6 Subscription Gating (DOC-001 
     const result = await service.checkBranchLimit(tenantId);
     expect(result.currentCount).toBe(2);
     expect(result.maxBranches).toBe(5);
+  });
+
+  it('should allow restaurant creation when under maxRestaurants', async () => {
+    const tenantId = 'tenant-123';
+    jest.spyOn(prisma.subscription, 'findFirst').mockResolvedValue({
+      id: 'sub_123',
+      tenantId,
+      status: 'ACTIVE',
+      plan: { id: 'plan_growth', name: 'Growth', maxRestaurants: 3 },
+    } as any);
+    jest.spyOn(prisma.tenant, 'findUnique').mockResolvedValue({ id: tenantId, status: 'ACTIVE' } as any);
+    jest.spyOn(TenantRestaurantRepository.prototype, 'count').mockResolvedValue(1 as any);
+    jest.spyOn(dbTenantContext, 'run').mockImplementation((ctx: any, cb: any) => cb());
+
+    const result = await service.checkRestaurantLimit(tenantId);
+    expect(result.currentCount).toBe(1);
+    expect(result.maxRestaurants).toBe(3);
+  });
+
+  it('should reject restaurant creation when maxRestaurants is reached', async () => {
+    const tenantId = 'tenant-123';
+    jest.spyOn(prisma.subscription, 'findFirst').mockResolvedValue({
+      id: 'sub_123',
+      tenantId,
+      status: 'ACTIVE',
+      plan: { id: 'plan_starter', name: 'Starter', maxRestaurants: 1 },
+    } as any);
+    jest.spyOn(prisma.tenant, 'findUnique').mockResolvedValue({ id: tenantId, status: 'ACTIVE' } as any);
+    jest.spyOn(TenantRestaurantRepository.prototype, 'count').mockResolvedValue(1 as any);
+    jest.spyOn(dbTenantContext, 'run').mockImplementation((ctx: any, cb: any) => cb());
+
+    await expect(service.checkRestaurantLimit(tenantId)).rejects.toThrow(/Restaurant limit reached/);
+  });
+
+  it('should not count soft-deleted restaurants toward maxRestaurants (repository default count)', async () => {
+    const tenantId = 'tenant-123';
+    jest.spyOn(prisma.subscription, 'findFirst').mockResolvedValue({
+      id: 'sub_123',
+      tenantId,
+      status: 'ACTIVE',
+      plan: { id: 'plan_starter', name: 'Starter', maxRestaurants: 1 },
+    } as any);
+    jest.spyOn(prisma.tenant, 'findUnique').mockResolvedValue({ id: tenantId, status: 'ACTIVE' } as any);
+    // TenantRestaurantRepository.count applies deletedAt: null via scopedWhere
+    // (softDeletable = true). A tenant with only archived brands reports 0.
+    jest.spyOn(TenantRestaurantRepository.prototype, 'count').mockResolvedValue(0 as any);
+    jest.spyOn(dbTenantContext, 'run').mockImplementation((ctx: any, cb: any) => cb());
+
+    const result = await service.checkRestaurantLimit(tenantId);
+    expect(result.currentCount).toBe(0);
+    expect(result.maxRestaurants).toBe(1);
   });
 
   it('should enforce product limit (maxProductsPerBranch)', async () => {

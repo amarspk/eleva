@@ -80,6 +80,34 @@ export class SubscriptionService {
   }
 
   /**
+   * Checks restaurant-brand limit against the existing plan.maxRestaurants column.
+   * AUDIT-008 — same pattern as checkBranchLimit. TenantRestaurantRepository
+   * is softDeletable, so count() excludes deletedAt != null (same as branches).
+   */
+  async checkRestaurantLimit(tenantId: string): Promise<{ currentCount: number; maxRestaurants: number }> {
+    const subscription = await this.checkSubscriptionStatus(tenantId);
+    const plan = subscription.plan as Record<string, unknown> | undefined;
+
+    if (!plan) {
+      throw new NotFoundException('Subscription plan not found');
+    }
+
+    const maxRestaurants = plan.maxRestaurants as number;
+
+    const currentCount = await dbTenantContext.run({ tenantId }, async () => {
+      return this.restaurantRepository.count();
+    });
+
+    if (currentCount >= maxRestaurants) {
+      throw new ForbiddenException(
+        `Restaurant limit reached (${currentCount}/${maxRestaurants}). Please upgrade to a higher tier. Current plan: ${plan.name}`,
+      );
+    }
+
+    return { currentCount, maxRestaurants };
+  }
+
+  /**
    * Checks product limit per branch against plan's maxProductsPerBranch
    */
   async checkProductLimit(tenantId: string, branchId?: string): Promise<{ currentCount: number; maxProducts: number }> {
