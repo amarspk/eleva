@@ -147,7 +147,7 @@ export function DiscountManager(): React.ReactElement {
                   <td className="px-3 py-2 text-gray-600">{row.type}</td>
                   <td className="px-3 py-2 tabular-nums text-gray-600">{String(row.value)}</td>
                   <td className="px-3 py-2 tabular-nums text-gray-600">
-                    {row.usageCount}{row.usageLimit != null ? ` / ${row.usageLimit}` : ''}
+                    {row.usageCount}{row.usageLimit !== null ? ` / ${row.usageLimit}` : ''}
                   </td>
                   <td className="px-3 py-2">
                     {row.active ? <Badge tone="success">Active</Badge> : <Badge tone="warning">Inactive</Badge>}
