@@ -149,6 +149,10 @@ const PERMISSIONS = [
   { id: '8b0a0a8f-d547-445c-a490-19e80a3c2140', action: 'create', resource: 'restaurant', description: 'Create restaurant brands' },
   { id: '8a069985-e595-4d35-8d79-5ebf83542603', action: 'update', resource: 'restaurant', description: 'Update restaurant brands' },
   { id: 'c3074e8c-e8c3-4650-9fde-b1f2d828e3f8', action: 'delete', resource: 'restaurant', description: 'Delete restaurant brands' },
+  { id: '240ee971-0299-4a3e-960a-53c50426f5d7', action: 'read',   resource: 'discount', description: 'View discount codes' },
+  { id: '4fa165bc-d656-49d7-8b91-e98c266c1fe3', action: 'create', resource: 'discount', description: 'Create discount codes' },
+  { id: 'ad5d6460-5701-4594-8998-9de09fb072d6', action: 'update', resource: 'discount', description: 'Update discount codes' },
+  { id: '2d3a2e90-b039-4e0f-a7b8-997f4a4f0f20', action: 'delete', resource: 'discount', description: 'Delete discount codes' },
   { id: '328a0aa5-0576-4750-87bb-01ba2c283f74', action: 'create', resource: 'payment', description: 'Create wallet payments' },
   { id: 'fec355e8-c91f-45b6-83b7-fbb957c180ae', action: 'read',   resource: 'payment', description: 'View wallet payments' },
 ];

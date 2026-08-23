@@ -136,6 +136,50 @@ export interface Restaurant {
  * forms both need a `restaurantId`; before this endpoint existed neither form
  * could be submitted at all.
  */
+export interface Discount {
+  id: string;
+  code: string;
+  name: string | null;
+  description: string | null;
+  type: 'PERCENTAGE' | 'FIXED_AMOUNT';
+  value: string | number;
+  active: boolean;
+  validFrom: string | null;
+  validTo: string | null;
+  usageLimit: number | null;
+  usageCount: number;
+}
+
+export const discountsApi = {
+  list: (): Promise<Discount[]> => api.get<Discount[]>('/api/v1/discounts'),
+  create: (body: {
+    code: string;
+    type: 'PERCENTAGE' | 'FIXED_AMOUNT';
+    value: number;
+    name?: string;
+    description?: string;
+    active?: boolean;
+    validFrom?: string;
+    validTo?: string;
+    usageLimit?: number;
+  }): Promise<Discount> => api.post<Discount>('/api/v1/discounts', body),
+  update: (
+    id: string,
+    body: {
+      code?: string;
+      type?: 'PERCENTAGE' | 'FIXED_AMOUNT';
+      value?: number;
+      name?: string | null;
+      description?: string | null;
+      active?: boolean;
+      validFrom?: string | null;
+      validTo?: string | null;
+      usageLimit?: number | null;
+    },
+  ): Promise<Discount> => api.put<Discount>(`/api/v1/discounts/${id}`, body),
+  remove: (id: string): Promise<SoftDeleteResult> => api.del<SoftDeleteResult>(`/api/v1/discounts/${id}`),
+};
+
 export const restaurantsApi = {
   list: (includeDeleted = false): Promise<Restaurant[]> =>
     api.get<Restaurant[]>(`/api/v1/restaurants${buildQuery({ includeDeleted })}`),

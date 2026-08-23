@@ -18,6 +18,7 @@ import { RatingModule } from './rating/rating.module';
 import { DesignModule } from './design/design.module';
 import { KdsModule } from './kds/kds.module';
 import { RestaurantModule } from './restaurant/restaurant.module';
+import { DiscountModule } from './discount/discount.module';
 import { CustomerModule } from './customer/customer.module';
 import { BillingModule } from './billing/billing.module';
 import { AdminModule } from './admin/admin.module';
@@ -42,7 +43,7 @@ import { MetricsService } from './common/metrics/metrics.service';
 import { createHttpMetricsMiddleware } from './common/metrics/metrics.middleware';
 
 @Module({
-  imports: [EventEmitterModule.forRoot(), CacheModule, LoggingModule, HealthModule, MetricsModule, CsrfModule, SanitizationModule, AuthModule, TenantModule, BranchModule, MenuModule, RestaurantModule, OrderModule, KdsModule, CustomerModule, BillingModule, AdminModule, AssetModule, WebhookModule, DeviceTokenModule, SubscriptionModule, AuditModule, PaymentModule, MediaModule, UserModule, DesignModule, ReceiptModule, LoyaltyModule, PromotionModule, WalletModule, ComplaintModule, RatingModule],
+  imports: [EventEmitterModule.forRoot(), CacheModule, LoggingModule, HealthModule, MetricsModule, CsrfModule, SanitizationModule, AuthModule, TenantModule, BranchModule, MenuModule, RestaurantModule, DiscountModule, OrderModule, KdsModule, CustomerModule, BillingModule, AdminModule, AssetModule, WebhookModule, DeviceTokenModule, SubscriptionModule, AuditModule, PaymentModule, MediaModule, UserModule, DesignModule, ReceiptModule, LoyaltyModule, PromotionModule, WalletModule, ComplaintModule, RatingModule],
   providers: [
     {
       provide: APP_INTERCEPTOR,

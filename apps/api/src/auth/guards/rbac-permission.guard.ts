@@ -15,6 +15,7 @@ import {
   TenantBranchRepository,
   TenantUserRepository,
   TenantTableRepository,
+  TenantDiscountRepository,
   prisma,
 } from '@zayjar/db';
 
@@ -46,6 +47,7 @@ const tenantRepositoryRegistry = {
   Branch: new TenantBranchRepository(),
   User: new TenantUserRepository(),
   Table: new TenantTableRepository(),
+  Discount: new TenantDiscountRepository(),
 } as const;
 
 @Injectable()

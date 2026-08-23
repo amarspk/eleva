@@ -27,6 +27,7 @@ import { OrderController } from '../order/order.controller';
 import { PublicOrderController } from '../order/public-order.controller';
 import { PaymentController } from '../payment/payment.controller';
 import { RestaurantController } from '../restaurant/restaurant.controller';
+import { DiscountController } from '../discount/discount.controller';
 import { TenantController } from '../tenant/tenant.controller';
 import { UserController } from '../user/user.controller';
 import { WebhookController } from '../webhook/webhook.controller';
@@ -284,6 +285,18 @@ const docs: ControllerDoc[] = [
       { method: 'update', summary: 'Update a restaurant brand', auth: 'bearer', tenant: 'tenant-jwt', permission: 'update:Restaurant', body: 'UpdateRestaurantRequest', response: 'Restaurant', params: [p('id', 'Restaurant UUID.')], errors: [400, 401, 403, 404] },
       { method: 'remove', summary: 'Soft-delete a restaurant brand', auth: 'bearer', tenant: 'tenant-jwt', permission: 'delete:Restaurant', response: 'DeleteResponse', params: [p('id', 'Restaurant UUID.')], errors: [401, 403, 404, 409] },
       { method: 'restore', summary: 'Restore a soft-deleted restaurant brand', auth: 'bearer', tenant: 'tenant-jwt', permission: 'update:Restaurant', response: 'RestoreResponse', params: [p('id', 'Restaurant UUID.')], errors: [401, 403, 404] },
+    ],
+  },
+  {
+    controller: DiscountController,
+    tag: 'Discounts',
+    description: 'Tenant-scoped staff management of checkout discount codes (AUDIT-009). Types are the existing DiscountType enum only.',
+    endpoints: [
+      { method: 'findAll', summary: 'List discount codes', auth: 'bearer', tenant: 'tenant-jwt', permission: 'read:Discount', response: responseArray('Discount'), errors: [401, 403] },
+      { method: 'create', summary: 'Create a discount code', auth: 'bearer', tenant: 'tenant-jwt', permission: 'create:Discount', body: 'CreateDiscountRequest', response: 'Discount', status: 201, errors: [400, 401, 403, 409] },
+      { method: 'findOne', summary: 'Get one discount code', auth: 'bearer', tenant: 'tenant-jwt', permission: 'read:Discount', response: 'Discount', params: [p('id', 'Discount UUID.')], errors: [400, 401, 403, 404] },
+      { method: 'update', summary: 'Update a discount code', auth: 'bearer', tenant: 'tenant-jwt', permission: 'update:Discount', body: 'UpdateDiscountRequest', response: 'Discount', params: [p('id', 'Discount UUID.')], errors: [400, 401, 403, 404, 409] },
+      { method: 'remove', summary: 'Delete a discount code', auth: 'bearer', tenant: 'tenant-jwt', permission: 'delete:Discount', response: 'DeleteResponse', params: [p('id', 'Discount UUID.')], errors: [401, 403, 404] },
     ],
   },
   {

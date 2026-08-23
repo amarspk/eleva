@@ -244,6 +244,12 @@ async function main(): Promise<void> {
     { id: '8b0a0a8f-d547-445c-a490-19e80a3c2140', action: 'create', resource: 'restaurant', description: 'Create restaurant brands' },
     { id: '8a069985-e595-4d35-8d79-5ebf83542603', action: 'update', resource: 'restaurant', description: 'Update restaurant brands' },
     { id: 'c3074e8c-e8c3-4650-9fde-b1f2d828e3f8', action: 'delete', resource: 'restaurant', description: 'Delete restaurant brands' },
+    // AUDIT-009 — discount management. Same CASL vocabulary. Mirrored by
+    // migration 20260823010000_discount_permissions.
+    { id: '240ee971-0299-4a3e-960a-53c50426f5d7', action: 'read', resource: 'discount', description: 'View discount codes' },
+    { id: '4fa165bc-d656-49d7-8b91-e98c266c1fe3', action: 'create', resource: 'discount', description: 'Create discount codes' },
+    { id: 'ad5d6460-5701-4594-8998-9de09fb072d6', action: 'update', resource: 'discount', description: 'Update discount codes' },
+    { id: '2d3a2e90-b039-4e0f-a7b8-997f4a4f0f20', action: 'delete', resource: 'discount', description: 'Delete discount codes' },
     // AUDIT-002 Finding #5 (RBAC). The wallet payment endpoints require the
     // `payment:create` / `payment:read` permissions (CASL vocabulary, matching
     // the guard's Subjects union). The owner is linked to EVERY row, so seeded
@@ -406,6 +412,9 @@ async function main(): Promise<void> {
     { resource: 'payment', action: 'create' },
     { resource: 'restaurant', action: 'read' },
     { resource: 'restaurant', action: 'update' },
+    { resource: 'discount', action: 'read' },
+    { resource: 'discount', action: 'create' },
+    { resource: 'discount', action: 'update' },
     { resource: 'media', action: 'create' },
     { resource: 'media', action: 'read' },
     { resource: 'media', action: 'update' },

@@ -37,6 +37,9 @@ export type Subjects =
   // entry: Media rows are scoped in MediaService/AssetService via JWT
   // tenantId (same pattern as Payment).
   | 'Media'
+  // AUDIT-009: staff Discount management. Dedicated subject so the guard
+  // re-resolves `:id` against TenantDiscountRepository.
+  | 'Discount'
   | 'all';
 
 export type AppAbility = MongoAbility<[Action, Subjects]>;

@@ -169,6 +169,30 @@ export const OPENAPI_SCHEMAS: Record<string, SchemaObject> = {
   UpdateRestaurantRequest: object({
     name: { type: 'string', minLength: 2, maxLength: 255 }, currency: { type: 'string', minLength: 3, maxLength: 3 }, timezone: { type: 'string' }, taxPercentage: { type: 'number', minimum: 0, maximum: 100 },
   }),
+  Discount: object(
+    {
+      id: uuid(), tenantId: uuid(), code: { type: 'string' }, name: nullableString, description: nullableString,
+      type: { type: 'string', enum: ['PERCENTAGE', 'FIXED_AMOUNT'] }, value: money, active: { type: 'boolean' },
+      validFrom: dateTime(true), validTo: dateTime(true), usageLimit: { type: 'integer', nullable: true }, usageCount: { type: 'integer' },
+      createdAt: dateTime(), updatedAt: dateTime(),
+    },
+    ['id', 'tenantId', 'code', 'type', 'value', 'active', 'usageCount'],
+  ),
+  CreateDiscountRequest: object(
+    {
+      code: { type: 'string', minLength: 1, maxLength: 50 }, name: { type: 'string' }, description: { type: 'string' },
+      type: { type: 'string', enum: ['PERCENTAGE', 'FIXED_AMOUNT'] }, value: { type: 'number', minimum: 0.01 },
+      active: { type: 'boolean' }, validFrom: { type: 'string', format: 'date-time' }, validTo: { type: 'string', format: 'date-time' },
+      usageLimit: { type: 'integer', minimum: 1 },
+    },
+    ['code', 'type', 'value'],
+  ),
+  UpdateDiscountRequest: object({
+    code: { type: 'string', minLength: 1, maxLength: 50 }, name: { type: 'string', nullable: true }, description: { type: 'string', nullable: true },
+    type: { type: 'string', enum: ['PERCENTAGE', 'FIXED_AMOUNT'] }, value: { type: 'number', minimum: 0.01 },
+    active: { type: 'boolean' }, validFrom: { type: 'string', format: 'date-time', nullable: true }, validTo: { type: 'string', format: 'date-time', nullable: true },
+    usageLimit: { type: 'integer', minimum: 1, nullable: true },
+  }),
   CreateBranchRequest: object(
     {
       restaurantId: uuid(), name: { type: 'string', minLength: 2, maxLength: 100 }, address: { type: 'string' },

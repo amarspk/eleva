@@ -28,6 +28,7 @@ export type NavTabId =
   | 'media'
   | 'complaints'
   | 'ratings'
+  | 'discounts'
   | 'settings';
 
 export type NavGroupId =
@@ -70,6 +71,7 @@ export const NAV_TABS: NavTabDefinition[] = [
   { id: 'media', group: 'experience', anyOf: [{ resource: 'media', action: 'read' }] },
   { id: 'complaints', group: 'support', anyOf: [{ resource: 'customer', action: 'read' }] },
   { id: 'ratings', group: 'support', anyOf: [{ resource: 'customer', action: 'read' }] },
+  { id: 'discounts', group: 'settings', anyOf: [{ resource: 'discount', action: 'read' }] },
   { id: 'settings', group: 'settings', anyOf: [{ resource: 'customer', action: 'read' }] },
 ];
 
@@ -100,6 +102,7 @@ export const NAV_LABELS: Record<'en' | 'ar', { tabs: Record<NavTabId, string>; g
       media: 'Media Library',
       complaints: 'Complaints',
       ratings: 'Ratings',
+      discounts: 'Discounts',
       settings: 'Settings',
     },
     groups: {
@@ -128,6 +131,7 @@ export const NAV_LABELS: Record<'en' | 'ar', { tabs: Record<NavTabId, string>; g
       media: 'مكتبة الوسائط',
       complaints: 'الشكاوى',
       ratings: 'التقييمات',
+      discounts: 'الخصومات',
       settings: 'الإعدادات',
     },
     groups: {

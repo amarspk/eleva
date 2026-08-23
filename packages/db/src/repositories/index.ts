@@ -17,3 +17,4 @@ export * from './TenantNotificationRepository';
 export * from './TenantDeviceTokenRepository';
 export * from './TenantKitchenQueueRepository';
 export * from './TenantPaymentRepository';
+export * from './TenantDiscountRepository';

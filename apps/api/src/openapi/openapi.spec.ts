@@ -121,7 +121,7 @@ describe('AUDIT-011 OpenAPI runtime contract', () => {
     );
     // DesignController deliberately has two live prefixes, so its ten handlers
     // appear twice: 93 handler methods -> 103 concrete OpenAPI operations.
-    expect(expectedRoutes.size).toBe(108);
+    expect(expectedRoutes.size).toBe(113);
     expect(operations).toHaveLength(expectedRoutes.size);
     expect(operations.every(([, value]) => Boolean((value as { summary?: string }).summary))).toBe(true);
     expect(operations.every(([, value]) => Boolean((value as { responses?: unknown }).responses))).toBe(true);
