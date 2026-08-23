@@ -926,7 +926,10 @@ Tenant-scoped POST/PUT/DELETE/restore on `/api/v1/restaurants` using existing Re
 
 **AUDIT-010 — Invoice retrieval/resend — COMPLETE** (CI SHA `e0bf2f1`, run `32670029615`).
 Named gates: code-quality PASS; Prisma generate PASS; `pnpm build` PASS; e2e-live PASS. Job 2 `pnpm test` still FAIL (pre-existing; not a named AUDIT-010 gate; docker skipped).
-Staff GET list/GET :id/POST :id/resend on existing `Invoice` rows. Resend uses `EmailService.sendInvoiceEmail` to the order customer email. Missing/foreign id 404. No customer email → 400. Generation/checkout/payment unchanged. Do **not** start the next backlog item without CTO approval.
+Staff GET list/GET :id/POST :id/resend on existing `Invoice` rows. Resend uses `EmailService.sendInvoiceEmail` to the order customer email. Missing/foreign id 404. No customer email → 400. Generation/checkout/payment unchanged.
+
+**ELEVA AI Agent V1 Slice 1 — COMPLETE** (CI SHA `e9cfd7c`, run `32672686789`).
+Platform-owner-only `apps/api/src/agent/` with AgentSession/Message/Action/Approval, `agent:read|create|update` granted only to PLATFORM_OWNER, SAFE tools `read_project_state` / `read_repo_file` / `git_status` / `git_log`. Secrets paths denied. No sensitive execution. Next Agent slice requires CTO approval. Do **not** start Slice 2 automatically.
 
 **Phase 4 Release Verification = COMPLETE** (2026-08-23). Named gates on SHA `5799dd1` / Actions run `32604333941`: Prisma generate CI **PASS**; `pnpm build` / API TypeScript **PASS**; e2e-live **PASS**; API boot + `/health` **PASS**; QR boot + Playwright live **PASS**. AUDIT-023 (`/live`, `/ready`, `/metrics`) **COMPLETE**. Partial-index regression guard **COMPLETE**. SendGrid live click-through and similar production-infra items remain **BLOCKED/OPS**, not engineering tickets. Do not reopen Phase 4. Do not invent Phase 5 product features.
 
