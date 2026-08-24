@@ -947,6 +947,10 @@ First real controlled write: `write_agent_note` after PLATFORM_OWNER approval, m
 **ELEVA AI Agent V1 Slice 6 — IMPLEMENTED** (feature SHA `dcb70cc74ca15ff8f881af06c4bf39a6f3ab4651`).
 
 **ELEVA AI Agent V1 Slice 7 — IMPLEMENTED** (feature SHA `1922046bf553e564ed29a47952981ccd404b5516`).
+
+**ELEVA AI Agent V1 Slice 8 — IMPLEMENTED** (feature SHA `11441ef9024d96dc19312086ed571ee92f258723`).
+Scope: `analyze_implementation_file` — after PLATFORM_OWNER approval, read-only structured analysis of a sandbox draft that already passes `verify_implementation_file`. Path only `apps/api/src/agent/implementation/<slug>.ts`. No writes, no shell, no apply_patch. Result includes file, purpose, exports, imports, summary, dependencies, risks, suggested next step, verification requirements, passed/failed/error.
+
 Scope: `verify_implementation_file` — after PLATFORM_OWNER approval, inspect a TypeScript draft under `apps/api/src/agent/implementation/` only. Does not write. Checks: exists, sandbox path, `.ts`, `export`, forbidden ops (child_process, eval, process.env, destructive fs, apply_patch, secrets). Structured result: passed/failed/file/checks/error. Unapproved/rejected never verify. Drafts still not imported. API tsc still excludes the sandbox.
 
 Scope: `write_implementation_file` — after approval, write a TypeScript module draft only under `apps/api/src/agent/implementation/`. Not imported by AgentModule. Excluded from API tsc. Forbidden patterns: child_process, eval, process.env, destructive fs, apply_patch, secrets. Unapproved/rejected never execute. `apply_patch`/deploy/migrate/secrets remain blocked.
