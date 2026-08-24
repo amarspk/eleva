@@ -221,7 +221,8 @@ export interface AgentDecisionResult {
   approvalId: string;
   decision: string;
   status: string;
-  executed: false;
+  executed: boolean;
+  workflowState?: string;
 }
 
 export const agentApi = {

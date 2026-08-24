@@ -18,6 +18,12 @@ import {
   PLAN_AGENT_TOOLS,
   SENSITIVE_AGENT_TOOLS,
 } from './agent-tools';
+import {
+  buildStructuredWorkPlan,
+  deriveWorkflowState,
+  isBlockedSensitiveTool,
+  type AgentWorkflowState,
+} from './agent-workflow';
 
 export interface AgentInvokeResult {
   sessionId: string;
@@ -33,9 +39,10 @@ export interface AgentDecisionResult {
   actionId: string;
   sessionId: string;
   decision: 'APPROVED' | 'REJECTED';
-  status: 'APPROVED' | 'REJECTED';
+  status: string;
   approvalId: string;
-  executed: false;
+  executed: boolean;
+  workflowState: AgentWorkflowState;
 }
 
 @Injectable()
@@ -116,7 +123,6 @@ export class AgentService {
     throw new BadRequestException(`Tool [${tool}] is not a V1 Agent tool.`);
   }
 
-  /** Slice 1 compatibility name. */
   async invokeSafeTool(
     sessionId: string,
     userId: string,
@@ -182,15 +188,14 @@ export class AgentService {
     ip: string,
     userAgent: string,
   ): Promise<AgentInvokeResult> {
-    const plan = this.buildPlan(tool, args);
+    const plan = buildStructuredWorkPlan(tool, args);
     const result = {
       proposed: true,
       executed: false,
-      executionDisabled: true,
-      slice: 'v1-slice-2',
-      summary: plan.summary,
-      steps: plan.steps,
-      note: 'Slice 2 records the proposal only. Sensitive execution is disabled even after approval.',
+      workflowState: 'AWAITING_APPROVAL' as AgentWorkflowState,
+      slice: 'v1-slice-4',
+      ...plan,
+      note: 'Awaiting PLATFORM_OWNER approval. Destructive tools stay blocked after approval.',
     };
 
     const action = await agentDb(prisma).agentAction.create({
@@ -212,7 +217,7 @@ export class AgentService {
       action: `AGENT:${tool}:PROPOSED`,
       entityName: 'AgentAction',
       entityId: String(action.id),
-      newValues: { tool, status: 'PROPOSED', sensitivity: 'SENSITIVE', executed: false },
+      newValues: { tool, status: 'PROPOSED', sensitivity: 'SENSITIVE', executed: false, workflowState: 'AWAITING_APPROVAL' },
       ipAddress: ip,
       userAgent: userAgent.slice(0, 512),
     });
@@ -274,6 +279,14 @@ export class AgentService {
       },
     });
 
+    let executed = false;
+    let workflowState: AgentWorkflowState = decision === 'REJECTED' ? 'REJECTED' : 'APPROVED';
+    if (decision === 'APPROVED') {
+      const run = await this.executeApprovedPlan(sessionId, actionId, userId, ip, userAgent);
+      executed = run.executed;
+      workflowState = run.workflowState;
+    }
+
     await this.auditService.log({
       tenantId: null,
       userId,
@@ -283,9 +296,9 @@ export class AgentService {
       newValues: {
         actionId,
         decision,
-        status: decision,
-        executed: false,
-        executionDisabled: true,
+        status: workflowState,
+        executed,
+        workflowState,
       },
       ipAddress: ip,
       userAgent: userAgent.slice(0, 512),
@@ -295,19 +308,122 @@ export class AgentService {
       actionId,
       sessionId,
       decision,
-      status: decision,
+      status: workflowState,
       approvalId: String(approval.id),
-      executed: false,
+      executed,
+      workflowState,
     };
   }
 
-  private buildPlan(tool: string, args: Record<string, unknown>): { summary: string; steps: string[] } {
-    const summary = String(args.summary ?? args.goal ?? `Proposed ${tool} (not executed)`).slice(0, 500);
-    const rawSteps = args.steps;
-    const steps = Array.isArray(rawSteps)
-      ? rawSteps.map((step) => String(step).slice(0, 300)).slice(0, 20)
-      : [`Record ${tool} as a proposed change.`, 'Await PLATFORM_OWNER approval.', 'Do not execute in Slice 2.'];
-    return { summary, steps };
+  async executeApprovedPlan(
+    sessionId: string,
+    actionId: string,
+    userId: string,
+    ip = 'unknown',
+    userAgent = 'unknown',
+  ): Promise<{ executed: boolean; workflowState: AgentWorkflowState }> {
+    const action = await agentDb(prisma).agentAction.findFirst({
+      where: { id: actionId, sessionId },
+    });
+    if (!action) {
+      throw new NotFoundException(`The requested Agent action with ID [${actionId}] was not found.`);
+    }
+    if (String(action.status) !== 'APPROVED') {
+      throw new ConflictException(
+        `Action [${actionId}] cannot execute from state ${deriveWorkflowState(String(action.status))}. Approval is required.`,
+      );
+    }
+
+    const tool = String(action.tool);
+    const previous = (action.result && typeof action.result === 'object')
+      ? action.result as Record<string, unknown>
+      : {};
+
+    await agentDb(prisma).agentAction.update({
+      where: { id: actionId },
+      data: { status: 'EXECUTING' },
+    });
+
+    if (isBlockedSensitiveTool(tool)) {
+      const blockedResult = {
+        ...previous,
+        workflowState: 'COMPLETED',
+        executed: false,
+        execution: {
+          kind: 'blocked-sensitive',
+          ran: false,
+          blockedTool: tool,
+          note: 'Slice 4 controlled layer does not run apply_patch, deploy, migrations, or secret changes.',
+        },
+        verification: { passed: true, projectModified: false, checks: ['sensitive-tool-blocked'] },
+      };
+      await agentDb(prisma).agentAction.update({
+        where: { id: actionId },
+        data: { status: 'COMPLETED', result: blockedResult },
+      });
+      await this.auditService.log({
+        tenantId: null,
+        userId,
+        action: `AGENT:${tool}:BLOCKED`,
+        entityName: 'AgentAction',
+        entityId: actionId,
+        newValues: { executed: false, workflowState: 'COMPLETED', blocked: true },
+        ipAddress: ip,
+        userAgent: userAgent.slice(0, 512),
+      });
+      return { executed: false, workflowState: 'COMPLETED' };
+    }
+
+    await agentDb(prisma).agentAction.update({
+      where: { id: actionId },
+      data: { status: 'VERIFYING' },
+    });
+
+    let verification: Record<string, unknown>;
+    let workflowState: AgentWorkflowState = 'COMPLETED';
+    try {
+      const repoRoot = findRepoRoot();
+      const state = readProjectState(repoRoot);
+      const status = gitStatus(repoRoot);
+      verification = {
+        passed: true,
+        projectModified: false,
+        checks: ['read_project_state', 'git_status'],
+        projectStateBytes: state.bytes,
+        gitBranchLine: String(status.output).split('\n')[0] || '',
+      };
+    } catch (error) {
+      workflowState = 'FAILED';
+      verification = { passed: false, projectModified: false, error: (error as Error).message };
+    }
+
+    const nextResult = {
+      ...previous,
+      workflowState,
+      executed: workflowState === 'COMPLETED',
+      execution: {
+        kind: 'controlled-verification',
+        ran: true,
+        blockedTool: null,
+        note: 'SAFE inspection only. No source files were written.',
+      },
+      verification,
+    };
+    await agentDb(prisma).agentAction.update({
+      where: { id: actionId },
+      data: { status: workflowState, result: nextResult },
+    });
+    await this.auditService.log({
+      tenantId: null,
+      userId,
+      action: `AGENT:${tool}:${workflowState}`,
+      entityName: 'AgentAction',
+      entityId: actionId,
+      newValues: { executed: workflowState === 'COMPLETED', workflowState },
+      ipAddress: ip,
+      userAgent: userAgent.slice(0, 512),
+    });
+    return { executed: workflowState === 'COMPLETED', workflowState };
   }
 
   private async recordMessages(sessionId: string, userContent: string, toolContent: string): Promise<void> {

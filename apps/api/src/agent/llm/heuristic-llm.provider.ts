@@ -99,7 +99,11 @@ export class HeuristicLlmProvider implements AgentLlmProvider {
           : 'هذا طلب حسّاس. سأسجّل اقتراحاً فقط. الشريحة 3 لا تنفّذه.',
         plan: {
           summary: 'Sensitive request recorded without execution.',
-          steps: ['Do not execute.', 'Await PLATFORM_OWNER approval.', 'Remain disabled in Slice 3.'],
+          objective: 'Record a high-risk request and keep it blocked after approval.',
+          steps: ['Do not execute the named sensitive tool.', 'Await PLATFORM_OWNER approval.', 'Controlled layer records a blocked verification.'],
+          intendedChanges: ['None — apply_patch/deploy/secrets remain blocked.'],
+          verificationSteps: ['Confirm the sensitive tool was not invoked.'],
+          riskLevel: 'high',
           risks: ['Unauthorized production or secret change.'],
           affectedAreas: ['not executed'],
           missingInformation: [],

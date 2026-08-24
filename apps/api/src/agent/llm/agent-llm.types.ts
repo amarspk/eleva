@@ -21,6 +21,10 @@ export interface AgentStructuredPlan {
   risks: string[];
   affectedAreas: string[];
   missingInformation: string[];
+  objective?: string;
+  intendedChanges?: string[];
+  verificationSteps?: string[];
+  riskLevel?: 'low' | 'medium' | 'high';
 }
 
 export interface AgentLlmDecision {

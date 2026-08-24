@@ -175,27 +175,53 @@ describe('AgentService — V1 Slice 2', () => {
     const result = await service.invokeTool(sessionId, ownerId, 'apply_patch', { path: 'apps/api/src/main.ts' });
     expect(result.status).toBe('PROPOSED');
     expect(result.executed).toBe(false);
-    expect(JSON.stringify(result.result)).toMatch(/executionDisabled/);
+    expect(JSON.stringify(result.result)).toMatch(/AWAITING_APPROVAL/);
     expect(store.actions[0]).toMatchObject({ tool: 'apply_patch', status: 'PROPOSED' });
   });
 
-  it('approve creates an AgentApproval and does not execute', async () => {
+  it('stores a structured plan (objective, files, verification, risk)', async () => {
+    const result = await service.invokeTool(sessionId, ownerId, 'propose_plan', {
+      objective: 'Tighten receipt footer copy',
+      summary: 'Receipt footer',
+      filesAffected: ['apps/backoffice/src/app/components/ReceiptDesigner.tsx'],
+      intendedChanges: ['No write until later slice'],
+      verificationSteps: ['Re-read PROJECT_STATE.md'],
+      riskLevel: 'low',
+    });
+    expect(result.result).toMatchObject({
+      workflowState: 'AWAITING_APPROVAL',
+      objective: 'Tighten receipt footer copy',
+      filesAffected: ['apps/backoffice/src/app/components/ReceiptDesigner.tsx'],
+      riskLevel: 'low',
+    });
+  });
+
+  it('approve runs controlled verification and records COMPLETED', async () => {
     const proposed = await service.invokeTool(sessionId, ownerId, 'propose_plan', { summary: 'Plan A' });
+    await expect(service.executeApprovedPlan(sessionId, proposed.actionId, ownerId)).rejects.toBeInstanceOf(ConflictException);
     const decision = await service.decideAction(sessionId, proposed.actionId, ownerId, 'APPROVED', 'looks good');
-    expect(decision.status).toBe('APPROVED');
-    expect(decision.executed).toBe(false);
+    expect(decision.workflowState).toBe('COMPLETED');
+    expect(decision.executed).toBe(true);
     expect(store.approvals[0]).toMatchObject({
       actionId: proposed.actionId,
       approverUserId: ownerId,
       decision: 'APPROVED',
       reason: 'looks good',
     });
-    expect(store.actions[0].status).toBe('APPROVED');
+    expect(store.actions[0].status).toBe('COMPLETED');
+    expect((store.actions[0].result as { verification?: { passed?: boolean } }).verification?.passed).toBe(true);
     expect(audit.log).toHaveBeenCalledWith(expect.objectContaining({
       action: 'AGENT:propose_plan:APPROVED',
       entityName: 'AgentApproval',
-      newValues: expect.objectContaining({ executed: false, executionDisabled: true }),
     }));
+  });
+
+  it('approved apply_patch stays blocked (no source mutation)', async () => {
+    const proposed = await service.invokeTool(sessionId, ownerId, 'apply_patch', { path: 'apps/api/src/main.ts' });
+    const decision = await service.decideAction(sessionId, proposed.actionId, ownerId, 'APPROVED', undefined);
+    expect(decision.executed).toBe(false);
+    expect(decision.workflowState).toBe('COMPLETED');
+    expect(JSON.stringify(store.actions[0].result)).toMatch(/blocked-sensitive/);
   });
 
   it('reject creates a rejection approval record', async () => {

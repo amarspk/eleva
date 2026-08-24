@@ -8,6 +8,20 @@ import { agentApi, type AgentAction, type AgentSession } from '../lib/resources'
 
 const SAFE_TOOLS = ['read_project_state', 'read_repo_file', 'git_status', 'git_log'] as const;
 
+function workflowLabel(action: AgentAction): string {
+  const fromResult = action.result && typeof action.result === 'object'
+    ? (action.result as { workflowState?: string }).workflowState
+    : undefined;
+  const status = String(fromResult || action.status || '').toUpperCase();
+  if (status === 'PROPOSED') {
+    return 'AWAITING_APPROVAL';
+  }
+  if (status === 'EXECUTED') {
+    return 'COMPLETED';
+  }
+  return status || 'PLANNING';
+}
+
 function formatResult(value: unknown): string {
   if (value === null || value === undefined) {
     return '';
@@ -93,7 +107,7 @@ export function ExecutiveOffice(): React.ReactElement {
         ? agentApi.approve(sessionId, action.id)
         : agentApi.reject(sessionId, action.id),
     onSuccess: (result) => {
-      setNotice(`Action ${result.decision} (recorded only; not executed).`);
+      setNotice(`Action ${result.decision} → ${result.workflowState ?? result.status}.`);
       void queryClient.invalidateQueries({ queryKey: ['agent-session', sessionId] });
     },
   });
@@ -112,7 +126,7 @@ export function ExecutiveOffice(): React.ReactElement {
       <div className="rounded-xl border border-slate-800 bg-slate-950 p-6 text-white">
         <h2 id="executive-office-heading" className="text-lg font-bold">Executive Office</h2>
         <p className="mt-1 text-sm text-slate-300">
-          Platform-owner Agent console. SAFE diagnostics run immediately. Plans and sensitive tools stay proposed until you approve or reject — Slice 2 never executes them.
+          Platform-owner Agent console. SAFE diagnostics run immediately. Plans wait for approval. After approval the controlled layer verifies only — apply_patch, deploy, and secrets stay blocked.
         </p>
       </div>
 
@@ -229,7 +243,7 @@ export function ExecutiveOffice(): React.ReactElement {
               {detail.actions.map((action) => (
                 <tr key={action.id} data-testid={`agent-action-${action.id}`}>
                   <td className="px-3 py-2 font-medium">{action.tool}</td>
-                  <td className="px-3 py-2"><Badge>{action.status}</Badge></td>
+                  <td className="px-3 py-2"><Badge>{workflowLabel(action)}</Badge></td>
                   <td className="px-3 py-2">{action.sensitivity}</td>
                   <td className="px-3 py-2">
                     <pre className="max-h-40 overflow-auto whitespace-pre-wrap text-xs text-gray-700">

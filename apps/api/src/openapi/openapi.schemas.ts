@@ -243,10 +243,11 @@ export const OPENAPI_SCHEMAS: Record<string, SchemaObject> = {
     {
       actionId: uuid(), sessionId: uuid(), approvalId: uuid(),
       decision: { type: 'string', enum: ['APPROVED', 'REJECTED'] },
-      status: { type: 'string', enum: ['APPROVED', 'REJECTED'] },
-      executed: { type: 'boolean', enum: [false] },
+      status: { type: 'string' },
+      executed: { type: 'boolean' },
+      workflowState: { type: 'string' },
     },
-    ['actionId', 'sessionId', 'approvalId', 'decision', 'status', 'executed'],
+    ['actionId', 'sessionId', 'approvalId', 'decision', 'status', 'executed', 'workflowState'],
   ),
   InvoiceResendResponse: object(
     {
