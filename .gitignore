@@ -16,3 +16,5 @@ uploads
 !.env.example
 docs/agent-workspace/*
 !docs/agent-workspace/.gitkeep
+apps/api/src/agent/implementation/*.ts
+!apps/api/src/agent/implementation/README.md

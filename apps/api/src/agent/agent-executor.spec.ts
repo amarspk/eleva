@@ -1,16 +1,20 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { findRepoRoot } from './agent-tools';
-import { ControlledAgentExecutor, parseAgentNoteInput } from './agent-executor';
+import { ControlledAgentExecutor, parseAgentNoteInput, parseImplementationInput } from './agent-executor';
 
 describe('ControlledAgentExecutor', () => {
   const repoRoot = findRepoRoot(path.join(__dirname, '../../../..'));
   const executor = new ControlledAgentExecutor(repoRoot);
   const notePath = path.join(repoRoot, 'docs/agent-workspace/slice5-note.md');
+  const implPath = path.join(repoRoot, 'apps/api/src/agent/implementation/slice6-draft.ts');
 
   afterEach(() => {
     if (fs.existsSync(notePath)) {
       fs.unlinkSync(notePath);
+    }
+    if (fs.existsSync(implPath)) {
+      fs.unlinkSync(implPath);
     }
   });
 
@@ -52,5 +56,36 @@ describe('ControlledAgentExecutor', () => {
     };
     const verified = executor.verify(request, { kind: 'write_agent_note', ran: true, path: 'docs/agent-workspace/other.md', bytes: 1 });
     expect(verified.passed).toBe(false);
+  });
+
+  it('rejects invalid implementation filenames and forbidden bodies', () => {
+    expect(() => parseImplementationInput({ filename: '../main', body: 'export const x = 1;' })).toThrow(/filename/);
+    expect(() => parseImplementationInput({
+      filename: 'ok',
+      body: "import { spawnSync } from 'child_process'; export const x = 1;",
+    })).toThrow(/forbidden/);
+    expect(() => parseImplementationInput({ filename: 'ok', body: 'const x = 1;' })).toThrow(/export/);
+  });
+
+  it('writes an approved implementation draft only under the sandbox directory', () => {
+    const body = 'export function draft(): string { return "slice-6"; }\n';
+    const request = {
+      tool: 'write_implementation_file',
+      args: { filename: 'slice6-draft', body },
+      approvedPlan: { filesAffected: ['apps/api/src/agent/implementation/slice6-draft.ts'] },
+    };
+    const ran = executor.execute(request);
+    expect(ran.kind).toBe('write_implementation_file');
+    expect(ran.path).toBe('apps/api/src/agent/implementation/slice6-draft.ts');
+    expect(fs.readFileSync(implPath, 'utf8')).toBe(body);
+    expect(executor.verify(request, ran).passed).toBe(true);
+  });
+
+  it('rejects an implementation plan that targets production source', () => {
+    expect(() => executor.validate({
+      tool: 'write_implementation_file',
+      args: { filename: 'slice6-draft', body: 'export const x = 1;\n' },
+      approvedPlan: { filesAffected: ['apps/api/src/agent/agent.service.ts'] },
+    })).toThrow(/does not match/);
   });
 });

@@ -70,9 +70,12 @@ export function buildStructuredWorkPlan(
     'Await PLATFORM_OWNER approval.',
     'Run controlled verification only after approval.',
   ]);
-  const defaultFiles = tool === 'write_agent_note' && (args.filename || args.name)
-    ? [`docs/agent-workspace/${String(args.filename ?? args.name).trim().toLowerCase()}.md`]
-    : [];
+  const slug = String(args.filename ?? args.name ?? '').trim().toLowerCase();
+  const defaultFiles = tool === 'write_agent_note' && slug
+    ? [`docs/agent-workspace/${slug}.md`]
+    : tool === 'write_implementation_file' && slug
+      ? [`apps/api/src/agent/implementation/${slug}.ts`]
+      : [];
   const filesAffected = asStringList(args.filesAffected ?? args.affectedAreas, defaultFiles);
   const intendedChanges = asStringList(args.intendedChanges, steps);
   const verificationSteps = asStringList(args.verificationSteps, [

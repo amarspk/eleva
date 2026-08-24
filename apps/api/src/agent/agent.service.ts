@@ -195,11 +195,13 @@ export class AgentService {
       proposed: true,
       executed: false,
       workflowState: 'AWAITING_APPROVAL' as AgentWorkflowState,
-      slice: 'v1-slice-5',
+      slice: 'v1-slice-6',
       ...plan,
-      note: isControlledAgentTool(tool)
-        ? 'Awaiting PLATFORM_OWNER approval. write_agent_note may write only under docs/agent-workspace/.'
-        : 'Awaiting PLATFORM_OWNER approval. Destructive tools stay blocked after approval.',
+      note: tool === 'write_implementation_file'
+        ? 'Awaiting PLATFORM_OWNER approval. write_implementation_file may write TypeScript only under apps/api/src/agent/implementation/.'
+        : tool === 'write_agent_note'
+          ? 'Awaiting PLATFORM_OWNER approval. write_agent_note may write only under docs/agent-workspace/.'
+          : 'Awaiting PLATFORM_OWNER approval. Destructive tools stay blocked after approval.',
     };
 
     const action = await agentDb(prisma).agentAction.create({
@@ -406,7 +408,9 @@ export class AgentService {
           path: ran.path,
           bytes: ran.bytes,
           blockedTool: null,
-          note: 'Wrote markdown under docs/agent-workspace/ only.',
+          note: ran.kind === 'write_implementation_file'
+            ? 'Wrote TypeScript draft under apps/api/src/agent/implementation/ only.'
+            : 'Wrote markdown under docs/agent-workspace/ only.',
         };
         const verified = executor.verify(request, ran);
         verification = { ...verified };
@@ -414,7 +418,7 @@ export class AgentService {
       } catch (error) {
         workflowState = 'FAILED';
         execution = {
-          kind: 'write_agent_note',
+          kind: isControlledAgentTool(tool) ? tool : 'write_agent_note',
           ran: false,
           blockedTool: null,
           note: (error as Error).message,

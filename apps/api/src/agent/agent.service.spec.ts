@@ -303,6 +303,56 @@ describe('AgentService — V1 Slice 2', () => {
     expect(decision.executed).toBe(false);
     expect(JSON.stringify(store.actions[0].result)).toMatch(/filename|FAILED/);
   });
+
+  it('does not execute write_implementation_file until approved', async () => {
+    const proposed = await service.invokeTool(sessionId, ownerId, 'write_implementation_file', {
+      filename: 'slice6-service',
+      body: 'export const draft = true;\n',
+    });
+    expect(proposed.status).toBe('PROPOSED');
+    expect(proposed.executed).toBe(false);
+    await expect(service.executeApprovedPlan(sessionId, proposed.actionId, ownerId)).rejects.toBeInstanceOf(ConflictException);
+  });
+
+  it('does not execute a rejected write_implementation_file', async () => {
+    const proposed = await service.invokeTool(sessionId, ownerId, 'write_implementation_file', {
+      filename: 'slice6-rejected',
+      body: 'export const draft = true;\n',
+    });
+    const decision = await service.decideAction(sessionId, proposed.actionId, ownerId, 'REJECTED', 'no');
+    expect(decision.workflowState).toBe('REJECTED');
+    await expect(service.executeApprovedPlan(sessionId, proposed.actionId, ownerId)).rejects.toBeInstanceOf(ConflictException);
+  });
+
+  it('executes an approved write_implementation_file into the sandbox only', async () => {
+    const body = 'export function draft(): string { return "ok"; }\n';
+    const proposed = await service.invokeTool(sessionId, ownerId, 'write_implementation_file', {
+      filename: 'slice6-service',
+      body,
+    });
+    const decision = await service.decideAction(sessionId, proposed.actionId, ownerId, 'APPROVED', 'ok');
+    expect(decision.workflowState).toBe('COMPLETED');
+    expect(decision.executed).toBe(true);
+    expect((store.actions[0].result as { execution?: { path?: string } }).execution?.path)
+      .toBe('apps/api/src/agent/implementation/slice6-service.ts');
+    const written = path.join(findRepoRoot(), 'apps/api/src/agent/implementation/slice6-service.ts');
+    expect(fs.readFileSync(written, 'utf8')).toBe(body);
+    fs.unlinkSync(written);
+  });
+
+  it('fails an approved implementation write that contains forbidden code', async () => {
+    const proposed = await service.invokeTool(sessionId, ownerId, 'write_implementation_file', {
+      filename: 'slice6-bad',
+      body: 'export const x = 1;\n',
+    });
+    store.actions[0].input = {
+      filename: 'slice6-bad',
+      body: "import { spawnSync } from 'child_process'; export const x = 1;\n",
+    };
+    const decision = await service.decideAction(sessionId, proposed.actionId, ownerId, 'APPROVED', undefined);
+    expect(decision.workflowState).toBe('FAILED');
+    expect(decision.executed).toBe(false);
+  });
 });
 
 describe('AgentController authorization', () => {
