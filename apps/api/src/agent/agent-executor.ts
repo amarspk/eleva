@@ -6,6 +6,7 @@ export const CONTROLLED_AGENT_TOOLS = [
   'write_agent_note',
   'write_implementation_file',
   'verify_implementation_file',
+  'analyze_implementation_file',
 ] as const;
 export type ControlledAgentTool = (typeof CONTROLLED_AGENT_TOOLS)[number];
 
@@ -49,6 +50,14 @@ export interface ControlledVerificationResult {
   checks: string[];
   error?: string;
   path?: string;
+  purpose?: string;
+  exportsDetected?: string[];
+  importsDetected?: string[];
+  implementationSummary?: string;
+  dependenciesDetected?: string[];
+  risks?: string[];
+  suggestedNextStep?: string;
+  verificationRequirements?: string[];
 }
 
 export interface ParsedControlledWrite {
@@ -104,6 +113,9 @@ export function parseControlledWrite(tool: string, args: Record<string, unknown>
   }
   if (tool === 'verify_implementation_file') {
     return { tool, ...parseVerifyImplementationInput(args) };
+  }
+  if (tool === 'analyze_implementation_file') {
+    return { tool, ...parseAnalyzeImplementationInput(args) };
   }
   throw new Error(`Operation [${tool}] is not allow-listed for controlled execution.`);
 }
@@ -202,7 +214,98 @@ function allowedExtension(tool: ControlledAgentTool): string {
 }
 
 function isInspectOnly(tool: string): boolean {
-  return tool === 'verify_implementation_file';
+  return tool === 'verify_implementation_file' || tool === 'analyze_implementation_file';
+}
+
+function uniqueSorted(values: string[]): string[] {
+  return Array.from(new Set(values.filter((item) => item.length > 0))).sort();
+}
+
+export function parseAnalyzeImplementationInput(args: Record<string, unknown>): { filename: string; body: string; relativePath: string } {
+  const filename = String(args.filename ?? args.name ?? '').trim().toLowerCase();
+  if (!FILENAME_RE.test(filename)) {
+    throw new Error('analyze_implementation_file requires filename matching [a-z0-9][a-z0-9-]{0,62}.');
+  }
+  return { filename, body: '', relativePath: `${AGENT_IMPLEMENTATION_DIR}/${filename}.ts` };
+}
+
+export function detectImplementationExports(body: string): string[] {
+  const names: string[] = [];
+  const named = /export\s+(?:async\s+)?(?:function|class|const|let|var|type|interface|enum)\s+([A-Za-z_][A-Za-z0-9_]*)/g;
+  let match = named.exec(body);
+  while (match) {
+    names.push(match[1]);
+    match = named.exec(body);
+  }
+  const braced = /export\s*\{([^}]+)\}/g;
+  let group = braced.exec(body);
+  while (group) {
+    group[1].split(',').forEach((part) => {
+      const alias = part.trim().split(/\s+as\s+/).pop();
+      if (alias) {
+        names.push(alias.trim());
+      }
+    });
+    group = braced.exec(body);
+  }
+  if (/\bexport\s+default\b/.test(body)) {
+    names.push('default');
+  }
+  return uniqueSorted(names);
+}
+
+export function detectImplementationImports(body: string): string[] {
+  const specs: string[] = [];
+  const from = /(?:import|export)\s[\s\S]*?from\s+['"]([^'"]+)['"]/g;
+  let match = from.exec(body);
+  while (match) {
+    specs.push(match[1]);
+    match = from.exec(body);
+  }
+  const side = /import\s+['"]([^'"]+)['"]/g;
+  let bare = side.exec(body);
+  while (bare) {
+    specs.push(bare[1]);
+    bare = side.exec(body);
+  }
+  return uniqueSorted(specs);
+}
+
+export function analyzeImplementationFile(repoRoot: string, filenameOrPath: string): ControlledVerificationResult {
+  const inspection = inspectImplementationFile(repoRoot, filenameOrPath);
+  const checks = [...inspection.checks, 'structured-analysis'];
+  if (!inspection.passed) {
+    return { ...inspection, checks };
+  }
+  const filename = filenameOrPath.replace(/\.ts$/i, '').split('/').pop() || '';
+  const relativePath = `${AGENT_IMPLEMENTATION_DIR}/${filename}.ts`;
+  const absolute = assertControlledWritePath('analyze_implementation_file', relativePath, repoRoot);
+  const body = fs.readFileSync(absolute, 'utf8');
+  const exportsDetected = detectImplementationExports(body);
+  const importsDetected = detectImplementationImports(body);
+  return {
+    passed: true,
+    failed: false,
+    file: relativePath,
+    path: relativePath,
+    projectModified: false,
+    checks,
+    purpose: `Read-only analysis of sandbox draft ${relativePath}.`,
+    exportsDetected,
+    importsDetected,
+    implementationSummary: `Draft exports ${exportsDetected.join(', ') || '(none)'} and imports ${importsDetected.join(', ') || '(none)'}.`,
+    dependenciesDetected: importsDetected,
+    risks: [
+      'Draft remains sandboxed and is not imported by production Agent/runtime code.',
+      'A later approved slice is required before any production path may change.',
+    ],
+    suggestedNextStep: 'Keep the draft sandboxed until a later approved slice applies a reviewed change to a specific production file.',
+    verificationRequirements: [
+      'Re-run verify_implementation_file on the same slug.',
+      'Confirm the file still lives under apps/api/src/agent/implementation/.',
+      'Do not apply_patch, deploy, migrate, or touch secrets.',
+    ],
+  };
 }
 
 export function assertControlledWritePath(tool: ControlledAgentTool, relativePath: string, repoRoot: string): string {
@@ -256,7 +359,9 @@ export class ControlledAgentExecutor {
   execute(request: ControlledExecutionRequest): ControlledExecutionResult {
     const validated = this.validate(request);
     if (isInspectOnly(validated.tool)) {
-      const inspection = inspectImplementationFile(this.repoRoot, validated.filename);
+      const inspection = validated.tool === 'analyze_implementation_file'
+        ? analyzeImplementationFile(this.repoRoot, validated.filename)
+        : inspectImplementationFile(this.repoRoot, validated.filename);
       return {
         kind: validated.tool,
         ran: true,
@@ -278,7 +383,10 @@ export class ControlledAgentExecutor {
 
   verify(request: ControlledExecutionRequest, execution: ControlledExecutionResult): ControlledVerificationResult {
     if (isInspectOnly(request.tool)) {
-      return inspectImplementationFile(this.repoRoot, String(request.args.filename ?? request.args.name ?? ''));
+      const slug = String(request.args.filename ?? request.args.name ?? '');
+      return request.tool === 'analyze_implementation_file'
+        ? analyzeImplementationFile(this.repoRoot, slug)
+        : inspectImplementationFile(this.repoRoot, slug);
     }
     const checks = ['path-in-sandbox', 'content-match', 'policy', 'read_project_state', 'git_status'];
     try {

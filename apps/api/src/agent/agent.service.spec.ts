@@ -400,6 +400,60 @@ describe('AgentService — V1 Slice 2', () => {
     expect(decision.workflowState).toBe('FAILED');
     expect(JSON.stringify(store.actions[0].result)).toMatch(/not found|FAILED/i);
   });
+
+  it('does not analyze an implementation draft until approved', async () => {
+    const proposed = await service.invokeTool(sessionId, ownerId, 'analyze_implementation_file', {
+      filename: 'slice8-service',
+    });
+    expect(proposed.status).toBe('PROPOSED');
+    expect(proposed.executed).toBe(false);
+    await expect(service.executeApprovedPlan(sessionId, proposed.actionId, ownerId)).rejects.toBeInstanceOf(ConflictException);
+  });
+
+  it('does not analyze after rejection', async () => {
+    const proposed = await service.invokeTool(sessionId, ownerId, 'analyze_implementation_file', {
+      filename: 'slice8-rejected',
+    });
+    const decision = await service.decideAction(sessionId, proposed.actionId, ownerId, 'REJECTED', 'no');
+    expect(decision.workflowState).toBe('REJECTED');
+    await expect(service.executeApprovedPlan(sessionId, proposed.actionId, ownerId)).rejects.toBeInstanceOf(ConflictException);
+  });
+
+  it('analyzes an approved valid sandbox draft without writing', async () => {
+    const body = "import { inspect } from 'util';\nexport function draft(): string { return 'ok'; }\n";
+    await service.invokeTool(sessionId, ownerId, 'write_implementation_file', {
+      filename: 'slice8-service',
+      body,
+    });
+    await service.decideAction(sessionId, store.actions[0].id as string, ownerId, 'APPROVED', 'ok');
+    const written = path.join(findRepoRoot(), 'apps/api/src/agent/implementation/slice8-service.ts');
+    const before = fs.readFileSync(written, 'utf8');
+    const proposed = await service.invokeTool(sessionId, ownerId, 'analyze_implementation_file', {
+      filename: 'slice8-service',
+    });
+    const decision = await service.decideAction(sessionId, proposed.actionId, ownerId, 'APPROVED', 'ok');
+    expect(decision.workflowState).toBe('COMPLETED');
+    const verification = (store.actions.find((row) => row.tool === 'analyze_implementation_file')?.result as {
+      verification?: { passed?: boolean; projectModified?: boolean; exportsDetected?: string[]; importsDetected?: string[] };
+    }).verification;
+    expect(verification).toMatchObject({
+      passed: true,
+      projectModified: false,
+      exportsDetected: ['draft'],
+      importsDetected: ['util'],
+    });
+    expect(fs.readFileSync(written, 'utf8')).toBe(before);
+    fs.unlinkSync(written);
+  });
+
+  it('records FAILED when an approved analysis targets a missing draft', async () => {
+    const proposed = await service.invokeTool(sessionId, ownerId, 'analyze_implementation_file', {
+      filename: 'slice8-missing',
+    });
+    const decision = await service.decideAction(sessionId, proposed.actionId, ownerId, 'APPROVED', undefined);
+    expect(decision.workflowState).toBe('FAILED');
+    expect(JSON.stringify(store.actions[0].result)).toMatch(/not found|FAILED/i);
+  });
 });
 
 describe('AgentController authorization', () => {

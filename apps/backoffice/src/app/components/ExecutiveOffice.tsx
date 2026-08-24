@@ -89,7 +89,7 @@ export function ExecutiveOffice(): React.ReactElement {
         args.filename = noteName;
         args.body = noteBody || 'export function draft(): string { return "slice-6"; }\n';
       }
-      if (tool === 'verify_implementation_file') {
+      if (tool === 'verify_implementation_file' || tool === 'analyze_implementation_file') {
         args.filename = noteName;
       }
       return agentApi.invoke(sessionId, tool, args);
@@ -139,7 +139,7 @@ export function ExecutiveOffice(): React.ReactElement {
       <div className="rounded-xl border border-slate-800 bg-slate-950 p-6 text-white">
         <h2 id="executive-office-heading" className="text-lg font-bold">Executive Office</h2>
         <p className="mt-1 text-sm text-slate-300">
-          Platform-owner Agent console. SAFE diagnostics run immediately. Plans wait for approval. After approval, write_agent_note may write markdown under docs/agent-workspace/, write_implementation_file may write TypeScript drafts under apps/api/src/agent/implementation/, and verify_implementation_file inspects those drafts without writing. apply_patch, deploy, migrations, and secrets stay blocked.
+          Platform-owner Agent console. SAFE diagnostics run immediately. Plans wait for approval. After approval, write_agent_note may write markdown under docs/agent-workspace/, write_implementation_file may write TypeScript drafts under apps/api/src/agent/implementation/, verify_implementation_file inspects those drafts, and analyze_implementation_file produces a structured proposal without writing. apply_patch, deploy, migrations, and secrets stay blocked.
         </p>
       </div>
 
@@ -182,6 +182,7 @@ export function ExecutiveOffice(): React.ReactElement {
                 <option value="write_agent_note">write_agent_note</option>
                 <option value="write_implementation_file">write_implementation_file</option>
                 <option value="verify_implementation_file">verify_implementation_file</option>
+                <option value="analyze_implementation_file">analyze_implementation_file</option>
               </select>
             </label>
             {tool === 'read_repo_file' ? (
@@ -201,7 +202,7 @@ export function ExecutiveOffice(): React.ReactElement {
                 aria-label="Plan summary"
               />
             ) : null}
-            {tool === 'write_agent_note' || tool === 'write_implementation_file' || tool === 'verify_implementation_file' ? (
+            {tool === 'write_agent_note' || tool === 'write_implementation_file' || tool === 'verify_implementation_file' || tool === 'analyze_implementation_file' ? (
               <>
                 <input
                   className="rounded border px-2 py-1 text-sm"

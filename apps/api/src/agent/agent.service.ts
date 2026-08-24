@@ -195,11 +195,13 @@ export class AgentService {
       proposed: true,
       executed: false,
       workflowState: 'AWAITING_APPROVAL' as AgentWorkflowState,
-      slice: 'v1-slice-7',
+      slice: 'v1-slice-8',
       ...plan,
-      note: tool === 'verify_implementation_file'
-        ? 'Awaiting PLATFORM_OWNER approval. verify_implementation_file inspects TypeScript drafts under apps/api/src/agent/implementation/ only and does not write.'
-        : tool === 'write_implementation_file'
+      note: tool === 'analyze_implementation_file'
+        ? 'Awaiting PLATFORM_OWNER approval. analyze_implementation_file reads a verified sandbox draft only and does not write.'
+        : tool === 'verify_implementation_file'
+          ? 'Awaiting PLATFORM_OWNER approval. verify_implementation_file inspects TypeScript drafts under apps/api/src/agent/implementation/ only and does not write.'
+          : tool === 'write_implementation_file'
           ? 'Awaiting PLATFORM_OWNER approval. write_implementation_file may write TypeScript only under apps/api/src/agent/implementation/.'
           : tool === 'write_agent_note'
             ? 'Awaiting PLATFORM_OWNER approval. write_agent_note may write only under docs/agent-workspace/.'
@@ -410,9 +412,13 @@ export class AgentService {
           path: ran.path,
           bytes: ran.bytes,
           blockedTool: null,
-          note: ran.kind === 'write_implementation_file'
-            ? 'Wrote TypeScript draft under apps/api/src/agent/implementation/ only.'
-            : 'Wrote markdown under docs/agent-workspace/ only.',
+          note: ran.kind === 'analyze_implementation_file'
+            ? 'Analyzed sandbox TypeScript draft only. No files were written.'
+            : ran.kind === 'verify_implementation_file'
+              ? 'Inspected sandbox TypeScript draft only. No files were written.'
+              : ran.kind === 'write_implementation_file'
+                ? 'Wrote TypeScript draft under apps/api/src/agent/implementation/ only.'
+                : 'Wrote markdown under docs/agent-workspace/ only.',
         };
         const verified = executor.verify(request, ran);
         verification = { ...verified };
