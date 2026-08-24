@@ -32,6 +32,7 @@ export const INVOCABLE_AGENT_TOOLS = [
   ...SAFE_AGENT_TOOLS,
   ...PLAN_AGENT_TOOLS,
   ...SENSITIVE_AGENT_TOOLS,
+  'write_agent_note',
 ] as const;
 
 const DENY_BASENAMES = new Set([

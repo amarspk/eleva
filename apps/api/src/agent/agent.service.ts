@@ -24,6 +24,7 @@ import {
   isBlockedSensitiveTool,
   type AgentWorkflowState,
 } from './agent-workflow';
+import { ControlledAgentExecutor, isControlledAgentTool } from './agent-executor';
 
 export interface AgentInvokeResult {
   sessionId: string;
@@ -116,6 +117,7 @@ export class AgentService {
     if (
       PLAN_AGENT_TOOLS.includes(tool as (typeof PLAN_AGENT_TOOLS)[number])
       || SENSITIVE_AGENT_TOOLS.includes(tool as (typeof SENSITIVE_AGENT_TOOLS)[number])
+      || isControlledAgentTool(tool)
     ) {
       return this.proposeSensitive(sessionId, userId, tool, args ?? {}, ip, userAgent);
     }
@@ -193,9 +195,11 @@ export class AgentService {
       proposed: true,
       executed: false,
       workflowState: 'AWAITING_APPROVAL' as AgentWorkflowState,
-      slice: 'v1-slice-4',
+      slice: 'v1-slice-5',
       ...plan,
-      note: 'Awaiting PLATFORM_OWNER approval. Destructive tools stay blocked after approval.',
+      note: isControlledAgentTool(tool)
+        ? 'Awaiting PLATFORM_OWNER approval. write_agent_note may write only under docs/agent-workspace/.'
+        : 'Awaiting PLATFORM_OWNER approval. Destructive tools stay blocked after approval.',
     };
 
     const action = await agentDb(prisma).agentAction.create({
@@ -353,7 +357,7 @@ export class AgentService {
           kind: 'blocked-sensitive',
           ran: false,
           blockedTool: tool,
-          note: 'Slice 4 controlled layer does not run apply_patch, deploy, migrations, or secret changes.',
+          note: 'Controlled layer does not run apply_patch, deploy, migrations, or secret changes.',
         },
         verification: { passed: true, projectModified: false, checks: ['sensitive-tool-blocked'] },
       };
@@ -379,36 +383,70 @@ export class AgentService {
       data: { status: 'VERIFYING' },
     });
 
+    const input = (action.input && typeof action.input === 'object')
+      ? action.input as Record<string, unknown>
+      : {};
     let verification: Record<string, unknown>;
     let workflowState: AgentWorkflowState = 'COMPLETED';
-    try {
-      const repoRoot = findRepoRoot();
-      const state = readProjectState(repoRoot);
-      const status = gitStatus(repoRoot);
-      verification = {
-        passed: true,
-        projectModified: false,
-        checks: ['read_project_state', 'git_status'],
-        projectStateBytes: state.bytes,
-        gitBranchLine: String(status.output).split('\n')[0] || '',
-      };
-    } catch (error) {
-      workflowState = 'FAILED';
-      verification = { passed: false, projectModified: false, error: (error as Error).message };
+    let execution: Record<string, unknown> = {
+      kind: 'controlled-verification',
+      ran: true,
+      blockedTool: null,
+      note: 'SAFE inspection only. No source files were written.',
+    };
+
+    if (isControlledAgentTool(tool)) {
+      const executor = new ControlledAgentExecutor();
+      const request = { tool, args: input, approvedPlan: previous };
+      try {
+        const ran = executor.execute(request);
+        execution = {
+          kind: ran.kind,
+          ran: ran.ran,
+          path: ran.path,
+          bytes: ran.bytes,
+          blockedTool: null,
+          note: 'Wrote markdown under docs/agent-workspace/ only.',
+        };
+        const verified = executor.verify(request, ran);
+        verification = { ...verified };
+        workflowState = verified.passed ? 'COMPLETED' : 'FAILED';
+      } catch (error) {
+        workflowState = 'FAILED';
+        execution = {
+          kind: 'write_agent_note',
+          ran: false,
+          blockedTool: null,
+          note: (error as Error).message,
+        };
+        verification = { passed: false, projectModified: false, error: (error as Error).message };
+      }
+    } else {
+      try {
+        const repoRoot = findRepoRoot();
+        const state = readProjectState(repoRoot);
+        const status = gitStatus(repoRoot);
+        verification = {
+          passed: true,
+          projectModified: false,
+          checks: ['read_project_state', 'git_status'],
+          projectStateBytes: state.bytes,
+          gitBranchLine: String(status.output).split('\n')[0] || '',
+        };
+      } catch (error) {
+        workflowState = 'FAILED';
+        verification = { passed: false, projectModified: false, error: (error as Error).message };
+      }
     }
 
     const nextResult = {
       ...previous,
       workflowState,
-      executed: workflowState === 'COMPLETED',
-      execution: {
-        kind: 'controlled-verification',
-        ran: true,
-        blockedTool: null,
-        note: 'SAFE inspection only. No source files were written.',
-      },
+      executed: workflowState === 'COMPLETED' && (isControlledAgentTool(tool) ? Boolean(execution.ran) : true),
+      execution,
       verification,
     };
+
     await agentDb(prisma).agentAction.update({
       where: { id: actionId },
       data: { status: workflowState, result: nextResult },

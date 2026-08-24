@@ -1,4 +1,6 @@
 import 'reflect-metadata';
+import * as fs from 'fs';
+import * as path from 'path';
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConflictException, ForbiddenException } from '@nestjs/common';
 import { AgentService } from './agent.service';
@@ -6,6 +8,7 @@ import { AgentController } from './agent.controller';
 import { AuditService } from '../audit/audit.service';
 import { REQUIRE_PERMISSION_KEY } from '../auth/decorators/require-permission.decorator';
 import { AuthenticatedRequest } from '../common/types/request.types';
+import { findRepoRoot } from './agent-tools';
 
 const store: {
   session: Record<string, unknown> | null;
@@ -248,6 +251,57 @@ describe('AgentService — V1 Slice 2', () => {
     await service.createSession(ownerId, 'Isolation');
     await service.invokeTool(sessionId, ownerId, 'git_status', {});
     expect(audit.log.mock.calls.every((call) => call[0].tenantId === null)).toBe(true);
+  });
+
+  it('does not execute write_agent_note until approved', async () => {
+    const proposed = await service.invokeTool(sessionId, ownerId, 'write_agent_note', {
+      filename: 'slice5-service',
+      body: 'hello',
+    });
+    expect(proposed.status).toBe('PROPOSED');
+    expect(proposed.executed).toBe(false);
+    await expect(service.executeApprovedPlan(sessionId, proposed.actionId, ownerId)).rejects.toBeInstanceOf(ConflictException);
+  });
+
+  it('does not execute a rejected write_agent_note', async () => {
+    const proposed = await service.invokeTool(sessionId, ownerId, 'write_agent_note', {
+      filename: 'slice5-rejected',
+      body: 'nope',
+    });
+    const decision = await service.decideAction(sessionId, proposed.actionId, ownerId, 'REJECTED', 'no');
+    expect(decision.workflowState).toBe('REJECTED');
+    await expect(service.executeApprovedPlan(sessionId, proposed.actionId, ownerId)).rejects.toBeInstanceOf(ConflictException);
+    expect(store.actions[0].status).toBe('REJECTED');
+  });
+
+  it('executes an approved write_agent_note and records audit + COMPLETED', async () => {
+    const proposed = await service.invokeTool(sessionId, ownerId, 'write_agent_note', {
+      filename: 'slice5-service',
+      body: 'approved note body',
+    });
+    const decision = await service.decideAction(sessionId, proposed.actionId, ownerId, 'APPROVED', 'ok');
+    expect(decision.workflowState).toBe('COMPLETED');
+    expect(decision.executed).toBe(true);
+    expect((store.actions[0].result as { execution?: { path?: string } }).execution?.path)
+      .toBe('docs/agent-workspace/slice5-service.md');
+    expect(audit.log).toHaveBeenCalledWith(expect.objectContaining({
+      action: 'AGENT:write_agent_note:COMPLETED',
+    }));
+    const written = path.join(findRepoRoot(), 'docs/agent-workspace/slice5-service.md');
+    expect(fs.readFileSync(written, 'utf8')).toBe('approved note body');
+    fs.unlinkSync(written);
+  });
+
+  it('marks FAILED when an approved write has an invalid operation payload', async () => {
+    const proposed = await service.invokeTool(sessionId, ownerId, 'write_agent_note', {
+      filename: 'slice5-bad',
+      body: 'x',
+    });
+    store.actions[0].input = { filename: '../etc/passwd', body: 'x' };
+    const decision = await service.decideAction(sessionId, proposed.actionId, ownerId, 'APPROVED', undefined);
+    expect(decision.workflowState).toBe('FAILED');
+    expect(decision.executed).toBe(false);
+    expect(JSON.stringify(store.actions[0].result)).toMatch(/filename|FAILED/);
   });
 });
 

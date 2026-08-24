@@ -48,6 +48,8 @@ export function ExecutiveOffice(): React.ReactElement {
   const [tool, setTool] = useState<string>('read_project_state');
   const [filePath, setFilePath] = useState('package.json');
   const [planSummary, setPlanSummary] = useState('');
+  const [noteName, setNoteName] = useState('owner-note');
+  const [noteBody, setNoteBody] = useState('');
   const [chatMessage, setChatMessage] = useState('');
   const [notice, setNotice] = useState('');
 
@@ -78,6 +80,10 @@ export function ExecutiveOffice(): React.ReactElement {
       }
       if (tool === 'propose_plan') {
         args.summary = planSummary || 'Proposed change (Slice 2 — not executed)';
+      }
+      if (tool === 'write_agent_note') {
+        args.filename = noteName;
+        args.body = noteBody || 'Executive Office note';
       }
       return agentApi.invoke(sessionId, tool, args);
     },
@@ -126,7 +132,7 @@ export function ExecutiveOffice(): React.ReactElement {
       <div className="rounded-xl border border-slate-800 bg-slate-950 p-6 text-white">
         <h2 id="executive-office-heading" className="text-lg font-bold">Executive Office</h2>
         <p className="mt-1 text-sm text-slate-300">
-          Platform-owner Agent console. SAFE diagnostics run immediately. Plans wait for approval. After approval the controlled layer verifies only — apply_patch, deploy, and secrets stay blocked.
+          Platform-owner Agent console. SAFE diagnostics run immediately. Plans wait for approval. After approval, write_agent_note may write markdown under docs/agent-workspace/ only. apply_patch, deploy, migrations, and secrets stay blocked.
         </p>
       </div>
 
@@ -166,6 +172,7 @@ export function ExecutiveOffice(): React.ReactElement {
               <select className="ml-2 rounded border px-2 py-1" value={tool} onChange={(event) => setTool(event.target.value)}>
                 {SAFE_TOOLS.map((name) => <option key={name} value={name}>{name}</option>)}
                 <option value="propose_plan">propose_plan</option>
+                <option value="write_agent_note">write_agent_note</option>
               </select>
             </label>
             {tool === 'read_repo_file' ? (
@@ -184,6 +191,24 @@ export function ExecutiveOffice(): React.ReactElement {
                 placeholder="Plan summary"
                 aria-label="Plan summary"
               />
+            ) : null}
+            {tool === 'write_agent_note' ? (
+              <>
+                <input
+                  className="rounded border px-2 py-1 text-sm"
+                  value={noteName}
+                  onChange={(event) => setNoteName(event.target.value)}
+                  placeholder="filename"
+                  aria-label="Note filename"
+                />
+                <input
+                  className="min-w-[16rem] rounded border px-2 py-1 text-sm"
+                  value={noteBody}
+                  onChange={(event) => setNoteBody(event.target.value)}
+                  placeholder="Note body"
+                  aria-label="Note body"
+                />
+              </>
             ) : null}
             <Button variant="primary" disabled={invokeMutation.isPending} onClick={() => invokeMutation.mutate()}>
               Run
@@ -235,6 +260,9 @@ export function ExecutiveOffice(): React.ReactElement {
                 <th className="px-3 py-2">Tool</th>
                 <th className="px-3 py-2">Status</th>
                 <th className="px-3 py-2">Sensitivity</th>
+                <th className="px-3 py-2">Proposed operation</th>
+                <th className="px-3 py-2">Execution</th>
+                <th className="px-3 py-2">Verification</th>
                 <th className="px-3 py-2">Result</th>
                 <th className="px-3 py-2 text-right">Decision</th>
               </tr>
@@ -245,6 +273,19 @@ export function ExecutiveOffice(): React.ReactElement {
                   <td className="px-3 py-2 font-medium">{action.tool}</td>
                   <td className="px-3 py-2"><Badge>{workflowLabel(action)}</Badge></td>
                   <td className="px-3 py-2">{action.sensitivity}</td>
+                  <td className="px-3 py-2 text-xs text-gray-700">
+                    {formatResult((action.result as { objective?: string; filesAffected?: string[] } | null)?.objective
+                      || (action.input as { filename?: string } | undefined)?.filename
+                      || action.tool)}
+                  </td>
+                  <td className="px-3 py-2 text-xs">
+                    {formatResult((action.result as { execution?: unknown } | null)?.execution ?? '—')}
+                  </td>
+                  <td className="px-3 py-2 text-xs">
+                    {formatResult((action.result as { verification?: unknown; error?: string } | null)?.verification
+                      ?? (action.result as { error?: string } | null)?.error
+                      ?? '—')}
+                  </td>
                   <td className="px-3 py-2">
                     <pre className="max-h-40 overflow-auto whitespace-pre-wrap text-xs text-gray-700">
                       {formatResult(action.result)}

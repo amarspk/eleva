@@ -94,4 +94,32 @@ describe('ExecutiveOffice', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Approve' }));
     await waitFor(() => expect(approve).toHaveBeenCalled());
   });
+
+  it('exposes write_agent_note and shows execution/verification columns', async () => {
+    listSessions.mockResolvedValue([{ id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', title: 'S', status: 'OPEN', userId: 'u1' }]);
+    getSession.mockResolvedValue({
+      id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+      title: 'S',
+      status: 'OPEN',
+      userId: 'u1',
+      messages: [],
+      actions: [{
+        id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+        tool: 'write_agent_note',
+        status: 'COMPLETED',
+        sensitivity: 'SENSITIVE',
+        result: {
+          workflowState: 'COMPLETED',
+          objective: 'Write owner note',
+          execution: { kind: 'write_agent_note', ran: true, path: 'docs/agent-workspace/owner-note.md' },
+          verification: { passed: true },
+        },
+      }],
+    });
+    renderOffice();
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Run' })).toBeInTheDocument());
+    expect(screen.getByRole('option', { name: 'write_agent_note' })).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText('Proposed operation')).toBeInTheDocument());
+    expect(screen.getByText('Verification')).toBeInTheDocument();
+  });
 });

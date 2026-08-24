@@ -70,7 +70,10 @@ export function buildStructuredWorkPlan(
     'Await PLATFORM_OWNER approval.',
     'Run controlled verification only after approval.',
   ]);
-  const filesAffected = asStringList(args.filesAffected ?? args.affectedAreas, []);
+  const defaultFiles = tool === 'write_agent_note' && (args.filename || args.name)
+    ? [`docs/agent-workspace/${String(args.filename ?? args.name).trim().toLowerCase()}.md`]
+    : [];
+  const filesAffected = asStringList(args.filesAffected ?? args.affectedAreas, defaultFiles);
   const intendedChanges = asStringList(args.intendedChanges, steps);
   const verificationSteps = asStringList(args.verificationSteps, [
     'Re-read PROJECT_STATE.md.',

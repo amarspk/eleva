@@ -14,3 +14,5 @@ uploads
 .env
 .env.*
 !.env.example
+docs/agent-workspace/*
+!docs/agent-workspace/.gitkeep
