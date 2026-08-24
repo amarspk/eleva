@@ -933,7 +933,11 @@ Platform-owner-only `apps/api/src/agent/` with AgentSession/Message/Action/Appro
 
 **ELEVA AI Agent V1 Slice 2 — COMPLETE** (feature SHA `b61afcafcfa559f7352883f1aee9f149805148b6`, CI run `32674475589`).
 Named gates: code-quality PASS; Prisma generate PASS; `pnpm build` PASS; e2e-live PASS. Job 2 `pnpm test` still FAIL (pre-existing; not a named Slice 2 gate; docker skipped).
-Backoffice Executive Office console (PLATFORM_OWNER only). `propose_plan` and other SENSITIVE tool names persist `AgentAction` status PROPOSED and never execute. Approve/reject require `agent:update` + PLATFORM_OWNER, write `AgentApproval`, audit via AuditService, `executed: false` even after APPROVED. No LLM, no apply_patch/deploy/SendGrid/Stripe/AWS. Do **not** start Slice 3 without CTO approval.
+Backoffice Executive Office console (PLATFORM_OWNER only). `propose_plan` and other SENSITIVE tool names persist `AgentAction` status PROPOSED and never execute. Approve/reject require `agent:update` + PLATFORM_OWNER, write `AgentApproval`, audit via AuditService, `executed: false` even after APPROVED. No LLM, no apply_patch/deploy/SendGrid/Stripe/AWS.
+
+**ELEVA AI Agent V1 Slice 3 — COMPLETE** (feature SHA `34dd6445021bb2223bd70f6c6c349faa5aa97655`, CI run `32675261188`).
+Named gates: code-quality PASS; Prisma generate PASS; `pnpm build` PASS; e2e-live PASS. Job 2 `pnpm test` still FAIL (pre-existing; not a named Slice 3 gate; docker skipped).
+Conversational intelligence: `POST /api/v1/agent/sessions/:sessionId/chat`. `AgentLlmProvider` abstraction with Ollama (`OLLAMA_HOST`/`OLLAMA_MODEL`) and heuristic fallback when Ollama is down. Orchestrator always reads `PROJECT_STATE.md`, allowlists SAFE tools, and records `propose_plan` for sensitive/development requests. LLM output cannot execute tools or bypass the registry. Arabic/English/mixed clarification and planning covered by tests. No apply_patch/deploy/migrations/cloud AI credentials. Do **not** start Slice 4 without CTO approval.
 
 **Phase 4 Release Verification = COMPLETE** (2026-08-23). Named gates on SHA `5799dd1` / Actions run `32604333941`: Prisma generate CI **PASS**; `pnpm build` / API TypeScript **PASS**; e2e-live **PASS**; API boot + `/health` **PASS**; QR boot + Playwright live **PASS**. AUDIT-023 (`/live`, `/ready`, `/metrics`) **COMPLETE**. Partial-index regression guard **COMPLETE**. SendGrid live click-through and similar production-infra items remain **BLOCKED/OPS**, not engineering tickets. Do not reopen Phase 4. Do not invent Phase 5 product features.
 
