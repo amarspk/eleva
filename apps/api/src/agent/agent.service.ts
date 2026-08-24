@@ -195,9 +195,11 @@ export class AgentService {
       proposed: true,
       executed: false,
       workflowState: 'AWAITING_APPROVAL' as AgentWorkflowState,
-      slice: 'v1-slice-9',
+      slice: 'v1-slice-10',
       ...plan,
-      note: tool === 'apply_approved_implementation'
+      note: tool === 'apply_approved_product_implementation'
+        ? 'Awaiting PLATFORM_OWNER approval. apply_approved_product_implementation may copy one verified draft to packages/receipts/src/promoted-implementation.ts only.'
+        : tool === 'apply_approved_implementation'
         ? 'Awaiting PLATFORM_OWNER approval. apply_approved_implementation may copy one verified draft to apps/api/src/agent/promoted.ts only.'
         : tool === 'analyze_implementation_file'
         ? 'Awaiting PLATFORM_OWNER approval. analyze_implementation_file reads a verified sandbox draft only and does not write.'
@@ -404,7 +406,7 @@ export class AgentService {
     };
 
     if (isControlledAgentTool(tool)) {
-      if (tool === 'apply_approved_implementation') {
+      if (tool === 'apply_approved_implementation' || tool === 'apply_approved_product_implementation') {
         const session = await this.getSession(sessionId);
         const actions = Array.isArray(session.actions) ? session.actions as Array<Record<string, unknown>> : [];
         const slug = String(input.filename ?? input.name ?? '');
@@ -419,7 +421,9 @@ export class AgentService {
             kind: tool,
             ran: false,
             source: `apps/api/src/agent/implementation/${slug}.ts`,
-            target: 'apps/api/src/agent/promoted.ts',
+            target: tool === 'apply_approved_product_implementation'
+              ? 'packages/receipts/src/promoted-implementation.ts'
+              : 'apps/api/src/agent/promoted.ts',
             approved: true,
             written: false,
             note: `Missing completed ${missing} prerequisite for [${slug}].`,
@@ -443,12 +447,17 @@ export class AgentService {
           ran: ran.ran,
           path: ran.path,
           bytes: ran.bytes,
-          source: tool === 'apply_approved_implementation' ? `apps/api/src/agent/implementation/${String(input.filename ?? '')}.ts` : undefined,
-          target: tool === 'apply_approved_implementation' ? 'apps/api/src/agent/promoted.ts' : undefined,
-          approved: tool === 'apply_approved_implementation' ? true : undefined,
-          written: tool === 'apply_approved_implementation' ? ran.ran : undefined,
+          source: (tool === 'apply_approved_implementation' || tool === 'apply_approved_product_implementation')
+            ? `apps/api/src/agent/implementation/${String(input.filename ?? '')}.ts` : undefined,
+          target: tool === 'apply_approved_product_implementation'
+            ? 'packages/receipts/src/promoted-implementation.ts'
+            : tool === 'apply_approved_implementation' ? 'apps/api/src/agent/promoted.ts' : undefined,
+          approved: (tool === 'apply_approved_implementation' || tool === 'apply_approved_product_implementation') ? true : undefined,
+          written: (tool === 'apply_approved_implementation' || tool === 'apply_approved_product_implementation') ? ran.ran : undefined,
           blockedTool: null,
-          note: ran.kind === 'apply_approved_implementation'
+          note: ran.kind === 'apply_approved_product_implementation'
+            ? 'Copied one verified sandbox draft to packages/receipts/src/promoted-implementation.ts only.'
+            : ran.kind === 'apply_approved_implementation'
             ? 'Copied one verified sandbox draft to apps/api/src/agent/promoted.ts only.'
             : ran.kind === 'analyze_implementation_file'
             ? 'Analyzed sandbox TypeScript draft only. No files were written.'

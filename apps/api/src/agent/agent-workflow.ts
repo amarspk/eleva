@@ -77,6 +77,8 @@ export function buildStructuredWorkPlan(
       ? [`apps/api/src/agent/implementation/${slug}.ts`]
       : tool === 'apply_approved_implementation' && slug
         ? [`apps/api/src/agent/implementation/${slug}.ts`, 'apps/api/src/agent/promoted.ts']
+        : tool === 'apply_approved_product_implementation' && slug
+          ? [`apps/api/src/agent/implementation/${slug}.ts`, 'packages/receipts/src/promoted-implementation.ts']
         : [];
   const filesAffected = asStringList(args.filesAffected ?? args.affectedAreas, defaultFiles);
   const intendedChanges = asStringList(args.intendedChanges, steps);
