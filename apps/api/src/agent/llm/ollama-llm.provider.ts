@@ -16,6 +16,21 @@ Rules:
 Return ONLY JSON:
 {"language":"ar|en|mixed","intent":"clarify|inspect|plan|refuse","reply":"...","questions":[],"safeTools":[{"tool":"read_project_state","args":{}}],"propose":false,"plan":null}`;
 
+/** Local Ollama defaults. Overridden by OLLAMA_HOST / OLLAMA_MODEL. Not secrets. */
+export const DEFAULT_OLLAMA_HOST = 'http://127.0.0.1:11434';
+export const DEFAULT_OLLAMA_MODEL = 'qwen3:8b';
+
+export function resolveOllamaConfig(
+  env: NodeJS.ProcessEnv = process.env,
+): { host: string; model: string } {
+  const host = String(env.OLLAMA_HOST || DEFAULT_OLLAMA_HOST).trim().replace(/\/$/, '');
+  const model = String(env.OLLAMA_MODEL || DEFAULT_OLLAMA_MODEL).trim();
+  return {
+    host: host || DEFAULT_OLLAMA_HOST,
+    model: model || DEFAULT_OLLAMA_MODEL,
+  };
+}
+
 @Injectable()
 export class OllamaLlmProvider implements AgentLlmProvider {
   readonly name = 'ollama';
@@ -23,8 +38,7 @@ export class OllamaLlmProvider implements AgentLlmProvider {
   private readonly fallback = new HeuristicLlmProvider();
 
   async complete(input: AgentLlmCompleteInput): Promise<AgentLlmDecision> {
-    const host = (process.env.OLLAMA_HOST || 'http://127.0.0.1:11434').replace(/\/$/, '');
-    const model = process.env.OLLAMA_MODEL || 'llama3.2';
+    const { host, model } = resolveOllamaConfig();
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 8_000);
     try {
