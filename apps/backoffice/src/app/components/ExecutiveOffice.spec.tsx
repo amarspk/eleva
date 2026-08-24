@@ -122,5 +122,6 @@ describe('ExecutiveOffice', () => {
     await waitFor(() => expect(screen.getByText('Proposed operation')).toBeInTheDocument());
     expect(screen.getByText('Verification')).toBeInTheDocument();
     expect(screen.getByRole('option', { name: 'write_implementation_file' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'verify_implementation_file' })).toBeInTheDocument();
   });
 });

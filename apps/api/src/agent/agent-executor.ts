@@ -2,7 +2,11 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { assertSafeRelativePath, findRepoRoot, gitStatus, isDeniedRepoPath, readProjectState } from './agent-tools';
 
-export const CONTROLLED_AGENT_TOOLS = ['write_agent_note', 'write_implementation_file'] as const;
+export const CONTROLLED_AGENT_TOOLS = [
+  'write_agent_note',
+  'write_implementation_file',
+  'verify_implementation_file',
+] as const;
 export type ControlledAgentTool = (typeof CONTROLLED_AGENT_TOOLS)[number];
 
 export const AGENT_NOTE_DIR = 'docs/agent-workspace';
@@ -34,10 +38,13 @@ export interface ControlledExecutionResult {
   ran: boolean;
   path: string;
   bytes: number;
+  inspection?: ControlledVerificationResult;
 }
 
 export interface ControlledVerificationResult {
   passed: boolean;
+  failed: boolean;
+  file: string;
   projectModified: boolean;
   checks: string[];
   error?: string;
@@ -95,7 +102,95 @@ export function parseControlledWrite(tool: string, args: Record<string, unknown>
   if (tool === 'write_implementation_file') {
     return { tool, ...parseImplementationInput(args) };
   }
+  if (tool === 'verify_implementation_file') {
+    return { tool, ...parseVerifyImplementationInput(args) };
+  }
   throw new Error(`Operation [${tool}] is not allow-listed for controlled execution.`);
+}
+
+export function parseVerifyImplementationInput(args: Record<string, unknown>): { filename: string; body: string; relativePath: string } {
+  const filename = String(args.filename ?? args.name ?? '').trim().toLowerCase();
+  if (!FILENAME_RE.test(filename)) {
+    throw new Error('verify_implementation_file requires filename matching [a-z0-9][a-z0-9-]{0,62}.');
+  }
+  const relativePath = `${AGENT_IMPLEMENTATION_DIR}/${filename}.ts`;
+  return { filename, body: '', relativePath };
+}
+
+export function inspectImplementationFile(repoRoot: string, filenameOrPath: string): ControlledVerificationResult {
+  const checks = ['exists', 'sandbox-path', 'typescript', 'export', 'forbidden-ops'];
+  const filename = filenameOrPath.replace(/\.ts$/i, '').split('/').pop() || '';
+  const relativePath = `${AGENT_IMPLEMENTATION_DIR}/${filename}.ts`;
+  try {
+    if (!FILENAME_RE.test(filename)) {
+      throw new Error('verify_implementation_file requires filename matching [a-z0-9][a-z0-9-]{0,62}.');
+    }
+    const absolute = assertControlledWritePath('verify_implementation_file', relativePath, repoRoot);
+    if (!fs.existsSync(absolute) || !fs.statSync(absolute).isFile()) {
+      return {
+        passed: false,
+        failed: true,
+        file: relativePath,
+        path: relativePath,
+        projectModified: false,
+        checks,
+        error: `Implementation draft [${relativePath}] was not found.`,
+      };
+    }
+    if (!absolute.endsWith('.ts')) {
+      return {
+        passed: false,
+        failed: true,
+        file: relativePath,
+        path: relativePath,
+        projectModified: false,
+        checks,
+        error: 'Implementation draft must be a TypeScript file.',
+      };
+    }
+    const body = fs.readFileSync(absolute, 'utf8');
+    if (!/\bexport\b/.test(body)) {
+      return {
+        passed: false,
+        failed: true,
+        file: relativePath,
+        path: relativePath,
+        projectModified: false,
+        checks,
+        error: 'Implementation draft must include an export.',
+      };
+    }
+    const hit = FORBIDDEN_IMPLEMENTATION.find((pattern) => pattern.test(body));
+    if (hit) {
+      return {
+        passed: false,
+        failed: true,
+        file: relativePath,
+        path: relativePath,
+        projectModified: false,
+        checks,
+        error: `Implementation draft contains a forbidden operation (${hit}).`,
+      };
+    }
+    return {
+      passed: true,
+      failed: false,
+      file: relativePath,
+      path: relativePath,
+      projectModified: false,
+      checks,
+    };
+  } catch (error) {
+    return {
+      passed: false,
+      failed: true,
+      file: relativePath,
+      path: relativePath,
+      projectModified: false,
+      checks,
+      error: (error as Error).message,
+    };
+  }
 }
 
 function allowedDirectory(tool: ControlledAgentTool): string {
@@ -104,6 +199,10 @@ function allowedDirectory(tool: ControlledAgentTool): string {
 
 function allowedExtension(tool: ControlledAgentTool): string {
   return tool === 'write_agent_note' ? '.md' : '.ts';
+}
+
+function isInspectOnly(tool: string): boolean {
+  return tool === 'verify_implementation_file';
 }
 
 export function assertControlledWritePath(tool: ControlledAgentTool, relativePath: string, repoRoot: string): string {
@@ -156,6 +255,16 @@ export class ControlledAgentExecutor {
 
   execute(request: ControlledExecutionRequest): ControlledExecutionResult {
     const validated = this.validate(request);
+    if (isInspectOnly(validated.tool)) {
+      const inspection = inspectImplementationFile(this.repoRoot, validated.filename);
+      return {
+        kind: validated.tool,
+        ran: true,
+        path: validated.relativePath,
+        bytes: 0,
+        inspection,
+      };
+    }
     const workspace = path.join(this.repoRoot, allowedDirectory(validated.tool));
     fs.mkdirSync(workspace, { recursive: true });
     fs.writeFileSync(validated.absolutePath, validated.body, { encoding: 'utf8', flag: 'w' });
@@ -168,20 +277,41 @@ export class ControlledAgentExecutor {
   }
 
   verify(request: ControlledExecutionRequest, execution: ControlledExecutionResult): ControlledVerificationResult {
+    if (isInspectOnly(request.tool)) {
+      return inspectImplementationFile(this.repoRoot, String(request.args.filename ?? request.args.name ?? ''));
+    }
     const checks = ['path-in-sandbox', 'content-match', 'policy', 'read_project_state', 'git_status'];
     try {
       const validated = this.validate(request);
       if (execution.path !== validated.relativePath || !fs.existsSync(validated.absolutePath)) {
-        return { passed: false, projectModified: false, checks, error: 'Written file was not found.', path: validated.relativePath };
+        return {
+          passed: false,
+          failed: true,
+          file: validated.relativePath,
+          projectModified: false,
+          checks,
+          error: 'Written file was not found.',
+          path: validated.relativePath,
+        };
       }
       const onDisk = fs.readFileSync(validated.absolutePath, 'utf8');
       if (onDisk !== validated.body) {
-        return { passed: false, projectModified: true, checks, error: 'Written file did not match the approved body.', path: validated.relativePath };
+        return {
+          passed: false,
+          failed: true,
+          file: validated.relativePath,
+          projectModified: true,
+          checks,
+          error: 'Written file did not match the approved body.',
+          path: validated.relativePath,
+        };
       }
       readProjectState(this.repoRoot);
       gitStatus(this.repoRoot);
       return {
         passed: true,
+        failed: false,
+        file: validated.relativePath,
         projectModified: true,
         checks,
         path: validated.relativePath,
@@ -189,6 +319,8 @@ export class ControlledAgentExecutor {
     } catch (error) {
       return {
         passed: false,
+        failed: true,
+        file: '',
         projectModified: false,
         checks,
         error: (error as Error).message,

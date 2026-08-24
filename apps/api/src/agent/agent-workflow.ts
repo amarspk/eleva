@@ -73,7 +73,7 @@ export function buildStructuredWorkPlan(
   const slug = String(args.filename ?? args.name ?? '').trim().toLowerCase();
   const defaultFiles = tool === 'write_agent_note' && slug
     ? [`docs/agent-workspace/${slug}.md`]
-    : tool === 'write_implementation_file' && slug
+    : (tool === 'write_implementation_file' || tool === 'verify_implementation_file') && slug
       ? [`apps/api/src/agent/implementation/${slug}.ts`]
       : [];
   const filesAffected = asStringList(args.filesAffected ?? args.affectedAreas, defaultFiles);

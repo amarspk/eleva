@@ -353,6 +353,53 @@ describe('AgentService — V1 Slice 2', () => {
     expect(decision.workflowState).toBe('FAILED');
     expect(decision.executed).toBe(false);
   });
+
+  it('does not verify an implementation draft until approved', async () => {
+    const proposed = await service.invokeTool(sessionId, ownerId, 'verify_implementation_file', {
+      filename: 'slice7-service',
+    });
+    expect(proposed.status).toBe('PROPOSED');
+    expect(proposed.executed).toBe(false);
+    await expect(service.executeApprovedPlan(sessionId, proposed.actionId, ownerId)).rejects.toBeInstanceOf(ConflictException);
+  });
+
+  it('does not verify after rejection', async () => {
+    const proposed = await service.invokeTool(sessionId, ownerId, 'verify_implementation_file', {
+      filename: 'slice7-rejected',
+    });
+    const decision = await service.decideAction(sessionId, proposed.actionId, ownerId, 'REJECTED', 'no');
+    expect(decision.workflowState).toBe('REJECTED');
+    await expect(service.executeApprovedPlan(sessionId, proposed.actionId, ownerId)).rejects.toBeInstanceOf(ConflictException);
+  });
+
+  it('verifies an approved existing sandbox draft without writing', async () => {
+    const body = 'export function draft(): string { return "slice-7"; }\n';
+    await service.invokeTool(sessionId, ownerId, 'write_implementation_file', {
+      filename: 'slice7-service',
+      body,
+    });
+    await service.decideAction(sessionId, store.actions[0].id as string, ownerId, 'APPROVED', 'ok');
+    const written = path.join(findRepoRoot(), 'apps/api/src/agent/implementation/slice7-service.ts');
+    const before = fs.readFileSync(written, 'utf8');
+    const proposed = await service.invokeTool(sessionId, ownerId, 'verify_implementation_file', {
+      filename: 'slice7-service',
+    });
+    const decision = await service.decideAction(sessionId, proposed.actionId, ownerId, 'APPROVED', 'ok');
+    expect(decision.workflowState).toBe('COMPLETED');
+    expect((store.actions.find((row) => row.tool === 'verify_implementation_file')?.result as { verification?: { passed?: boolean; projectModified?: boolean } }).verification)
+      .toMatchObject({ passed: true, projectModified: false });
+    expect(fs.readFileSync(written, 'utf8')).toBe(before);
+    fs.unlinkSync(written);
+  });
+
+  it('records FAILED when an approved verify targets a missing draft', async () => {
+    const proposed = await service.invokeTool(sessionId, ownerId, 'verify_implementation_file', {
+      filename: 'slice7-missing',
+    });
+    const decision = await service.decideAction(sessionId, proposed.actionId, ownerId, 'APPROVED', undefined);
+    expect(decision.workflowState).toBe('FAILED');
+    expect(JSON.stringify(store.actions[0].result)).toMatch(/not found|FAILED/i);
+  });
 });
 
 describe('AgentController authorization', () => {

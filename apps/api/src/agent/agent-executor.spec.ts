@@ -1,7 +1,13 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { findRepoRoot } from './agent-tools';
-import { ControlledAgentExecutor, parseAgentNoteInput, parseImplementationInput } from './agent-executor';
+import {
+  ControlledAgentExecutor,
+  parseAgentNoteInput,
+  parseImplementationInput,
+  parseVerifyImplementationInput,
+  inspectImplementationFile,
+} from './agent-executor';
 
 describe('ControlledAgentExecutor', () => {
   const repoRoot = findRepoRoot(path.join(__dirname, '../../../..'));
@@ -87,5 +93,52 @@ describe('ControlledAgentExecutor', () => {
       args: { filename: 'slice6-draft', body: 'export const x = 1;\n' },
       approvedPlan: { filesAffected: ['apps/api/src/agent/agent.service.ts'] },
     })).toThrow(/does not match/);
+  });
+
+  it('rejects verify_implementation_file outside the sandbox', () => {
+    expect(() => parseVerifyImplementationInput({ filename: '../agent.service' })).toThrow(/filename/);
+    expect(() => executor.validate({
+      tool: 'verify_implementation_file',
+      args: { filename: 'slice6-draft' },
+      approvedPlan: { filesAffected: ['apps/api/src/main.ts'] },
+    })).toThrow(/does not match/);
+  });
+
+  it('inspects an approved sandbox draft without writing', () => {
+    const body = 'export function draft(): string { return "slice-7"; }\n';
+    executor.execute({
+      tool: 'write_implementation_file',
+      args: { filename: 'slice6-draft', body },
+      approvedPlan: { filesAffected: ['apps/api/src/agent/implementation/slice6-draft.ts'] },
+    });
+    const before = fs.statSync(implPath).mtimeMs;
+    const request = {
+      tool: 'verify_implementation_file',
+      args: { filename: 'slice6-draft' },
+      approvedPlan: { filesAffected: ['apps/api/src/agent/implementation/slice6-draft.ts'] },
+    };
+    const ran = executor.execute(request);
+    expect(ran.kind).toBe('verify_implementation_file');
+    expect(ran.ran).toBe(true);
+    expect(fs.readFileSync(implPath, 'utf8')).toBe(body);
+    expect(fs.statSync(implPath).mtimeMs).toBe(before);
+    const verified = executor.verify(request, ran);
+    expect(verified.passed).toBe(true);
+    expect(verified.projectModified).toBe(false);
+    expect(verified.failed).toBe(false);
+    expect(verified.file).toBe('apps/api/src/agent/implementation/slice6-draft.ts');
+    expect(verified.checks).toEqual(expect.arrayContaining([
+      'exists', 'sandbox-path', 'typescript', 'export', 'forbidden-ops',
+    ]));
+  });
+
+  it('fails inspection when the sandbox file is missing or forbidden', () => {
+    const missing = inspectImplementationFile(repoRoot, 'slice6-draft');
+    expect(missing.passed).toBe(false);
+    expect(missing.failed).toBe(true);
+    fs.writeFileSync(implPath, "import { spawnSync } from 'child_process'; export const x = 1;\n");
+    const forbidden = inspectImplementationFile(repoRoot, 'slice6-draft');
+    expect(forbidden.passed).toBe(false);
+    expect(String(forbidden.error)).toMatch(/forbidden|child_process/);
   });
 });
