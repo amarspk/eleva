@@ -940,6 +940,16 @@ Named gates: code-quality PASS; Prisma generate PASS; `pnpm build` PASS; e2e-liv
 Conversational intelligence: `POST /api/v1/agent/sessions/:sessionId/chat`. `AgentLlmProvider` abstraction with Ollama (`OLLAMA_HOST`/`OLLAMA_MODEL`) and heuristic fallback when Ollama is down. Orchestrator always reads `PROJECT_STATE.md`, allowlists SAFE tools, and records `propose_plan` for sensitive/development requests. LLM output cannot execute tools or bypass the registry. Arabic/English/mixed clarification and planning covered by tests. No apply_patch/deploy/migrations/cloud AI credentials.
 
 **ELEVA AI Agent V1 Slice 4 — COMPLETE** (feature SHA `eec147484891c4a869add713d505ff115d4fb766`, CI run `32783220120`).
+
+**ELEVA AI Agent V1 Slice 5 — COMPLETE** (feature SHA `449f436736226014307da3c401cd5cf3ac071f1e`).
+First real controlled write: `write_agent_note` after PLATFORM_OWNER approval, markdown only under `docs/agent-workspace/`. Sensitive tools remain blocked.
+
+**ELEVA AI Agent V1 Slice 6 — IMPLEMENTED** (feature SHA `dcb70cc74ca15ff8f881af06c4bf39a6f3ab4651`).
+Scope: `write_implementation_file` — after approval, write a TypeScript module draft only under `apps/api/src/agent/implementation/`. Not imported by AgentModule. Excluded from API tsc. Forbidden patterns: child_process, eval, process.env, destructive fs, apply_patch, secrets. Unapproved/rejected never execute. `apply_patch`/deploy/migrate/secrets remain blocked.
+Files: agent-executor.ts(+spec), agent.service.ts(+spec), agent-tools.ts, agent-workflow.ts, ExecutiveOffice.tsx(+spec), apps/api/tsconfig.json, .gitignore, implementation/README.md, PROJECT_STATE.md.
+Local tests: Agent Jest 8 suites / 56 passed; Executive Office 3/3; eslint clean on touched files; Agent tsc 0. Full `pnpm test` / named CI gates NOT claimed.
+Blockers: SendGrid live click-through; local prisma generate TLS; Job 2 `pnpm test` pre-existing; sandbox cannot reach host Ollama. Do **not** start Slice 7.
+
 Named gates: code-quality PASS; Prisma generate PASS; `pnpm build` PASS; e2e-live PASS. Job 2 `pnpm test` still FAIL (pre-existing; not a named Slice 4 gate; docker skipped).
 Structured plans (objective, files, intended changes, verification steps, risk). Workflow states Planning / Awaiting Approval / Approved / Executing / Verifying / Completed / Failed / Rejected. Unapproved plans cannot execute. Reject does not modify the project. After approval, controlled verification runs SAFE inspection only. `apply_patch`, deploy, migrations, and secrets remain blocked. Do **not** start a later Agent slice without CTO approval.
 
