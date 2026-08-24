@@ -7,11 +7,14 @@ export const CONTROLLED_AGENT_TOOLS = [
   'write_implementation_file',
   'verify_implementation_file',
   'analyze_implementation_file',
+  'apply_approved_implementation',
 ] as const;
 export type ControlledAgentTool = (typeof CONTROLLED_AGENT_TOOLS)[number];
 
 export const AGENT_NOTE_DIR = 'docs/agent-workspace';
 export const AGENT_IMPLEMENTATION_DIR = 'apps/api/src/agent/implementation';
+export const SLICE9_PROMOTION_TARGET = 'apps/api/src/agent/promoted.ts';
+export const SLICE9_PROMOTION_PLACEHOLDER = '/** Slice 9 promotion sink. Not imported by AgentModule. */\nexport const promotedDraft = true;\n';
 const MAX_NOTE_CHARS = 8000;
 const MAX_IMPL_CHARS = 12000;
 const FILENAME_RE = /^[a-z0-9][a-z0-9-]{0,62}$/;
@@ -117,6 +120,9 @@ export function parseControlledWrite(tool: string, args: Record<string, unknown>
   if (tool === 'analyze_implementation_file') {
     return { tool, ...parseAnalyzeImplementationInput(args) };
   }
+  if (tool === 'apply_approved_implementation') {
+    return { tool, ...parseApplyApprovedImplementationInput(args) };
+  }
   throw new Error(`Operation [${tool}] is not allow-listed for controlled execution.`);
 }
 
@@ -206,7 +212,13 @@ export function inspectImplementationFile(repoRoot: string, filenameOrPath: stri
 }
 
 function allowedDirectory(tool: ControlledAgentTool): string {
-  return tool === 'write_agent_note' ? AGENT_NOTE_DIR : AGENT_IMPLEMENTATION_DIR;
+  if (tool === 'write_agent_note') {
+    return AGENT_NOTE_DIR;
+  }
+  if (tool === 'apply_approved_implementation') {
+    return path.posix.dirname(SLICE9_PROMOTION_TARGET);
+  }
+  return AGENT_IMPLEMENTATION_DIR;
 }
 
 function allowedExtension(tool: ControlledAgentTool): string {
@@ -219,6 +231,23 @@ function isInspectOnly(tool: string): boolean {
 
 function uniqueSorted(values: string[]): string[] {
   return Array.from(new Set(values.filter((item) => item.length > 0))).sort();
+}
+
+export function parseApplyApprovedImplementationInput(args: Record<string, unknown>): { filename: string; body: string; relativePath: string } {
+  const filename = String(args.filename ?? args.name ?? '').trim().toLowerCase();
+  if (!FILENAME_RE.test(filename)) {
+    throw new Error('apply_approved_implementation requires filename matching [a-z0-9][a-z0-9-]{0,62}.');
+  }
+  const requestedTarget = args.target === undefined || args.target === null || args.target === ''
+    ? SLICE9_PROMOTION_TARGET
+    : String(args.target).trim().replace(/\\/g, '/');
+  if (path.isAbsolute(requestedTarget) || requestedTarget.split('/').includes('..')) {
+    throw new Error('Absolute paths and parent-directory segments are not allowed.');
+  }
+  if (requestedTarget !== SLICE9_PROMOTION_TARGET) {
+    throw new Error(`Target [${requestedTarget}] is not the Slice 9 allow-listed path.`);
+  }
+  return { filename, body: '', relativePath: SLICE9_PROMOTION_TARGET };
 }
 
 export function parseAnalyzeImplementationInput(args: Record<string, unknown>): { filename: string; body: string; relativePath: string } {
@@ -313,9 +342,12 @@ export function assertControlledWritePath(tool: ControlledAgentTool, relativePat
   if (isDeniedRepoPath(safe)) {
     throw new Error(`Access denied: path [${safe}] is not writable by the Agent.`);
   }
+  if (tool === 'apply_approved_implementation' && safe !== SLICE9_PROMOTION_TARGET) {
+    throw new Error(`apply_approved_implementation may only write the allow-listed target [${SLICE9_PROMOTION_TARGET}].`);
+  }
   const dir = allowedDirectory(tool);
   const ext = allowedExtension(tool);
-  if (!safe.startsWith(`${dir}/`) || !safe.endsWith(ext)) {
+  if (tool !== 'apply_approved_implementation' && (!safe.startsWith(`${dir}/`) || !safe.endsWith(ext))) {
     throw new Error(`${tool} may only write ${ext} files under ${dir}/.`);
   }
   if (safe.includes('..') || path.isAbsolute(safe)) {
@@ -352,6 +384,14 @@ export class ControlledAgentExecutor {
   validate(request: ControlledExecutionRequest): ParsedControlledWrite & { absolutePath: string } {
     const parsed = parseControlledWrite(request.tool, request.args);
     assertPlanMatchesWrite(request, parsed.relativePath);
+    if (parsed.tool === 'apply_approved_implementation') {
+      const source = `${AGENT_IMPLEMENTATION_DIR}/${parsed.filename}.ts`;
+      const plan = request.approvedPlan ?? {};
+      const files = Array.isArray(plan.filesAffected) ? plan.filesAffected.map((item) => String(item)) : [];
+      if (files.length > 0 && !files.includes(source)) {
+        throw new Error('Approved plan does not match the operation being executed.');
+      }
+    }
     const absolutePath = assertControlledWritePath(parsed.tool, parsed.relativePath, this.repoRoot);
     return { ...parsed, absolutePath };
   }
@@ -368,6 +408,34 @@ export class ControlledAgentExecutor {
         path: validated.relativePath,
         bytes: 0,
         inspection,
+      };
+    }
+    if (validated.tool === 'apply_approved_implementation') {
+      const analysis = analyzeImplementationFile(this.repoRoot, validated.filename);
+      if (!analysis.passed) {
+        throw new Error(analysis.error || 'Implementation draft failed verify/analyze prerequisites.');
+      }
+      const sourceRelative = `${AGENT_IMPLEMENTATION_DIR}/${validated.filename}.ts`;
+      const sourceAbsolute = assertControlledWritePath('write_implementation_file', sourceRelative, this.repoRoot);
+      const body = fs.readFileSync(sourceAbsolute, 'utf8');
+      fs.writeFileSync(validated.absolutePath, body, { encoding: 'utf8', flag: 'w' });
+      const onDisk = fs.readFileSync(validated.absolutePath, 'utf8');
+      if (onDisk !== body) {
+        throw new Error('Promoted target did not match the approved draft after write.');
+      }
+      return {
+        kind: 'apply_approved_implementation',
+        ran: true,
+        path: SLICE9_PROMOTION_TARGET,
+        bytes: Buffer.byteLength(body),
+        inspection: {
+          passed: true,
+          failed: false,
+          file: SLICE9_PROMOTION_TARGET,
+          path: SLICE9_PROMOTION_TARGET,
+          projectModified: true,
+          checks: ['source-verified', 'source-analyzed', 'allow-listed-target', 'content-match'],
+        },
       };
     }
     const workspace = path.join(this.repoRoot, allowedDirectory(validated.tool));
@@ -387,6 +455,54 @@ export class ControlledAgentExecutor {
       return request.tool === 'analyze_implementation_file'
         ? analyzeImplementationFile(this.repoRoot, slug)
         : inspectImplementationFile(this.repoRoot, slug);
+    }
+    if (request.tool === 'apply_approved_implementation') {
+      const slug = String(request.args.filename ?? request.args.name ?? '');
+      const analysis = analyzeImplementationFile(this.repoRoot, slug);
+      if (!analysis.passed) {
+        return {
+          passed: false,
+          failed: true,
+          file: SLICE9_PROMOTION_TARGET,
+          projectModified: false,
+          checks: ['source-verified', 'source-analyzed', 'allow-listed-target', 'content-match'],
+          error: analysis.error || 'Implementation draft failed verify/analyze prerequisites.',
+        };
+      }
+      try {
+        const sourceRelative = `${AGENT_IMPLEMENTATION_DIR}/${slug}.ts`;
+        const sourceAbsolute = assertControlledWritePath('write_implementation_file', sourceRelative, this.repoRoot);
+        const expected = fs.readFileSync(sourceAbsolute, 'utf8');
+        const targetAbsolute = assertControlledWritePath('apply_approved_implementation', SLICE9_PROMOTION_TARGET, this.repoRoot);
+        const onDisk = fs.existsSync(targetAbsolute) ? fs.readFileSync(targetAbsolute, 'utf8') : '';
+        if (execution.path !== SLICE9_PROMOTION_TARGET || onDisk !== expected) {
+          return {
+            passed: false,
+            failed: true,
+            file: SLICE9_PROMOTION_TARGET,
+            projectModified: onDisk !== SLICE9_PROMOTION_PLACEHOLDER,
+            checks: ['source-verified', 'source-analyzed', 'allow-listed-target', 'content-match'],
+            error: 'Promoted target did not match the approved draft.',
+          };
+        }
+        return {
+          passed: true,
+          failed: false,
+          file: SLICE9_PROMOTION_TARGET,
+          path: SLICE9_PROMOTION_TARGET,
+          projectModified: true,
+          checks: ['source-verified', 'source-analyzed', 'allow-listed-target', 'content-match'],
+        };
+      } catch (error) {
+        return {
+          passed: false,
+          failed: true,
+          file: SLICE9_PROMOTION_TARGET,
+          projectModified: false,
+          checks: ['source-verified', 'source-analyzed', 'allow-listed-target', 'content-match'],
+          error: (error as Error).message,
+        };
+      }
     }
     const checks = ['path-in-sandbox', 'content-match', 'policy', 'read_project_state', 'git_status'];
     try {

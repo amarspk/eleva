@@ -9,6 +9,7 @@ import { AuditService } from '../audit/audit.service';
 import { REQUIRE_PERMISSION_KEY } from '../auth/decorators/require-permission.decorator';
 import { AuthenticatedRequest } from '../common/types/request.types';
 import { findRepoRoot } from './agent-tools';
+import { SLICE9_PROMOTION_PLACEHOLDER, SLICE9_PROMOTION_TARGET } from './agent-executor';
 
 const store: {
   session: Record<string, unknown> | null;
@@ -453,6 +454,89 @@ describe('AgentService — V1 Slice 2', () => {
     const decision = await service.decideAction(sessionId, proposed.actionId, ownerId, 'APPROVED', undefined);
     expect(decision.workflowState).toBe('FAILED');
     expect(JSON.stringify(store.actions[0].result)).toMatch(/not found|FAILED/i);
+  });
+
+  it('does not apply an implementation draft until approved', async () => {
+    const proposed = await service.invokeTool(sessionId, ownerId, 'apply_approved_implementation', {
+      filename: 'slice9-service',
+    });
+    expect(proposed.status).toBe('PROPOSED');
+    await expect(service.executeApprovedPlan(sessionId, proposed.actionId, ownerId)).rejects.toBeInstanceOf(ConflictException);
+  });
+
+  it('does not apply after rejection', async () => {
+    const proposed = await service.invokeTool(sessionId, ownerId, 'apply_approved_implementation', {
+      filename: 'slice9-rejected',
+    });
+    const decision = await service.decideAction(sessionId, proposed.actionId, ownerId, 'REJECTED', 'no');
+    expect(decision.workflowState).toBe('REJECTED');
+    await expect(service.executeApprovedPlan(sessionId, proposed.actionId, ownerId)).rejects.toBeInstanceOf(ConflictException);
+  });
+
+  it('fails apply when verify/analyze prerequisites are missing', async () => {
+    const proposed = await service.invokeTool(sessionId, ownerId, 'apply_approved_implementation', {
+      filename: 'slice9-service',
+    });
+    const decision = await service.decideAction(sessionId, proposed.actionId, ownerId, 'APPROVED', 'ok');
+    expect(decision.workflowState).toBe('FAILED');
+    expect(JSON.stringify(store.actions[0].result)).toMatch(/verify_implementation_file/);
+    expect(fs.readFileSync(path.join(findRepoRoot(), SLICE9_PROMOTION_TARGET), 'utf8')).toBe(SLICE9_PROMOTION_PLACEHOLDER);
+  });
+
+  it('fails apply when analyze prerequisite is missing', async () => {
+    const body = 'export function draft(): string { return "ok"; }\n';
+    await service.invokeTool(sessionId, ownerId, 'write_implementation_file', { filename: 'slice9-service', body });
+    await service.decideAction(sessionId, store.actions[0].id as string, ownerId, 'APPROVED', 'ok');
+    await service.invokeTool(sessionId, ownerId, 'verify_implementation_file', { filename: 'slice9-service' });
+    const verifyAction = store.actions.find((row) => row.tool === 'verify_implementation_file');
+    await service.decideAction(sessionId, String(verifyAction?.id), ownerId, 'APPROVED', 'ok');
+    const proposed = await service.invokeTool(sessionId, ownerId, 'apply_approved_implementation', {
+      filename: 'slice9-service',
+    });
+    const decision = await service.decideAction(sessionId, proposed.actionId, ownerId, 'APPROVED', 'ok');
+    expect(decision.workflowState).toBe('FAILED');
+    expect(JSON.stringify(store.actions.find((row) => row.tool === 'apply_approved_implementation')?.result)).toMatch(/analyze_implementation_file/);
+    const written = path.join(findRepoRoot(), 'apps/api/src/agent/implementation/slice9-service.ts');
+    if (fs.existsSync(written)) {
+      fs.unlinkSync(written);
+    }
+    fs.writeFileSync(path.join(findRepoRoot(), SLICE9_PROMOTION_TARGET), SLICE9_PROMOTION_PLACEHOLDER);
+  });
+
+  it('applies an approved verified-and-analyzed draft to the allow-listed sink', async () => {
+    const body = 'export function draft(): string { return "slice-9"; }\n';
+    await service.invokeTool(sessionId, ownerId, 'write_implementation_file', { filename: 'slice9-service', body });
+    await service.decideAction(sessionId, store.actions[0].id as string, ownerId, 'APPROVED', 'ok');
+    await service.invokeTool(sessionId, ownerId, 'verify_implementation_file', { filename: 'slice9-service' });
+    const verifyAction = store.actions.find((row) => row.tool === 'verify_implementation_file');
+    await service.decideAction(sessionId, String(verifyAction?.id), ownerId, 'APPROVED', 'ok');
+    await service.invokeTool(sessionId, ownerId, 'analyze_implementation_file', { filename: 'slice9-service' });
+    const analyzeAction = store.actions.find((row) => row.tool === 'analyze_implementation_file');
+    await service.decideAction(sessionId, String(analyzeAction?.id), ownerId, 'APPROVED', 'ok');
+    const proposed = await service.invokeTool(sessionId, ownerId, 'apply_approved_implementation', {
+      filename: 'slice9-service',
+    });
+    const decision = await service.decideAction(sessionId, proposed.actionId, ownerId, 'APPROVED', 'ok');
+    expect(decision.workflowState).toBe('COMPLETED');
+    const applyRow = store.actions.find((row) => row.tool === 'apply_approved_implementation');
+    expect(applyRow?.result).toMatchObject({
+      execution: expect.objectContaining({
+        source: 'apps/api/src/agent/implementation/slice9-service.ts',
+        target: SLICE9_PROMOTION_TARGET,
+        approved: true,
+        written: true,
+      }),
+      verification: expect.objectContaining({ passed: true }),
+    });
+    expect(fs.readFileSync(path.join(findRepoRoot(), SLICE9_PROMOTION_TARGET), 'utf8')).toBe(body);
+    expect(audit.log).toHaveBeenCalledWith(expect.objectContaining({
+      action: 'AGENT:apply_approved_implementation:COMPLETED',
+    }));
+    const draft = path.join(findRepoRoot(), 'apps/api/src/agent/implementation/slice9-service.ts');
+    if (fs.existsSync(draft)) {
+      fs.unlinkSync(draft);
+    }
+    fs.writeFileSync(path.join(findRepoRoot(), SLICE9_PROMOTION_TARGET), SLICE9_PROMOTION_PLACEHOLDER);
   });
 });
 

@@ -36,6 +36,7 @@ export const INVOCABLE_AGENT_TOOLS = [
   'write_implementation_file',
   'verify_implementation_file',
   'analyze_implementation_file',
+  'apply_approved_implementation',
 ] as const;
 
 const DENY_BASENAMES = new Set([

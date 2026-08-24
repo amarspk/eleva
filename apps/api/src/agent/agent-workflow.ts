@@ -75,7 +75,9 @@ export function buildStructuredWorkPlan(
     ? [`docs/agent-workspace/${slug}.md`]
     : (tool === 'write_implementation_file' || tool === 'verify_implementation_file' || tool === 'analyze_implementation_file') && slug
       ? [`apps/api/src/agent/implementation/${slug}.ts`]
-      : [];
+      : tool === 'apply_approved_implementation' && slug
+        ? [`apps/api/src/agent/implementation/${slug}.ts`, 'apps/api/src/agent/promoted.ts']
+        : [];
   const filesAffected = asStringList(args.filesAffected ?? args.affectedAreas, defaultFiles);
   const intendedChanges = asStringList(args.intendedChanges, steps);
   const verificationSteps = asStringList(args.verificationSteps, [

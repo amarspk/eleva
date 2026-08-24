@@ -9,6 +9,9 @@ import {
   parseAnalyzeImplementationInput,
   inspectImplementationFile,
   analyzeImplementationFile,
+  parseApplyApprovedImplementationInput,
+  SLICE9_PROMOTION_TARGET,
+  SLICE9_PROMOTION_PLACEHOLDER,
 } from './agent-executor';
 
 describe('ControlledAgentExecutor', () => {
@@ -16,6 +19,7 @@ describe('ControlledAgentExecutor', () => {
   const executor = new ControlledAgentExecutor(repoRoot);
   const notePath = path.join(repoRoot, 'docs/agent-workspace/slice5-note.md');
   const implPath = path.join(repoRoot, 'apps/api/src/agent/implementation/slice6-draft.ts');
+  const promotedPath = path.join(repoRoot, SLICE9_PROMOTION_TARGET);
 
   afterEach(() => {
     if (fs.existsSync(notePath)) {
@@ -24,6 +28,7 @@ describe('ControlledAgentExecutor', () => {
     if (fs.existsSync(implPath)) {
       fs.unlinkSync(implPath);
     }
+    fs.writeFileSync(promotedPath, SLICE9_PROMOTION_PLACEHOLDER);
   });
 
   it('rejects unsupported operations', () => {
@@ -187,5 +192,68 @@ describe('ControlledAgentExecutor', () => {
     const forbidden = analyzeImplementationFile(repoRoot, 'slice6-draft');
     expect(forbidden.passed).toBe(false);
     expect(String(forbidden.error)).toMatch(/forbidden|child_process/);
+  });
+
+  it('rejects apply_approved_implementation path traversal and wrong targets', () => {
+    expect(() => parseApplyApprovedImplementationInput({ filename: '../agent.service' })).toThrow(/filename/);
+    expect(() => parseApplyApprovedImplementationInput({
+      filename: 'slice6-draft',
+      target: 'apps/api/src/agent/agent.service.ts',
+    })).toThrow(/allow-listed/);
+    expect(() => parseApplyApprovedImplementationInput({
+      filename: 'slice6-draft',
+      target: '/tmp/evil.ts',
+    })).toThrow(/allow-listed|Absolute/);
+  });
+
+  it('promotes a valid draft to the Slice 9 sink only', () => {
+    const body = 'export function draft(): string { return "slice-9"; }\n';
+    executor.execute({
+      tool: 'write_implementation_file',
+      args: { filename: 'slice6-draft', body },
+      approvedPlan: { filesAffected: ['apps/api/src/agent/implementation/slice6-draft.ts'] },
+    });
+    const request = {
+      tool: 'apply_approved_implementation',
+      args: { filename: 'slice6-draft', target: SLICE9_PROMOTION_TARGET },
+      approvedPlan: {
+        filesAffected: ['apps/api/src/agent/implementation/slice6-draft.ts', SLICE9_PROMOTION_TARGET],
+      },
+    };
+    const ran = executor.execute(request);
+    expect(ran.kind).toBe('apply_approved_implementation');
+    expect(ran.path).toBe(SLICE9_PROMOTION_TARGET);
+    expect(fs.readFileSync(promotedPath, 'utf8')).toBe(body);
+    expect(fs.readFileSync(implPath, 'utf8')).toBe(body);
+    const verified = executor.verify(request, ran);
+    expect(verified.passed).toBe(true);
+    expect(verified.file).toBe(SLICE9_PROMOTION_TARGET);
+  });
+
+  it('rejects apply when the plan source or target is wrong', () => {
+    const body = 'export function draft(): string { return "x"; }\n';
+    executor.execute({
+      tool: 'write_implementation_file',
+      args: { filename: 'slice6-draft', body },
+      approvedPlan: { filesAffected: ['apps/api/src/agent/implementation/slice6-draft.ts'] },
+    });
+    expect(() => executor.validate({
+      tool: 'apply_approved_implementation',
+      args: { filename: 'slice6-draft' },
+      approvedPlan: { filesAffected: ['apps/api/src/agent/implementation/other.ts', SLICE9_PROMOTION_TARGET] },
+    })).toThrow(/does not match/);
+  });
+
+  it('rejects apply when the draft is forbidden', () => {
+    fs.mkdirSync(path.dirname(implPath), { recursive: true });
+    fs.writeFileSync(implPath, "import { spawnSync } from 'child_process'; export const x = 1;\n");
+    expect(() => executor.execute({
+      tool: 'apply_approved_implementation',
+      args: { filename: 'slice6-draft' },
+      approvedPlan: {
+        filesAffected: ['apps/api/src/agent/implementation/slice6-draft.ts', SLICE9_PROMOTION_TARGET],
+      },
+    })).toThrow(/forbidden|child_process/);
+    expect(fs.readFileSync(promotedPath, 'utf8')).toBe(SLICE9_PROMOTION_PLACEHOLDER);
   });
 });

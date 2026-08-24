@@ -124,5 +124,6 @@ describe('ExecutiveOffice', () => {
     expect(screen.getByRole('option', { name: 'write_implementation_file' })).toBeInTheDocument();
     expect(screen.getByRole('option', { name: 'verify_implementation_file' })).toBeInTheDocument();
     expect(screen.getByRole('option', { name: 'analyze_implementation_file' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'apply_approved_implementation' })).toBeInTheDocument();
   });
 });

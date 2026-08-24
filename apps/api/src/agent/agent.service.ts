@@ -195,9 +195,11 @@ export class AgentService {
       proposed: true,
       executed: false,
       workflowState: 'AWAITING_APPROVAL' as AgentWorkflowState,
-      slice: 'v1-slice-8',
+      slice: 'v1-slice-9',
       ...plan,
-      note: tool === 'analyze_implementation_file'
+      note: tool === 'apply_approved_implementation'
+        ? 'Awaiting PLATFORM_OWNER approval. apply_approved_implementation may copy one verified draft to apps/api/src/agent/promoted.ts only.'
+        : tool === 'analyze_implementation_file'
         ? 'Awaiting PLATFORM_OWNER approval. analyze_implementation_file reads a verified sandbox draft only and does not write.'
         : tool === 'verify_implementation_file'
           ? 'Awaiting PLATFORM_OWNER approval. verify_implementation_file inspects TypeScript drafts under apps/api/src/agent/implementation/ only and does not write.'
@@ -402,6 +404,36 @@ export class AgentService {
     };
 
     if (isControlledAgentTool(tool)) {
+      if (tool === 'apply_approved_implementation') {
+        const session = await this.getSession(sessionId);
+        const actions = Array.isArray(session.actions) ? session.actions as Array<Record<string, unknown>> : [];
+        const slug = String(input.filename ?? input.name ?? '');
+        const completed = (name: string): boolean => actions.some((row) => {
+          const rowInput = row.input && typeof row.input === 'object' ? row.input as Record<string, unknown> : {};
+          return String(row.tool) === name && String(row.status) === 'COMPLETED' && String(rowInput.filename ?? '') === slug;
+        });
+        if (!completed('verify_implementation_file') || !completed('analyze_implementation_file')) {
+          const missing = !completed('verify_implementation_file') ? 'verify_implementation_file' : 'analyze_implementation_file';
+          workflowState = 'FAILED';
+          execution = {
+            kind: tool,
+            ran: false,
+            source: `apps/api/src/agent/implementation/${slug}.ts`,
+            target: 'apps/api/src/agent/promoted.ts',
+            approved: true,
+            written: false,
+            note: `Missing completed ${missing} prerequisite for [${slug}].`,
+          };
+          verification = { passed: false, failed: true, error: `Missing completed ${missing} prerequisite for [${slug}].` };
+          const nextResult = { ...previous, workflowState, executed: false, execution, verification };
+          await agentDb(prisma).agentAction.update({ where: { id: actionId }, data: { status: workflowState, result: nextResult } });
+          await this.auditService.log({
+            tenantId: null, userId, action: `AGENT:${tool}:${workflowState}`, entityName: 'AgentAction', entityId: actionId,
+            newValues: { executed: false, workflowState }, ipAddress: ip, userAgent: userAgent.slice(0, 512),
+          });
+          return { executed: false, workflowState };
+        }
+      }
       const executor = new ControlledAgentExecutor();
       const request = { tool, args: input, approvedPlan: previous };
       try {
@@ -411,8 +443,14 @@ export class AgentService {
           ran: ran.ran,
           path: ran.path,
           bytes: ran.bytes,
+          source: tool === 'apply_approved_implementation' ? `apps/api/src/agent/implementation/${String(input.filename ?? '')}.ts` : undefined,
+          target: tool === 'apply_approved_implementation' ? 'apps/api/src/agent/promoted.ts' : undefined,
+          approved: tool === 'apply_approved_implementation' ? true : undefined,
+          written: tool === 'apply_approved_implementation' ? ran.ran : undefined,
           blockedTool: null,
-          note: ran.kind === 'analyze_implementation_file'
+          note: ran.kind === 'apply_approved_implementation'
+            ? 'Copied one verified sandbox draft to apps/api/src/agent/promoted.ts only.'
+            : ran.kind === 'analyze_implementation_file'
             ? 'Analyzed sandbox TypeScript draft only. No files were written.'
             : ran.kind === 'verify_implementation_file'
               ? 'Inspected sandbox TypeScript draft only. No files were written.'
