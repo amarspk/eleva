@@ -945,6 +945,10 @@ Conversational intelligence: `POST /api/v1/agent/sessions/:sessionId/chat`. `Age
 First real controlled write: `write_agent_note` after PLATFORM_OWNER approval, markdown only under `docs/agent-workspace/`. Sensitive tools remain blocked.
 
 **ELEVA AI Agent V1 Slice 6 — IMPLEMENTED** (feature SHA `dcb70cc74ca15ff8f881af06c4bf39a6f3ab4651`).
+
+**ELEVA AI Agent V1 Slice 7 — IMPLEMENTED** (feature SHA `1922046bf553e564ed29a47952981ccd404b5516`).
+Scope: `verify_implementation_file` — after PLATFORM_OWNER approval, inspect a TypeScript draft under `apps/api/src/agent/implementation/` only. Does not write. Checks: exists, sandbox path, `.ts`, `export`, forbidden ops (child_process, eval, process.env, destructive fs, apply_patch, secrets). Structured result: passed/failed/file/checks/error. Unapproved/rejected never verify. Drafts still not imported. API tsc still excludes the sandbox.
+
 Scope: `write_implementation_file` — after approval, write a TypeScript module draft only under `apps/api/src/agent/implementation/`. Not imported by AgentModule. Excluded from API tsc. Forbidden patterns: child_process, eval, process.env, destructive fs, apply_patch, secrets. Unapproved/rejected never execute. `apply_patch`/deploy/migrate/secrets remain blocked.
 Files: agent-executor.ts(+spec), agent.service.ts(+spec), agent-tools.ts, agent-workflow.ts, ExecutiveOffice.tsx(+spec), apps/api/tsconfig.json, .gitignore, implementation/README.md, PROJECT_STATE.md.
 Local tests: Agent Jest 8 suites / 56 passed; Executive Office 3/3; eslint clean on touched files; Agent tsc 0. Full `pnpm test` / named CI gates NOT claimed.
