@@ -5,7 +5,7 @@
 > This file tracks **M1–M9 only**. Numbered Slices 1–10 are historical increments; they are **not** the endpoint.
 
 **Branch:** `arena/01a01767-eleva`  
-**HEAD at last roadmap update:** `ee729bfaa43320541c1626576d9d9006e6286b8a`  
+**HEAD at last roadmap update:** `c98a60ac00fd943b2722dd6158f3b87137f86d89`  
 **Date:** 2026-08-25 (Asia/Dubai)
 
 **Critical rule:** Do **not** invent Slice 11+ or treat “another slice” as progress. Advance **only** a named milestone after its Definition of Done is verified.
@@ -16,7 +16,7 @@
 
 | Milestone | Status | Started | Completed | Verification | Notes |
 |---|---|---|---|---|---|
-| M1 Agent Core | IN_PROGRESS | 2026-08-24 (Slice 1–3) | — | Partial (see below) | Spec loader + Ollama probe/honest fallback (`ee729bf`). Sandbox live Ollama reachability = **NO** (not proof the owner Windows host cannot). Persistent project memory still missing. |
+| M1 Agent Core | IN_PROGRESS | 2026-08-24 (Slice 1–3) | — | Partial (see below) | Spec loader + Ollama probe (`ee729bf`) + platform project memory (`c98a60a`). Live Ollama from Arena sandbox = **NO**. M1 DoD not fully VERIFIED (owner-host Ollama unproven). |
 | M2 Tool System | IN_PROGRESS | 2026-08-24 (Slice 1) | — | Partial | SAFE inspect: `read_project_state`, `read_repo_file`, `git_status`, `git_log`. **No** agent tools for test/lint/build or git branches. |
 | M3 Security/Approval | IN_PROGRESS | 2026-08-24 (Slice 2–4) | — | Partial | PLATFORM_OWNER + `agent:read/create/update`, approval/reject, AuditService, plan binding. Sensitive tools **blocked after approve**. Tenant restaurant data not in V1 Agent. |
 | M4 Engineering Agent | IN_PROGRESS | 2026-08-24 (Slice 4–10) | — | Partial | Plan + sandbox write + verify + analyze + **two allow-listed copy sinks**. **Cannot** arbitrarily modify product code. **No** agent-run test/lint/build/diff tools. |
@@ -62,7 +62,7 @@ Existing Slices 1–10 stay in history. Completing a Slice does **not** complete
 - Live Ollama from this **Arena sandbox**: **NO** (`127.0.0.1:11434` not reachable here). That is **not** evidence the developer Windows machine cannot run Ollama. Config remains `OLLAMA_HOST=http://127.0.0.1:11434`, `OLLAMA_MODEL=qwen3:8b`.
 - Ollama provider health + honest fallback: **gap closed** (feature SHA `ee729bfaa43320541c1626576d9d9006e6286b8a`). Statuses: `OLLAMA_AVAILABLE` / `OLLAMA_UNAVAILABLE` / `OLLAMA_MODEL_MISSING` / `OLLAMA_REQUEST_FAILED` / `HEURISTIC_FALLBACK`. Chat `provider` is the planner that actually answered.
 - Specification/context loader: **gap closed** (`3c24395`).
-- Persistent project memory beyond `AgentSession` / `AgentMessage` rows: **not** implemented.
+- Persistent project memory beyond `AgentSession` / `AgentMessage` rows: **gap closed** (feature SHA `c98a60ac00fd943b2722dd6158f3b87137f86d89`) — table `agent_project_memory`, SAFE `read_project_memory` / `remember_project_memory`, loaded on chat. Platform-scoped (`tenantId` null). Secrets and tenant identifiers rejected. Live migrate on production DB: **not run in this sandbox**.
 
 **Status:** `IN_PROGRESS`.
 
@@ -116,7 +116,15 @@ Allow-listed write sinks today:
 
 ---
 
-## Verification last recorded (M1 Ollama health, this session)
+## Verification last recorded (M1 project memory, this session)
+
+- Agent Jest: **9 suites / 105 passed**
+- ESLint on touched Agent files: clean
+- Agent-path API `tsc`: 0 errors
+- Full `pnpm test` / e2e-live / named CI / live `prisma migrate`: **not claimed**
+- Feature SHA: `c98a60ac00fd943b2722dd6158f3b87137f86d89`
+
+## Verification last recorded (M1 Ollama health, prior session)
 
 - Agent Jest: **8 suites / 100 passed** (not full `pnpm test`)
 - ESLint on touched Agent files: clean
@@ -140,9 +148,9 @@ Allow-listed write sinks today:
 **Do not start M5–M9.**  
 **Do not weaken security to “finish” a milestone.**
 
-**Next named milestone / gap:** remaining **M1** — persistent project memory beyond session messages. Do **not** start M2–M9 or Slice 11 unless the CTO names that gap.
+**Next named work:** M1 is still `IN_PROGRESS` (owner-host Ollama live click-through unverified). Do **not** start M2–M9 or Slice 11 unless the CTO names that gap.
 
-Closed this turn: M1 Ollama health probe + honest provider reporting.
+Closed this turn: M1 persistent project memory.
 
 Until the owner names one of those (or another explicit task), **stop**.
 
