@@ -6,7 +6,7 @@ import { Badge, Button, EmptyState, ErrorBanner, LoadingRow } from './ui/Primiti
 import { ApiError } from '../lib/api-client';
 import { agentApi, type AgentAction, type AgentSession } from '../lib/resources';
 
-const SAFE_TOOLS = ['read_project_state', 'read_repo_file', 'git_status', 'git_log'] as const;
+const SAFE_TOOLS = ['read_project_state', 'read_repo_file', 'git_status', 'git_log', 'read_project_spec'] as const;
 
 function workflowLabel(action: AgentAction): string {
   const fromResult = action.result && typeof action.result === 'object'
@@ -77,6 +77,9 @@ export function ExecutiveOffice(): React.ReactElement {
       const args: Record<string, unknown> = {};
       if (tool === 'read_repo_file') {
         args.path = filePath;
+      }
+      if (tool === 'read_project_spec') {
+        args.spec = filePath || 'list';
       }
       if (tool === 'propose_plan') {
         args.summary = planSummary || 'Proposed change (Slice 2 — not executed)';
@@ -187,7 +190,7 @@ export function ExecutiveOffice(): React.ReactElement {
                 <option value="apply_approved_product_implementation">apply_approved_product_implementation</option>
               </select>
             </label>
-            {tool === 'read_repo_file' ? (
+            {tool === 'read_repo_file' || tool === 'read_project_spec' ? (
               <input
                 className="rounded border px-2 py-1 text-sm"
                 value={filePath}

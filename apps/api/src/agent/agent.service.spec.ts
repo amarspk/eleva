@@ -148,6 +148,28 @@ describe('AgentService — V1 Slice 2', () => {
     expect(store.actions[0]).toMatchObject({ tool: 'read_project_state', status: 'EXECUTED' });
   });
 
+  it('executes read_project_spec as a SAFE read of an approved specification', async () => {
+    const result = await service.invokeTool(sessionId, ownerId, 'read_project_spec', { spec: 'DOC-001.md' });
+    expect(result.status).toBe('EXECUTED');
+    expect(result.sensitivity).toBe('SAFE');
+    expect(result.result).toMatchObject({
+      tool: 'read_project_spec',
+      sourcePath: 'DOC-001.md',
+      status: 'VERIFIED',
+    });
+    expect(String((result.result as { content?: string }).content)).toContain('SYSTEM ARCHITECTURE');
+  });
+
+  it('fails read_project_spec for unapproved and secret paths', async () => {
+    const unapproved = await service.invokeTool(sessionId, ownerId, 'read_project_spec', { path: 'apps/api/src/main.ts' });
+    expect(unapproved.status).toBe('FAILED');
+    expect(JSON.stringify(unapproved.result)).toMatch(/allow-list/);
+    const secret = await service.invokeTool(sessionId, ownerId, 'read_project_spec', { path: '.env' });
+    expect(secret.status).toBe('FAILED');
+    expect(JSON.stringify(secret.result)).toMatch(/Access denied/);
+    expect(JSON.stringify(secret.result)).not.toMatch(/SENDGRID_API_KEY\s*=/);
+  });
+
   it('does not execute a denied repo path (FAILED action, no secret content)', async () => {
     const result = await service.invokeTool(sessionId, ownerId, 'read_repo_file', { path: '.env' });
     expect(result.status).toBe('FAILED');

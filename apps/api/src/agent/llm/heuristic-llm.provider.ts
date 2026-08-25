@@ -8,6 +8,7 @@ const INSPECT = /افحص|فحص|inspect|diagnose|مشكلة/i;
 const ORDERS = /طلب|orders?|checkout/i;
 const DEVELOP = /طور|تطوير|develop|improve|نظام المنتجات|product system/i;
 const SENSITIVE = /deploy|apply_patch|migrate|migration|stripe|sendgrid|سر|secret|إنتاج|production|حذف مستأجر|delete tenant/i;
+const SPEC = /specification|spec_index|DOC-00|doc-00|مواصفات|AGENT_BUILD_ROADMAP|read_project_spec/i;
 
 export function detectReplyLanguage(text: string): AgentReplyLanguage {
   const hasAr = ARABIC.test(text);
@@ -44,6 +45,26 @@ export class HeuristicLlmProvider implements AgentLlmProvider {
         reply: language === 'en'
           ? 'I will not invent a product. Tell me the restaurant, product name, category, and price before any plan.'
           : 'لن أخمن منتجاً. حدّد المطعم واسم المنتج والتصنيف والسعر قبل أي خطة.',
+      };
+    }
+
+    if (SPEC.test(text)) {
+      const wantsList = /list|catalog|available|قائمة/i.test(text);
+      return {
+        language,
+        intent: 'inspect',
+        propose: false,
+        safeTools: [
+          { tool: 'read_project_state', args: {} },
+          {
+            tool: 'read_project_spec',
+            args: wantsList ? { list: true } : { spec: text.match(/DOC-00\d/i)?.[0] || 'SPEC_INDEX.md' },
+          },
+        ],
+        questions: [],
+        reply: language === 'en'
+          ? 'I will load PROJECT_STATE.md and only allow-listed specification files. Missing specs stay MISSING. I will not invent requirements.'
+          : 'سأحمّل PROJECT_STATE.md والمواصفات المسموح بها فقط. المواصفات الغائبة تبقى MISSING ولن أخترع متطلبات.',
       };
     }
 

@@ -84,7 +84,7 @@ describe('AgentOrchestrator — Slice 3', () => {
     const result = await orchestrator.chat(sessionId, ownerId, 'ELEVA افحص مشكلة الطلبات');
     expect(result.executedSafeTools).toContain('read_project_state');
     expect(result.reply).not.toMatch(/ORD-20/);
-    expect(store.actions.every((row) => ['read_project_state', 'git_status', 'git_log', 'read_repo_file'].includes(String(row.tool)))).toBe(true);
+    expect(store.actions.every((row) => ['read_project_state', 'git_status', 'git_log', 'read_repo_file', 'read_project_spec'].includes(String(row.tool)))).toBe(true);
   });
 
   it('records a PROPOSED plan for product-system development without applying patches', async () => {
@@ -92,6 +92,15 @@ describe('AgentOrchestrator — Slice 3', () => {
     expect(result.proposed).toBe(true);
     expect(result.executed).toBe(false);
     expect(store.actions.some((row) => row.tool === 'propose_plan' && row.status === 'PROPOSED')).toBe(true);
+    expect(store.actions.some((row) => row.tool === 'apply_patch')).toBe(false);
+  });
+
+  it('loads approved specifications as SAFE inspect and does not invent tenant facts', async () => {
+    const result = await orchestrator.chat(sessionId, ownerId, 'Read DOC-001 specification');
+    expect(result.executedSafeTools).toEqual(expect.arrayContaining(['read_project_state', 'read_project_spec']));
+    expect(result.executed).toBe(false);
+    expect(result.reply).not.toMatch(/ORD-20/);
+    expect(store.actions.some((row) => row.tool === 'read_project_spec' && row.status === 'EXECUTED')).toBe(true);
     expect(store.actions.some((row) => row.tool === 'apply_patch')).toBe(false);
   });
 

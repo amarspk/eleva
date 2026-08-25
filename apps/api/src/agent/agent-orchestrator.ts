@@ -2,7 +2,7 @@ import { Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { prisma } from '@zayjar/db';
 import { agentDb } from './agent-db';
 import { AgentService } from './agent.service';
-import { findRepoRoot, readProjectState } from './agent-tools';
+import { findRepoRoot, listApprovedProjectSpecs, readProjectState } from './agent-tools';
 import {
   AGENT_LLM_PROVIDER,
   ALLOWLISTED_SAFE_TOOLS,
@@ -50,7 +50,11 @@ export class AgentOrchestrator {
       throw new NotFoundException(`The requested Agent session with ID [${sessionId}] was not found.`);
     }
 
-    const projectState = readProjectState(findRepoRoot());
+    const repoRoot = findRepoRoot();
+    const projectState = readProjectState(repoRoot);
+    const specCatalog = listApprovedProjectSpecs(repoRoot)
+      .map((item) => `${item.path} (${item.exists ? 'VERIFIED present' : 'MISSING'})`)
+      .join(', ');
     const history = ((session.messages as Array<{ role?: unknown; content?: unknown }>) || []).map((row) => ({
       role: String(row.role || 'user').toLowerCase() as AgentLlmMessage['role'],
       content: String(row.content || ''),
@@ -62,7 +66,7 @@ export class AgentOrchestrator {
 
     const decision = await this.llm.complete({
       messages,
-      projectStateExcerpt: projectState.content.slice(0, 20_000),
+      projectStateExcerpt: `${projectState.content.slice(0, 18_000)}\n\nAPPROVED_SPECS (read_project_spec only): ${specCatalog}`,
       allowlistedSafeTools: ALLOWLISTED_SAFE_TOOLS,
     });
 

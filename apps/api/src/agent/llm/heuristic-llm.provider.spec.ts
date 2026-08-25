@@ -25,7 +25,7 @@ describe('HeuristicLlmProvider bilingual planning', () => {
     });
     expect(decision.language).toBe('mixed');
     expect(decision.intent).toBe('inspect');
-    expect(decision.safeTools.every((call) => ['read_project_state', 'git_status', 'git_log', 'read_repo_file'].includes(call.tool))).toBe(true);
+    expect(decision.safeTools.every((call) => ['read_project_state', 'git_status', 'git_log', 'read_repo_file', 'read_project_spec'].includes(call.tool))).toBe(true);
     expect(decision.reply).toMatch(/PROJECT_STATE|لا يقرأ/);
   });
 
@@ -39,5 +39,17 @@ describe('HeuristicLlmProvider bilingual planning', () => {
     expect(decision.propose).toBe(true);
     expect(decision.plan?.summary.length).toBeGreaterThan(10);
     expect(decision.plan?.missingInformation.length).toBeGreaterThan(0);
+  });
+
+  it('loads allow-listed specifications without inventing missing requirements', async () => {
+    const decision = await provider.complete({
+      messages: [{ role: 'user', content: 'Read DOC-001 specification' }],
+      projectStateExcerpt: excerpt,
+      allowlistedSafeTools: ['read_project_state', 'read_project_spec'],
+    });
+    expect(decision.intent).toBe('inspect');
+    expect(decision.propose).toBe(false);
+    expect(decision.safeTools.some((call) => call.tool === 'read_project_spec')).toBe(true);
+    expect(decision.reply).toMatch(/MISSING|allow-listed|PROJECT_STATE/i);
   });
 });

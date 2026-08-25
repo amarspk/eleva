@@ -13,6 +13,7 @@ import {
   gitLog,
   gitStatus,
   readProjectState,
+  readProjectSpec,
   readRepoFile,
   SAFE_AGENT_TOOLS,
   PLAN_AGENT_TOOLS,
@@ -537,6 +538,8 @@ export class AgentService {
     switch (tool) {
       case 'read_project_state':
         return readProjectState(repoRoot);
+      case 'read_project_spec':
+        return readProjectSpec(repoRoot, args);
       case 'read_repo_file':
         return readRepoFile(repoRoot, String(args.path ?? ''));
       case 'git_status':

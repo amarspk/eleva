@@ -10,6 +10,8 @@ describe('LLM decision sanitizer', () => {
       { tool: 'git_log', args: { limit: 3 } },
     ]);
     expect(kept.map((item) => item.tool)).toEqual(['read_project_state', 'git_log']);
+    expect(sanitizeSafeToolCalls([{ tool: 'read_project_spec', args: { spec: 'DOC-001.md' } }]).map((item) => item.tool))
+      .toEqual(['read_project_spec']);
   });
 
   it('parses mixed-language JSON without inventing tools', () => {

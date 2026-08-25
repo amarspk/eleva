@@ -2,7 +2,13 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { spawnSync } from 'child_process';
 
-export const SAFE_AGENT_TOOLS = ['read_project_state', 'read_repo_file', 'git_status', 'git_log'] as const;
+export const SAFE_AGENT_TOOLS = [
+  'read_project_state',
+  'read_repo_file',
+  'git_status',
+  'git_log',
+  'read_project_spec',
+] as const;
 export type SafeAgentTool = (typeof SAFE_AGENT_TOOLS)[number];
 
 /** Slice 2 planning tool — persists a PROPOSED action only. */
@@ -151,4 +157,229 @@ export function gitStatus(repoRoot: string): { output: string } {
 export function gitLog(repoRoot: string, limit = 10): { output: string } {
   const take = Math.min(Math.max(Number(limit) || 10, 1), 30);
   return { output: runGit(repoRoot, ['log', `-${take}`, '--oneline', '--decorate']) };
+}
+
+/**
+ * Official specification/context files verified present at repo root
+ * (PROJECT_STATE.md §2 + AGENT_BUILD_ROADMAP.md). Not source code.
+ */
+export const APPROVED_PROJECT_SPECS = [
+  { id: 'project-state', path: 'PROJECT_STATE.md', title: 'PROJECT STATE' },
+  { id: 'agent-build-roadmap', path: 'AGENT_BUILD_ROADMAP.md', title: 'ELEVA Agent construction roadmap' },
+  { id: 'spec-index', path: 'SPEC_INDEX.md', title: 'Specification index' },
+  { id: 'doc-001', path: 'DOC-001.md', title: 'System architecture' },
+  { id: 'doc-002', path: 'DOC-002.md', title: 'Database schema specification' },
+  { id: 'doc-003', path: 'DOC-003.md', title: 'REST API specification' },
+  { id: 'doc-004', path: 'DOC-004.md', title: 'Technical specification DOC-004' },
+  { id: 'doc-005', path: 'DOC-005.md', title: 'Business logic and workflows' },
+  { id: 'doc-006', path: 'DOC-006.md', title: 'Security implementation specification' },
+  { id: 'doc-007', path: 'DOC-007.md', title: 'Image storage and processing' },
+  { id: 'doc-008', path: 'DOC-008.md', title: 'Notifications system architecture' },
+  { id: 'doc-009', path: 'DOC-009.md', title: 'Third-party integrations' },
+  { id: 'doc-010', path: 'DOC-010.md', title: 'Performance and scaling' },
+  { id: 'implementation-roadmap', path: 'IMPLEMENTATION_ROADMAP.md', title: 'Implementation roadmap' },
+  { id: 'tsk-0006', path: 'TSK-0006_HEALTH_CHECK.md', title: 'TSK-0006 repository health check' },
+] as const;
+
+export type ApprovedProjectSpec = (typeof APPROVED_PROJECT_SPECS)[number];
+export type SpecContextStatus = 'VERIFIED' | 'MISSING' | 'UNKNOWN' | 'DENIED' | 'LIST';
+
+export interface SpecContextFact {
+  text: string;
+  sourcePath: string | null;
+  status: 'VERIFIED' | 'MISSING' | 'UNKNOWN';
+}
+
+export interface ProjectSpecResult {
+  tool: 'read_project_spec';
+  requested: string | null;
+  listed: boolean;
+  sourcePath: string | null;
+  available: Array<{ id: string; path: string; title: string; exists: boolean; status: 'VERIFIED' | 'MISSING' }>;
+  content: string | null;
+  relevantSections: string[];
+  verifiedFacts: SpecContextFact[];
+  missingInformation: SpecContextFact[];
+  unknownInformation: SpecContextFact[];
+  specificationVersion: string | null;
+  bytes: number;
+  status: SpecContextStatus;
+  error?: string;
+}
+
+const SPEC_MAX_CHARS = 80_000;
+
+function emptySpecResult(partial: Partial<ProjectSpecResult>): ProjectSpecResult {
+  return {
+    tool: 'read_project_spec',
+    requested: null,
+    listed: false,
+    sourcePath: null,
+    available: [],
+    content: null,
+    relevantSections: [],
+    verifiedFacts: [],
+    missingInformation: [],
+    unknownInformation: [],
+    specificationVersion: null,
+    bytes: 0,
+    status: 'UNKNOWN',
+    ...partial,
+  };
+}
+
+export function listApprovedProjectSpecs(repoRoot: string): ProjectSpecResult['available'] {
+  return APPROVED_PROJECT_SPECS.map((spec) => {
+    const absolute = path.join(repoRoot, spec.path);
+    const exists = fs.existsSync(absolute) && fs.statSync(absolute).isFile();
+    return {
+      id: spec.id,
+      path: spec.path,
+      title: spec.title,
+      exists,
+      status: exists ? 'VERIFIED' as const : 'MISSING' as const,
+    };
+  });
+}
+
+export function resolveApprovedSpec(request: string): ApprovedProjectSpec | undefined {
+  const raw = request.trim().replace(/\\/g, '/').replace(/^\/+/, '');
+  const lower = raw.toLowerCase();
+  const stem = lower.replace(/\.md$/i, '');
+  return APPROVED_PROJECT_SPECS.find((spec) => {
+    const specStem = spec.path.toLowerCase().replace(/\.md$/i, '');
+    return spec.path.toLowerCase() === lower
+      || spec.id === stem
+      || specStem === stem
+      || spec.title.toLowerCase() === lower;
+  });
+}
+
+function extractSpecVersion(content: string): string | null {
+  const patterns = [
+    /Document Version:\s*([^\n]+)/i,
+    /Generated:\s*([^\n]+)/i,
+    /\*\*Date:\*\*\s*([^\n]+)/i,
+    /\*\*HEAD at last roadmap update:\*\*\s*`?([a-f0-9]{7,40})`?/i,
+  ];
+  for (const pattern of patterns) {
+    const match = content.match(pattern);
+    if (match) {
+      return match[1].trim().slice(0, 200);
+    }
+  }
+  return null;
+}
+
+function extractHeadings(content: string): string[] {
+  return content
+    .split('\n')
+    .filter((line) => /^#{1,3}\s+\S/.test(line))
+    .map((line) => line.replace(/^#+\s+/, '').trim())
+    .filter((line) => line.length > 0)
+    .slice(0, 20);
+}
+
+export function readProjectSpec(repoRoot: string, args: Record<string, unknown> = {}): ProjectSpecResult {
+  const available = listApprovedProjectSpecs(repoRoot);
+  const rawRequest = args.spec ?? args.path ?? args.name ?? args.filename ?? args.document ?? '';
+  const requested = rawRequest === undefined || rawRequest === null ? '' : String(rawRequest).trim();
+  const listRequested = args.list === true
+    || requested === ''
+    || requested.toLowerCase() === 'list'
+    || requested.toLowerCase() === 'catalog';
+
+  if (listRequested) {
+    const missing = available.filter((item) => !item.exists);
+    return emptySpecResult({
+      requested: requested || null,
+      listed: true,
+      available,
+      status: 'LIST',
+      verifiedFacts: available.filter((item) => item.exists).map((item) => ({
+        text: `Approved specification [${item.path}] is present.`,
+        sourcePath: item.path,
+        status: 'VERIFIED',
+      })),
+      missingInformation: missing.map((item) => ({
+        text: `Approved specification [${item.path}] is not on disk.`,
+        sourcePath: item.path,
+        status: 'MISSING',
+      })),
+    });
+  }
+
+  if (path.isAbsolute(requested) || requested.split(/[/\\]/).includes('..') || requested.includes('\0')) {
+    throw new Error('Absolute paths and parent-directory segments are not allowed.');
+  }
+
+  const normalized = requested.replace(/\\/g, '/').replace(/^\/+/, '');
+  if (isDeniedRepoPath(normalized) || /(^|\/)\.env/i.test(normalized)) {
+    throw new Error(`Access denied: path [${normalized}] is not readable by the Agent.`);
+  }
+
+  const resolved = resolveApprovedSpec(requested);
+  if (!resolved) {
+    throw new Error(`Specification [${requested}] is not on the approved specification allow-list.`);
+  }
+
+  const absolute = path.resolve(repoRoot, resolved.path);
+  const rootResolved = path.resolve(repoRoot);
+  if (absolute !== rootResolved && !absolute.startsWith(rootResolved + path.sep)) {
+    throw new Error('Access denied: path escapes the repository root.');
+  }
+
+  if (!fs.existsSync(absolute) || !fs.statSync(absolute).isFile()) {
+    return emptySpecResult({
+      requested,
+      listed: false,
+      sourcePath: resolved.path,
+      available,
+      status: 'MISSING',
+      missingInformation: [{
+        text: `Approved specification [${resolved.path}] was not found on disk.`,
+        sourcePath: resolved.path,
+        status: 'MISSING',
+      }],
+      unknownInformation: [{
+        text: 'Contents of the missing specification are UNKNOWN and must not be invented.',
+        sourcePath: resolved.path,
+        status: 'UNKNOWN',
+      }],
+      error: `Specification [${resolved.path}] was not found.`,
+    });
+  }
+
+  const raw = fs.readFileSync(absolute, 'utf8');
+  const content = raw.length > SPEC_MAX_CHARS ? raw.slice(0, SPEC_MAX_CHARS) : raw;
+  const headings = extractHeadings(content);
+  return emptySpecResult({
+    requested,
+    listed: false,
+    sourcePath: resolved.path,
+    available,
+    content,
+    relevantSections: headings,
+    verifiedFacts: [
+      {
+        text: `Read ${resolved.path} (${resolved.title}).`,
+        sourcePath: resolved.path,
+        status: 'VERIFIED',
+      },
+      ...headings.slice(0, 8).map((heading) => ({
+        text: `Section present: ${heading}`,
+        sourcePath: resolved.path,
+        status: 'VERIFIED' as const,
+      })),
+    ],
+    missingInformation: [],
+    unknownInformation: [{
+      text: 'Requirements not present in the returned excerpt are UNKNOWN and must not be invented.',
+      sourcePath: resolved.path,
+      status: 'UNKNOWN',
+    }],
+    specificationVersion: extractSpecVersion(content),
+    bytes: Buffer.byteLength(content),
+    status: 'VERIFIED',
+  });
 }
