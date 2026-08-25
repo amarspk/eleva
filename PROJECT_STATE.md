@@ -950,6 +950,8 @@ First real controlled write: `write_agent_note` after PLATFORM_OWNER approval, m
 
 **ELEVA AI Agent V1 Slice 8 — IMPLEMENTED** (feature SHA `11441ef9024d96dc19312086ed571ee92f258723`).
 
+**ELEVA Agent construction roadmap:** `AGENT_BUILD_ROADMAP.md` (created 2026-08-25). Numbered Slices are **not** the endpoint. Milestones M1–M9: M1–M4 `IN_PROGRESS` (partial); M5–M9 `NOT_STARTED`. Slice 11+ must not be invented. Next work requires an explicit named milestone gap — not another unplanned slice.
+
 **ELEVA AI Agent V1 Slice 10 — IMPLEMENTED** (feature SHA `9ceae5017c76152d25888db8cf178b4459620672`).
 Scope: `apply_approved_product_implementation` — after PLATFORM_OWNER approval, copy one verified+analyzed sandbox draft from `apps/api/src/agent/implementation/<slug>.ts` to the single allow-listed product file `packages/receipts/src/promoted-implementation.ts`. That file is in `@zayjar/receipts` (presentation labels/formatting package), is not exported from `packages/receipts/src/index.ts`, and is not imported by AgentModule or receipts runtime. Requires completed verify and analyze on the same slug. Rejects other targets (including Agent runtime files), traversal, forbidden content. Re-reads the target after write. `apply_patch` remains blocked. Slice 11 was **not** started.
 
