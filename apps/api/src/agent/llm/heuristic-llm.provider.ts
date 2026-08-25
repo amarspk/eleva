@@ -32,6 +32,19 @@ export class HeuristicLlmProvider implements AgentLlmProvider {
     const text = lastUser?.content ?? '';
     const language = detectReplyLanguage(text);
     const stateKnown = input.projectStateExcerpt.includes('# PROJECT STATE');
+    const decision = await this.plan(text, language, stateKnown);
+    return {
+      ...decision,
+      providerUsed: 'heuristic',
+      ollamaStatus: decision.ollamaStatus ?? 'HEURISTIC_FALLBACK',
+    };
+  }
+
+  private async plan(
+    text: string,
+    language: AgentReplyLanguage,
+    stateKnown: boolean,
+  ): Promise<AgentLlmDecision> {
 
     if (PRODUCT.test(text) && ADD.test(text)) {
       return {

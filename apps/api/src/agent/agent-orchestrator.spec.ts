@@ -77,6 +77,8 @@ describe('AgentOrchestrator — Slice 3', () => {
     expect(result.executed).toBe(false);
     expect(result.questions.length).toBeGreaterThan(0);
     expect(result.projectStateUsed).toBe(true);
+    expect(result.provider).toBe('heuristic');
+    expect(result.ollamaStatus).toBe('HEURISTIC_FALLBACK');
     expect(store.actions.filter((row) => row.status === 'EXECUTED')).toHaveLength(0);
   });
 

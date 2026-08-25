@@ -23,6 +23,9 @@ export interface AgentChatResult {
   executed: false;
   actionIds: string[];
   provider: string;
+  ollamaStatus?: string;
+  ollamaHost?: string;
+  ollamaModel?: string;
   projectStateUsed: true;
 }
 
@@ -124,7 +127,8 @@ export class AgentOrchestrator {
       data: { sessionId, role: 'ASSISTANT', content: assistant.slice(0, 8000) },
     });
 
-    this.logger.log(`Agent chat intent=${decision.intent} propose=${proposed} provider=${this.llm.name}`);
+    const providerUsed = decision.providerUsed || 'heuristic';
+    this.logger.log(`Agent chat intent=${decision.intent} propose=${proposed} provider=${providerUsed} ollama=${decision.ollamaStatus || 'HEURISTIC_FALLBACK'}`);
     return {
       sessionId,
       reply: assistant,
@@ -135,7 +139,10 @@ export class AgentOrchestrator {
       proposed,
       executed: false,
       actionIds,
-      provider: this.llm.name,
+      provider: providerUsed,
+      ollamaStatus: decision.ollamaStatus || 'HEURISTIC_FALLBACK',
+      ollamaHost: decision.ollamaHost,
+      ollamaModel: decision.ollamaModel,
       projectStateUsed: true,
     };
   }

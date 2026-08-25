@@ -1,6 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { extractJsonObject, parseLlmDecision } from './parse-llm-decision';
-import type { AgentLlmCompleteInput, AgentLlmDecision, AgentLlmProvider } from './agent-llm.types';
+import type {
+  AgentLlmCompleteInput,
+  AgentLlmDecision,
+  AgentLlmProvider,
+  OllamaRuntimeStatus,
+} from './agent-llm.types';
 import { HeuristicLlmProvider } from './heuristic-llm.provider';
 
 const SYSTEM_PROMPT = `You are the ELEVA platform-owner Agent planner (Slice 3).
@@ -20,6 +25,7 @@ Return ONLY JSON:
 /** Local Ollama defaults. Overridden by OLLAMA_HOST / OLLAMA_MODEL. Not secrets. */
 export const DEFAULT_OLLAMA_HOST = 'http://127.0.0.1:11434';
 export const DEFAULT_OLLAMA_MODEL = 'qwen3:8b';
+const OLLAMA_TIMEOUT_MS = 8_000;
 
 export function resolveOllamaConfig(
   env: NodeJS.ProcessEnv = process.env,
@@ -32,18 +38,131 @@ export function resolveOllamaConfig(
   };
 }
 
+export interface OllamaHealth {
+  status: OllamaRuntimeStatus;
+  host: string;
+  model: string;
+  models: string[];
+  reachable: boolean;
+  modelPresent: boolean;
+  error?: string;
+}
+
+function modelMatches(installed: string, wanted: string): boolean {
+  const a = installed.toLowerCase();
+  const b = wanted.toLowerCase();
+  return a === b || a.startsWith(`${b}:`) || b.startsWith(`${a}:`);
+}
+
+export async function probeOllama(
+  env: NodeJS.ProcessEnv = process.env,
+  fetchImpl: typeof fetch = fetch,
+): Promise<OllamaHealth> {
+  const { host, model } = resolveOllamaConfig(env);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), OLLAMA_TIMEOUT_MS);
+  try {
+    const response = await fetchImpl(`${host}/api/tags`, { method: 'GET', signal: controller.signal });
+    if (!response.ok) {
+      return {
+        status: 'OLLAMA_REQUEST_FAILED',
+        host,
+        model,
+        models: [],
+        reachable: true,
+        modelPresent: false,
+        error: `Ollama HTTP ${response.status} on /api/tags`,
+      };
+    }
+    const payload = await response.json() as { models?: Array<{ name?: string }> };
+    const models = (payload.models || []).map((item) => String(item.name || '')).filter(Boolean);
+    const modelPresent = models.some((name) => modelMatches(name, model));
+    if (!modelPresent) {
+      return {
+        status: 'OLLAMA_MODEL_MISSING',
+        host,
+        model,
+        models,
+        reachable: true,
+        modelPresent: false,
+        error: `Configured model [${model}] was not reported by Ollama.`,
+      };
+    }
+    return {
+      status: 'OLLAMA_AVAILABLE',
+      host,
+      model,
+      models,
+      reachable: true,
+      modelPresent: true,
+    };
+  } catch (error) {
+    return {
+      status: 'OLLAMA_UNAVAILABLE',
+      host,
+      model,
+      models: [],
+      reachable: false,
+      modelPresent: false,
+      error: (error as Error).message,
+    };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function withProviderMeta(
+  decision: AgentLlmDecision,
+  meta: {
+    providerUsed: 'ollama' | 'heuristic';
+    ollamaStatus: OllamaRuntimeStatus;
+    host: string;
+    model: string;
+    error?: string;
+  },
+): AgentLlmDecision {
+  return {
+    ...decision,
+    providerUsed: meta.providerUsed,
+    ollamaStatus: meta.ollamaStatus,
+    ollamaHost: meta.host,
+    ollamaModel: meta.model,
+    ollamaError: meta.error,
+  };
+}
+
 @Injectable()
 export class OllamaLlmProvider implements AgentLlmProvider {
   readonly name = 'ollama';
   private readonly logger = new Logger('OllamaLlmProvider');
   private readonly fallback = new HeuristicLlmProvider();
 
-  async complete(input: AgentLlmCompleteInput): Promise<AgentLlmDecision> {
+  async probe(env: NodeJS.ProcessEnv = process.env, fetchImpl: typeof fetch = fetch): Promise<OllamaHealth> {
+    return probeOllama(env, fetchImpl);
+  }
+
+  async complete(
+    input: AgentLlmCompleteInput,
+    fetchImpl: typeof fetch = fetch,
+  ): Promise<AgentLlmDecision> {
     const { host, model } = resolveOllamaConfig();
+    const health = await probeOllama(process.env, fetchImpl);
+    if (health.status !== 'OLLAMA_AVAILABLE') {
+      this.logger.warn(`Ollama ${health.status} (${health.error || 'not ready'}); using heuristic planner.`);
+      const fallback = await this.fallback.complete(input);
+      return withProviderMeta(fallback, {
+        providerUsed: 'heuristic',
+        ollamaStatus: health.status,
+        host,
+        model,
+        error: health.error,
+      });
+    }
+
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 8_000);
+    const timer = setTimeout(() => controller.abort(), OLLAMA_TIMEOUT_MS);
     try {
-      const response = await fetch(`${host}/api/chat`, {
+      const response = await fetchImpl(`${host}/api/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         signal: controller.signal,
@@ -70,10 +189,22 @@ export class OllamaLlmProvider implements AgentLlmProvider {
       if (!parsed.reply) {
         throw new Error('Ollama returned empty reply');
       }
-      return parsed;
+      return withProviderMeta(parsed, {
+        providerUsed: 'ollama',
+        ollamaStatus: 'OLLAMA_AVAILABLE',
+        host,
+        model,
+      });
     } catch (error) {
-      this.logger.warn(`Ollama unavailable (${(error as Error).message}); using heuristic planner.`);
-      return this.fallback.complete(input);
+      this.logger.warn(`Ollama request failed (${(error as Error).message}); using heuristic planner.`);
+      const fallback = await this.fallback.complete(input);
+      return withProviderMeta(fallback, {
+        providerUsed: 'heuristic',
+        ollamaStatus: 'OLLAMA_REQUEST_FAILED',
+        host,
+        model,
+        error: (error as Error).message,
+      });
     } finally {
       clearTimeout(timer);
     }

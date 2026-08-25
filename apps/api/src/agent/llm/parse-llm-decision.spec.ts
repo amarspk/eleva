@@ -25,5 +25,7 @@ describe('LLM decision sanitizer', () => {
     });
     expect(decision.language).toBe('mixed');
     expect(decision.safeTools).toEqual([{ tool: 'read_project_state', args: {} }]);
+    expect(decision.providerUsed).toBeUndefined();
+    expect(decision.ollamaStatus).toBeUndefined();
   });
 });

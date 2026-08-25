@@ -27,6 +27,14 @@ export interface AgentStructuredPlan {
   riskLevel?: 'low' | 'medium' | 'high';
 }
 
+export type AgentLlmProviderName = 'ollama' | 'heuristic';
+export type OllamaRuntimeStatus =
+  | 'OLLAMA_AVAILABLE'
+  | 'OLLAMA_UNAVAILABLE'
+  | 'OLLAMA_REQUEST_FAILED'
+  | 'OLLAMA_MODEL_MISSING'
+  | 'HEURISTIC_FALLBACK';
+
 export interface AgentLlmDecision {
   language: AgentReplyLanguage;
   intent: AgentIntent;
@@ -35,6 +43,12 @@ export interface AgentLlmDecision {
   safeTools: AgentLlmToolCall[];
   propose: boolean;
   plan?: AgentStructuredPlan;
+  /** Which planner actually produced this decision. Never spoofed from model JSON. */
+  providerUsed?: AgentLlmProviderName;
+  ollamaStatus?: OllamaRuntimeStatus;
+  ollamaHost?: string;
+  ollamaModel?: string;
+  ollamaError?: string;
 }
 
 export interface AgentLlmCompleteInput {
