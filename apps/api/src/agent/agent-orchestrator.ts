@@ -3,6 +3,7 @@ import { prisma } from '@zayjar/db';
 import { agentDb } from './agent-db';
 import { AgentService } from './agent.service';
 import { findRepoRoot, listApprovedProjectSpecs, readProjectState } from './agent-tools';
+import { formatMemoryExcerpt } from './agent-memory';
 import {
   AGENT_LLM_PROVIDER,
   ALLOWLISTED_SAFE_TOOLS,
@@ -58,6 +59,13 @@ export class AgentOrchestrator {
     const specCatalog = listApprovedProjectSpecs(repoRoot)
       .map((item) => `${item.path} (${item.exists ? 'VERIFIED present' : 'MISSING'})`)
       .join(', ');
+    let memoryExcerpt = 'PROJECT_MEMORY: (unavailable)';
+    try {
+      const rows = await this.agentService.listProjectMemory();
+      memoryExcerpt = formatMemoryExcerpt(rows);
+    } catch {
+      memoryExcerpt = 'PROJECT_MEMORY: (unavailable)';
+    }
     const history = ((session.messages as Array<{ role?: unknown; content?: unknown }>) || []).map((row) => ({
       role: String(row.role || 'user').toLowerCase() as AgentLlmMessage['role'],
       content: String(row.content || ''),
@@ -69,7 +77,7 @@ export class AgentOrchestrator {
 
     const decision = await this.llm.complete({
       messages,
-      projectStateExcerpt: `${projectState.content.slice(0, 18_000)}\n\nAPPROVED_SPECS (read_project_spec only): ${specCatalog}`,
+      projectStateExcerpt: `${projectState.content.slice(0, 16_000)}\n\nAPPROVED_SPECS (read_project_spec only): ${specCatalog}\n\n${memoryExcerpt}`,
       allowlistedSafeTools: ALLOWLISTED_SAFE_TOOLS,
     });
 

@@ -6,7 +6,7 @@ import { Badge, Button, EmptyState, ErrorBanner, LoadingRow } from './ui/Primiti
 import { ApiError } from '../lib/api-client';
 import { agentApi, type AgentAction, type AgentSession } from '../lib/resources';
 
-const SAFE_TOOLS = ['read_project_state', 'read_repo_file', 'git_status', 'git_log', 'read_project_spec'] as const;
+const SAFE_TOOLS = ['read_project_state', 'read_repo_file', 'git_status', 'git_log', 'read_project_spec', 'read_project_memory', 'remember_project_memory'] as const;
 
 function workflowLabel(action: AgentAction): string {
   const fromResult = action.result && typeof action.result === 'object'
@@ -207,7 +207,7 @@ export function ExecutiveOffice(): React.ReactElement {
                 aria-label="Plan summary"
               />
             ) : null}
-            {tool === 'write_agent_note' || tool === 'write_implementation_file' || tool === 'verify_implementation_file' || tool === 'analyze_implementation_file' || tool === 'apply_approved_implementation' || tool === 'apply_approved_product_implementation' ? (
+            {tool === 'write_agent_note' || tool === 'write_implementation_file' || tool === 'verify_implementation_file' || tool === 'analyze_implementation_file' || tool === 'apply_approved_implementation' || tool === 'apply_approved_product_implementation' || tool === 'read_project_memory' || tool === 'remember_project_memory' ? (
               <>
                 <input
                   className="rounded border px-2 py-1 text-sm"

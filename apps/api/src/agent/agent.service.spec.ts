@@ -16,11 +16,13 @@ const store: {
   actions: Array<Record<string, unknown>>;
   messages: unknown[];
   approvals: Array<Record<string, unknown>>;
+  memories: Array<Record<string, unknown>>;
 } = {
   session: null,
   actions: [],
   messages: [],
   approvals: [],
+  memories: [],
 };
 
 jest.mock('@zayjar/db', () => {
@@ -104,6 +106,21 @@ jest.mock('./agent-db', () => ({
         return row;
       },
     },
+    agentProjectMemory: {
+      findMany: async () => store.memories,
+      findUnique: async ({ where }: { where: { key: string } }) =>
+        store.memories.find((row) => row.key === where.key) || null,
+      upsert: async ({ where, create, update }: { where: { key: string }; create: Record<string, unknown>; update: Record<string, unknown> }) => {
+        const existing = store.memories.find((row) => row.key === where.key);
+        if (existing) {
+          Object.assign(existing, update);
+          return existing;
+        }
+        const row = { id: `dddddddd-dddd-4ddd-8ddd-${String(store.memories.length).padStart(12, '0')}`, ...create };
+        store.memories.push(row);
+        return row;
+      },
+    },
   }),
 }));
 
@@ -122,6 +139,7 @@ describe('AgentService — V1 Slice 2', () => {
     store.actions = [];
     store.messages = [];
     store.approvals = [];
+    store.memories = [];
     audit.log.mockClear();
     const module: TestingModule = await Test.createTestingModule({
       providers: [AgentService, { provide: AuditService, useValue: audit }],
@@ -559,6 +577,37 @@ describe('AgentService — V1 Slice 2', () => {
       fs.unlinkSync(draft);
     }
     fs.writeFileSync(path.join(findRepoRoot(), SLICE9_PROMOTION_TARGET), SLICE9_PROMOTION_PLACEHOLDER);
+  });
+
+  it('persists platform-scoped project memory across recalls', async () => {
+    const remembered = await service.invokeTool(sessionId, ownerId, 'remember_project_memory', {
+      key: 'm1-gap',
+      value: 'Ollama health probe is implemented.',
+      source: 'PROJECT_STATE.md',
+    });
+    expect(remembered.status).toBe('EXECUTED');
+    expect(remembered.result).toMatchObject({ scoped: 'platform', tenantId: null, persisted: true });
+    expect(store.memories).toHaveLength(1);
+    const recalled = await service.invokeTool(sessionId, ownerId, 'read_project_memory', {});
+    expect(recalled.status).toBe('EXECUTED');
+    expect(JSON.stringify(recalled.result)).toContain('Ollama health probe is implemented.');
+    expect(audit.log.mock.calls.every((call) => call[0].tenantId === null)).toBe(true);
+  });
+
+  it('rejects secret and tenant-data memory payloads', async () => {
+    const secret = await service.invokeTool(sessionId, ownerId, 'remember_project_memory', {
+      key: 'api-secret',
+      value: 'not a secret',
+      source: 'owner',
+    });
+    expect(secret.status).toBe('FAILED');
+    const tenant = await service.invokeTool(sessionId, ownerId, 'remember_project_memory', {
+      key: 'ok-fact',
+      value: 'customerId abc',
+      source: 'owner',
+    });
+    expect(tenant.status).toBe('FAILED');
+    expect(store.memories).toHaveLength(0);
   });
 
   it('does not apply a product implementation draft until approved', async () => {

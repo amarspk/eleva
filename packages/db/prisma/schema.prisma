@@ -229,6 +229,7 @@ model User {
   sessionLogs  SessionLog[]
   agentSessions AgentSession[]
   agentApprovals AgentApproval[]
+  agentProjectMemories AgentProjectMemory[]
 
   @@unique([email, tenantId], map: "idx_users_email_tenant")
   @@index([tenantId], map: "idx_users_tenant_id")
@@ -1105,5 +1106,23 @@ model AgentApproval {
 
   @@index([actionId], map: "idx_agent_approvals_action")
   @@map("agent_approvals")
+}
+
+/// Platform-owned Agent facts that survive across sessions (M1 memory).
+/// No tenantId. Unscoped. Not restaurant/order/customer data.
+model AgentProjectMemory {
+  id              String   @id @default(uuid()) @db.Uuid
+  key             String   @unique @db.VarChar(80)
+  value           String   @db.Text
+  source          String   @db.VarChar(200)
+  status          String   @default("VERIFIED") @db.VarChar(20)
+  updatedByUserId String   @db.Uuid
+  createdAt       DateTime @default(now()) @db.Timestamptz
+  updatedAt       DateTime @updatedAt @db.Timestamptz
+
+  updatedBy User @relation(fields: [updatedByUserId], references: [id], onDelete: Restrict)
+
+  @@index([updatedAt], map: "idx_agent_project_memory_updated")
+  @@map("agent_project_memory")
 }
 

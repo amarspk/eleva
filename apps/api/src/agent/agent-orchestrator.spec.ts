@@ -45,6 +45,9 @@ jest.mock('./agent-db', () => ({
         return row;
       },
     },
+    agentProjectMemory: {
+      findMany: async () => [],
+    },
   }),
 }));
 

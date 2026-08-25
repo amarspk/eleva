@@ -20,6 +20,11 @@ export interface AgentDelegates {
   agentApproval: {
     create: (args: unknown) => Promise<Record<string, unknown>>;
   };
+  agentProjectMemory: {
+    findMany: (args: unknown) => Promise<Array<Record<string, unknown>>>;
+    findUnique: (args: unknown) => Promise<Record<string, unknown> | null>;
+    upsert: (args: unknown) => Promise<Record<string, unknown>>;
+  };
 }
 
 export function agentDb(client: unknown): AgentDelegates {

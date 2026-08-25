@@ -26,6 +26,7 @@ import {
   type AgentWorkflowState,
 } from './agent-workflow';
 import { ControlledAgentExecutor, isControlledAgentTool } from './agent-executor';
+import { formatMemoryExcerpt, parseMemoryKey, parseMemorySource, parseMemoryValue } from './agent-memory';
 
 export interface AgentInvokeResult {
   sessionId: string;
@@ -141,7 +142,7 @@ export class AgentService {
     let result: unknown;
     let status: 'EXECUTED' | 'FAILED' = 'EXECUTED';
     try {
-      result = this.executeSafeTool(tool, args ?? {});
+      result = await this.executeSafeTool(tool, args ?? {}, userId);
     } catch (err) {
       status = 'FAILED';
       result = { error: (err as Error).message };
@@ -533,7 +534,14 @@ export class AgentService {
     });
   }
 
-  private executeSafeTool(tool: string, args: Record<string, unknown>): unknown {
+  async listProjectMemory(): Promise<Array<Record<string, unknown>>> {
+    return agentDb(prisma).agentProjectMemory.findMany({
+      orderBy: { updatedAt: 'desc' },
+      take: 30,
+    });
+  }
+
+  private async executeSafeTool(tool: string, args: Record<string, unknown>, userId: string): Promise<unknown> {
     const repoRoot = findRepoRoot();
     switch (tool) {
       case 'read_project_state':
@@ -546,6 +554,47 @@ export class AgentService {
         return gitStatus(repoRoot);
       case 'git_log':
         return gitLog(repoRoot, Number(args.limit ?? 10));
+      case 'read_project_memory': {
+        const key = args.key ? parseMemoryKey(args.key) : '';
+        if (key) {
+          const row = await agentDb(prisma).agentProjectMemory.findUnique({ where: { key } });
+          return {
+            tool: 'read_project_memory',
+            scoped: 'platform',
+            tenantId: null,
+            found: Boolean(row),
+            entry: row,
+            excerpt: formatMemoryExcerpt(row ? [row] : []),
+          };
+        }
+        const rows = await this.listProjectMemory();
+        return {
+          tool: 'read_project_memory',
+          scoped: 'platform',
+          tenantId: null,
+          count: rows.length,
+          entries: rows,
+          excerpt: formatMemoryExcerpt(rows),
+        };
+      }
+      case 'remember_project_memory': {
+        const key = parseMemoryKey(args.key ?? args.name);
+        const value = parseMemoryValue(args.value ?? args.body ?? args.content);
+        const source = parseMemorySource(args.source);
+        const status = source === 'owner' || source === 'chat' ? 'OWNER' : 'VERIFIED';
+        const row = await agentDb(prisma).agentProjectMemory.upsert({
+          where: { key },
+          create: { key, value, source, status, updatedByUserId: userId },
+          update: { value, source, status, updatedByUserId: userId },
+        });
+        return {
+          tool: 'remember_project_memory',
+          scoped: 'platform',
+          tenantId: null,
+          persisted: true,
+          entry: row,
+        };
+      }
       default:
         throw new BadRequestException(`Tool [${tool}] is not a V1 SAFE Agent tool.`);
     }

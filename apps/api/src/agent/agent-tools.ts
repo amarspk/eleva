@@ -8,6 +8,8 @@ export const SAFE_AGENT_TOOLS = [
   'git_status',
   'git_log',
   'read_project_spec',
+  'read_project_memory',
+  'remember_project_memory',
 ] as const;
 export type SafeAgentTool = (typeof SAFE_AGENT_TOOLS)[number];
 
