@@ -1,14 +1,10 @@
 # ELEVA Agent — Build Roadmap
 
-> Single source of truth for **construction milestones**.  
-> `PROJECT_STATE.md` remains the engineering state document.  
+> Single source of truth for **construction milestones**.
+> `PROJECT_STATE.md` remains the engineering state document.
 > This file tracks **M1–M9 only**. Numbered Slices 1–10 are historical increments; they are **not** the endpoint.
 
-**Branch:** `arena/01a01767-eleva`  
-**HEAD at last roadmap update:** `b4224c072d6f335f055b717d3736946730c9534b`  
-**Date:** 2026-08-25 (Asia/Dubai)
-
-**Critical rule:** Do **not** invent Slice 11+ or treat “another slice” as progress. Advance **only** a named milestone after its Definition of Done is verified.
+**Critical rule:** Do **not** invent Slice 11+ or treat “another slice” as progress. Advance only a named milestone after its Definition of Done is verified.
 
 ---
 
@@ -115,49 +111,166 @@ Allow-listed write sinks today:
 
 ---
 
-## Verification last recorded (Slice 10, this session)
+## Agency Agents Research — Incorporated Reference Patterns
+
+Research source: `msitarzewski/agency-agents`, reviewed from its current README and representative Engineering/Product/Testing agent definitions. The repository presents specialized agents as reusable role/workflow definitions rather than as ELEVA's runtime. It documents agent identity/personality, core mission, critical rules, technical deliverables, workflows and success metrics, and supports multiple coding-agent integrations. citeturn0search0turn327file0turn328file0turn329file0turn330file0turn331file0turn332file0
+
+### Patterns ELEVA should preserve
+
+1. **Specialized internal capabilities, one central security boundary**
+   - Backend Architect
+   - AI Engineer
+   - DevOps Automator
+   - Code Reviewer
+   - Database Optimizer
+   - Git Workflow Master
+   - SRE / reliability
+   - Product Manager
+   - Project Manager / orchestration
+   - Reality Checker / release certification
+   - Test Results Analyzer / API Tester / Performance / Accessibility QA
+   - Analytics / Operations / Executive reporting
+   
+   These are internal capabilities of the central ELEVA Agent, not independently privileged agents.
+
+2. **Structured capability definitions**
+   Each internal capability should eventually have:
+   - identity / role
+   - purpose
+   - allowed tools
+   - forbidden tools
+   - context and memory rules
+   - workflow
+   - deliverables
+   - verification gates
+   - success metrics
+   - communication style
+
+3. **Deliverable-focused behavior**
+   The Agent should produce concrete artifacts/results, not generic advice:
+   - architecture assessment
+   - implementation plan
+   - code changes/diff
+   - test report
+   - security finding
+   - PR review
+   - CI result
+   - release certification
+   - analytics report
+   - executive summary
+
+4. **Evidence-first release and verification**
+   Adapt the Reality Checker principle:
+   - never certify production readiness from the Agent's own claim alone
+   - cross-check claims against actual files, tests, CI, Git state and UI evidence where relevant
+   - default to `NEEDS_WORK` / `FAILED` until required evidence exists
+   - compare specifications against actual implementation
+   - validate complete user journeys for product/UI work
+
+5. **Engineering review gates**
+   Use the Code Reviewer dimensions as a standard engineering review:
+   - correctness
+   - security
+   - maintainability
+   - performance
+   - testing
+   
+   Findings should be prioritized and explained, with style preferences kept secondary to correctness and automated linting.
+
+6. **Architecture discipline**
+   Adapt only the principles that fit ELEVA:
+   - use the simplest architecture that meets current/near-term scale
+   - explicit API contracts and compatibility rules
+   - timeout/retry/idempotency semantics for external calls
+   - rate limiting and failure isolation
+   - backup/disaster-recovery planning
+   - structured logging, metrics, tracing and SLOs
+   - least privilege
+   - authentication/authorization by design
+   - safe schema evolution and rollback/reconciliation planning
+
+7. **DevOps discipline**
+   Preserve:
+   - reproducible automation
+   - CI/CD verification
+   - tests before deployment
+   - security scanning in pipelines
+   - monitoring/alerting
+   - rollback strategy
+   - backup/recovery automation
+   - environment separation
+   - auditability
+   
+   Production actions remain approval-gated under ELEVA policy.
+
+8. **Git discipline**
+   Preserve:
+   - atomic commits
+   - meaningful conventional commit messages
+   - meaningful branch names
+   - never force-push shared branches
+   - use `--force-with-lease` only when genuinely necessary and authorized
+   - verify CI before merge/release
+   - verify actual remote SHA after push
+
+9. **Product/project discipline**
+   Preserve:
+   - start from the problem, not only the requested solution
+   - make trade-offs explicit
+   - every roadmap item needs an owner, success metric and time horizon
+   - document non-goals
+   - validate before building and measure after shipping
+   - prevent silent scope creep
+   - communicate risks, delays and scope changes early
+
+10. **Central orchestration**
+   Target workflow:
+   `request → classify → gather evidence → select capability → plan → approval check → execute allowed tools → verify → audit → report`
+   
+   No internal capability may bypass the central permission/approval layer.
+
+### What we explicitly will NOT copy
+
+- We will not copy the repository wholesale into ELEVA.
+- We will not grant permissions merely because an Agency persona recommends an action.
+- We will not copy arbitrary example technologies (cloud vendors, databases, CI systems, etc.) without checking ELEVA's real architecture.
+- We will not treat Agency prompts as a security boundary.
+- We will not allow an Agency persona to bypass RBAC, tenant isolation, approval, audit, or tool allow-lists.
+
+## Verification last recorded (Slice 10, historical Agent work)
 
 - Agent Jest: **8 suites / 88 passed** (not full `pnpm test`)
 - Executive Office: **3/3**
 - ESLint on touched Agent files: clean
-- Agent-path API `tsc`: 0 errors (repo-wide API `tsc` still has **pre-existing** Prisma-client errors locally)
+- Agent-path API `tsc`: 0 errors (repo-wide API `tsc` still had **pre-existing** Prisma-client errors locally at that time)
 - Full `pnpm test` / e2e-live / named CI: **not claimed**
 
-**Blockers (environment / ops, not coding tasks unless CTO names them):**
-- Live SendGrid click-through
-- Local Prisma generate TLS
-- Job 2 `pnpm test` pre-existing FAIL
-- Sandbox cannot reach host Ollama
-- RS256 vs HS256 deferred S0-T01
+## Current project-state authority
 
----
+The current engineering HEAD and active product state must always be taken from `PROJECT_STATE.md`, not from this roadmap's historical SHA notes. If the two documents disagree, inspect the repository and reconcile the roadmap before making a decision.
 
 ## Exact next work
 
-**Do not start Slice 11.**  
-**Do not start M5–M9.**  
-**Do not weaken security to “finish” a milestone.**
+Do not invent Slice 11+.
 
-**Next named milestone:** continue **M1** and **M4** only after explicit CTO authorization of a **named gap**, for example:
+Continue only an explicitly named milestone gap after CTO authorization. Priority order remains:
 
-1. M1 — verified live Ollama path **or** documented permanent heuristic-only mode  
-2. M1 — specification/context loader that does not invent state  
-3. M4 — one additional **named**, non-sensitive, allow-listed engineering action (not arbitrary `apply_patch`)  
-4. M2 — read-only test/lint/build **inspection** tools (report only; no deploy)
-
-Until the owner names one of those (or another explicit task), **stop**.
-
----
+1. M1 — verified project context/spec loader and durable Agent memory
+2. M2 — read-only test/lint/build/branch inspection tools
+3. M4 — controlled real engineering change with verification
+4. M5 — GitHub engineering loop
+5. M6–M8 — security/DevOps, operations, analytics
+6. M9 — final end-to-end ELEVA Agent
 
 ## Memory rule
 
 On every completed Slice or milestone:
 
-1. Update this file  
-2. Update `PROJECT_STATE.md`  
-3. Record commit SHA  
-4. Record verification actually run  
-5. Record blockers  
-6. State the exact next milestone  
+1. Update this file
+2. Update `PROJECT_STATE.md`
+3. Record commit SHA
+4. Record verification actually run
+5. Record blockers
+6. State the exact next milestone
 
 Never rely on chat history alone.
