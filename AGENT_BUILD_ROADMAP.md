@@ -5,7 +5,7 @@
 > This file tracks **M1–M9 only**. Numbered Slices 1–10 are historical increments; they are **not** the endpoint.
 
 **Branch:** `arena/01a01767-eleva`  
-**HEAD at last roadmap update:** `b4224c072d6f335f055b717d3736946730c9534b`  
+**HEAD at last roadmap update:** `3c243958a29da2d3840fc98afef1935684fed545`  
 **Date:** 2026-08-25 (Asia/Dubai)
 
 **Critical rule:** Do **not** invent Slice 11+ or treat “another slice” as progress. Advance **only** a named milestone after its Definition of Done is verified.
@@ -16,7 +16,7 @@
 
 | Milestone | Status | Started | Completed | Verification | Notes |
 |---|---|---|---|---|---|
-| M1 Agent Core | IN_PROGRESS | 2026-08-24 (Slice 1–3) | — | Partial (see below) | PROJECT_STATE + chat + Ollama abstraction exist. Live Ollama from this sandbox = **NO**. No dedicated long-term project memory store beyond session messages. |
+| M1 Agent Core | IN_PROGRESS | 2026-08-24 (Slice 1–3) | — | Partial (see below) | Spec/context loader (`read_project_spec`) added 2026-08-25 (`3c24395`). Live Ollama from this sandbox = **NO**. No dedicated long-term project memory store beyond session messages. |
 | M2 Tool System | IN_PROGRESS | 2026-08-24 (Slice 1) | — | Partial | SAFE inspect: `read_project_state`, `read_repo_file`, `git_status`, `git_log`. **No** agent tools for test/lint/build or git branches. |
 | M3 Security/Approval | IN_PROGRESS | 2026-08-24 (Slice 2–4) | — | Partial | PLATFORM_OWNER + `agent:read/create/update`, approval/reject, AuditService, plan binding. Sensitive tools **blocked after approve**. Tenant restaurant data not in V1 Agent. |
 | M4 Engineering Agent | IN_PROGRESS | 2026-08-24 (Slice 4–10) | — | Partial | Plan + sandbox write + verify + analyze + **two allow-listed copy sinks**. **Cannot** arbitrarily modify product code. **No** agent-run test/lint/build/diff tools. |
@@ -56,11 +56,11 @@ Existing Slices 1–10 stay in history. Completing a Slice does **not** complete
 ### M1 — Agent Core
 **Required:** project context, PROJECT_STATE awareness, spec/context loading, conversation/project memory, Ollama provider, structured responses, no invented project state.
 
-**Present:** `read_project_state`; chat; Ollama provider + heuristic fallback; orchestrator must read PROJECT_STATE.
+**Present:** `read_project_state`; **`read_project_spec`** (allow-listed official specs, VERIFIED/MISSING/UNKNOWN); chat; Ollama provider + heuristic fallback; orchestrator reads PROJECT_STATE and injects the approved-spec catalog.
 
 **Missing / unverified:**
 - Live Ollama from this sandbox: **NO** (defaults `OLLAMA_HOST=http://127.0.0.1:11434`, `OLLAMA_MODEL=qwen3:8b`; host not reachable).
-- Broad specification/context loading (DOC-001…010) is **not** a first-class Agent tool (only generic `read_repo_file` if the owner names a path).
+- Specification/context loader: **gap closed** (feature SHA `3c243958a29da2d3840fc98afef1935684fed545`).
 - Persistent project memory beyond `AgentSession` / `AgentMessage` rows: **not** implemented.
 
 **Status:** `IN_PROGRESS`.
@@ -101,7 +101,7 @@ Not started. Sensitive names (`deploy`, `run_migration`, `change_secrets`, `stri
 
 ## Current registry (fact)
 
-**SAFE:** `read_project_state`, `read_repo_file`, `git_status`, `git_log`
+**SAFE:** `read_project_state`, `read_project_spec`, `read_repo_file`, `git_status`, `git_log`
 
 **CONTROLLED (approval + allow-list):** `write_agent_note`, `write_implementation_file`, `verify_implementation_file`, `analyze_implementation_file`, `apply_approved_implementation`, `apply_approved_product_implementation`
 
@@ -115,13 +115,14 @@ Allow-listed write sinks today:
 
 ---
 
-## Verification last recorded (Slice 10, this session)
+## Verification last recorded (M1 spec loader, this session)
 
-- Agent Jest: **8 suites / 88 passed** (not full `pnpm test`)
+- Agent Jest: **8 suites / 95 passed** (not full `pnpm test`)
 - Executive Office: **3/3**
 - ESLint on touched Agent files: clean
-- Agent-path API `tsc`: 0 errors (repo-wide API `tsc` still has **pre-existing** Prisma-client errors locally)
+- Agent-path API `tsc`: 0 errors
 - Full `pnpm test` / e2e-live / named CI: **not claimed**
+- Feature SHA: `3c243958a29da2d3840fc98afef1935684fed545`
 
 **Blockers (environment / ops, not coding tasks unless CTO names them):**
 - Live SendGrid click-through
@@ -138,12 +139,9 @@ Allow-listed write sinks today:
 **Do not start M5–M9.**  
 **Do not weaken security to “finish” a milestone.**
 
-**Next named milestone:** continue **M1** and **M4** only after explicit CTO authorization of a **named gap**, for example:
+**Next named milestone / gap:** remaining **M1** — verified live Ollama path **or** documented permanent heuristic-only mode; then persistent project memory. Do **not** start M2–M9 or Slice 11 unless the CTO names that gap.
 
-1. M1 — verified live Ollama path **or** documented permanent heuristic-only mode  
-2. M1 — specification/context loader that does not invent state  
-3. M4 — one additional **named**, non-sensitive, allow-listed engineering action (not arbitrary `apply_patch`)  
-4. M2 — read-only test/lint/build **inspection** tools (report only; no deploy)
+Closed this turn: M1 specification/context loader.
 
 Until the owner names one of those (or another explicit task), **stop**.
 
