@@ -5,8 +5,8 @@
 > This file tracks **M1–M9 only**. Numbered Slices 1–10 are historical increments; they are **not** the endpoint.
 
 **Branch:** `arena/01a01767-eleva`  
-**HEAD at last roadmap update:** `c98a60ac00fd943b2722dd6158f3b87137f86d89`  
-**Date:** 2026-08-25 (Asia/Dubai)
+**HEAD at last roadmap update:** `d4e535672ac91144e83dbe4fd1b846d4ecaa2439` (pre-this-docs-commit)  
+**Date:** 2026-08-26 (Asia/Dubai)
 
 **Critical rule:** Do **not** invent Slice 11+ or treat “another slice” as progress. Advance **only** a named milestone after its Definition of Done is verified.
 
@@ -16,7 +16,7 @@
 
 | Milestone | Status | Started | Completed | Verification | Notes |
 |---|---|---|---|---|---|
-| M1 Agent Core | IN_PROGRESS | 2026-08-24 (Slice 1–3) | — | Partial (see below) | Spec loader + Ollama probe (`ee729bf`) + platform project memory (`c98a60a`). Live Ollama from Arena sandbox = **NO**. M1 DoD not fully VERIFIED (owner-host Ollama unproven). |
+| M1 Agent Core | IN_PROGRESS | 2026-08-24 (Slice 1–3) | — | Partial (see below) | Spec loader + Ollama probe (`ee729bf`) + platform project memory (`c98a60a`). Owner Windows Ollama independently verified 2026-08-26 (PowerShell, not Arena). Arena sandbox still cannot reach `127.0.0.1:11434`. Migration `20260826000000_agent_project_memory` **not applied** on production/live DB. |
 | M2 Tool System | IN_PROGRESS | 2026-08-24 (Slice 1) | — | Partial | SAFE inspect: `read_project_state`, `read_repo_file`, `git_status`, `git_log`. **No** agent tools for test/lint/build or git branches. |
 | M3 Security/Approval | IN_PROGRESS | 2026-08-24 (Slice 2–4) | — | Partial | PLATFORM_OWNER + `agent:read/create/update`, approval/reject, AuditService, plan binding. Sensitive tools **blocked after approve**. Tenant restaurant data not in V1 Agent. |
 | M4 Engineering Agent | IN_PROGRESS | 2026-08-24 (Slice 4–10) | — | Partial | Plan + sandbox write + verify + analyze + **two allow-listed copy sinks**. **Cannot** arbitrarily modify product code. **No** agent-run test/lint/build/diff tools. |
@@ -59,10 +59,11 @@ Existing Slices 1–10 stay in history. Completing a Slice does **not** complete
 **Present:** `read_project_state`; **`read_project_spec`** (allow-listed official specs, VERIFIED/MISSING/UNKNOWN); chat; Ollama provider + heuristic fallback; orchestrator reads PROJECT_STATE and injects the approved-spec catalog.
 
 **Missing / unverified:**
-- Live Ollama from this **Arena sandbox**: **NO** (`127.0.0.1:11434` not reachable here). That is **not** evidence the developer Windows machine cannot run Ollama. Config remains `OLLAMA_HOST=http://127.0.0.1:11434`, `OLLAMA_MODEL=qwen3:8b`.
-- Ollama provider health + honest fallback: **gap closed** (feature SHA `ee729bfaa43320541c1626576d9d9006e6286b8a`). Statuses: `OLLAMA_AVAILABLE` / `OLLAMA_UNAVAILABLE` / `OLLAMA_MODEL_MISSING` / `OLLAMA_REQUEST_FAILED` / `HEURISTIC_FALLBACK`. Chat `provider` is the planner that actually answered.
+- Live Ollama from this **Arena sandbox**: still **NO** (`127.0.0.1:11434` connection refused here). That does **not** contradict the owner Windows verification below. Config remains `OLLAMA_HOST=http://127.0.0.1:11434`, `OLLAMA_MODEL=qwen3:8b`.
+- **Owner Windows Ollama (independent PowerShell, 2026-08-26, not Arena):** `GET http://127.0.0.1:11434/api/tags` succeeded. Reported: `qwen3:8b` exists; family `qwen3`; parameter_size `8.2B`; quantization_level `Q4_K_M`; capabilities `completion`, `tools`, `thinking`. Arena did **not** re-run those commands.
+- Ollama provider health + honest fallback: **in-repo gap closed** (feature SHA `ee729bfaa43320541c1626576d9d9006e6286b8a`). Statuses: `OLLAMA_AVAILABLE` / `OLLAMA_UNAVAILABLE` / `OLLAMA_MODEL_MISSING` / `OLLAMA_REQUEST_FAILED` / `HEURISTIC_FALLBACK`. Chat `provider` is the planner that actually answered. A live Agent chat on Windows that returns `provider: ollama` was **not** recorded here.
 - Specification/context loader: **gap closed** (`3c24395`).
-- Persistent project memory beyond `AgentSession` / `AgentMessage` rows: **gap closed** (feature SHA `c98a60ac00fd943b2722dd6158f3b87137f86d89`) — table `agent_project_memory`, SAFE `read_project_memory` / `remember_project_memory`, loaded on chat. Platform-scoped (`tenantId` null). Secrets and tenant identifiers rejected. Live migrate on production DB: **not run in this sandbox**.
+- Persistent project memory beyond `AgentSession` / `AgentMessage` rows: **in-repo gap closed** (feature SHA `c98a60ac00fd943b2722dd6158f3b87137f86d89`) — table `agent_project_memory`, SAFE `read_project_memory` / `remember_project_memory`, loaded on chat. Platform-scoped (`tenantId` null). Secrets and tenant identifiers rejected. Live migrate `20260826000000_agent_project_memory` on production/live DB: **UNVERIFIED — not run**.
 
 **Status:** `IN_PROGRESS`.
 
@@ -102,7 +103,7 @@ Not started. Sensitive names (`deploy`, `run_migration`, `change_secrets`, `stri
 
 ## Current registry (fact)
 
-**SAFE:** `read_project_state`, `read_project_spec`, `read_repo_file`, `git_status`, `git_log`
+**SAFE:** `read_project_state`, `read_project_spec`, `read_project_memory`, `remember_project_memory`, `read_repo_file`, `git_status`, `git_log`
 
 **CONTROLLED (approval + allow-list):** `write_agent_note`, `write_implementation_file`, `verify_implementation_file`, `analyze_implementation_file`, `apply_approved_implementation`, `apply_approved_product_implementation`
 
@@ -131,7 +132,8 @@ Allow-listed write sinks today:
 - Agent-path API `tsc`: 0 errors
 - Full `pnpm test` / e2e-live / named CI: **not claimed**
 - Feature SHA: `ee729bfaa43320541c1626576d9d9006e6286b8a`
-- Sandbox live Ollama: **UNAVAILABLE** (fetch failed) — expected in Arena; local Windows Ollama is a separate environment.
+- Sandbox live Ollama: **UNAVAILABLE** (fetch failed) — expected in Arena.
+- **Owner Windows Ollama (PowerShell, 2026-08-26, not Arena):** `GET http://127.0.0.1:11434/api/tags` succeeded; `qwen3:8b` present (family qwen3, 8.2B, Q4_K_M, capabilities completion/tools/thinking).
 
 **Blockers (environment / ops, not coding tasks unless CTO names them):**
 - Live SendGrid click-through
@@ -148,9 +150,9 @@ Allow-listed write sinks today:
 **Do not start M5–M9.**  
 **Do not weaken security to “finish” a milestone.**
 
-**Next named work:** M1 is still `IN_PROGRESS` (owner-host Ollama live click-through unverified). Do **not** start M2–M9 or Slice 11 unless the CTO names that gap.
+**Next named work:** M1 remains `IN_PROGRESS` because live apply of migration `20260826000000_agent_project_memory` is **UNVERIFIED**. Do **not** start M2–M9 or Slice 11. Do **not** run that migration unless the CTO explicitly authorizes it.
 
-Closed this turn: M1 persistent project memory.
+Closed this turn: record owner Windows Ollama PowerShell evidence; no code or migrate.
 
 Until the owner names one of those (or another explicit task), **stop**.
 
