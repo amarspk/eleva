@@ -23,6 +23,7 @@ import { PaymentModule } from './payment/payment.module';
 import { MediaModule } from './media/media.module';
 import { UserModule } from './user/user.module';
 import { AuditInterceptor } from './audit/audit.interceptor';
+import { ElevaModule } from './eleva/eleva.module';
 import { TenantContextMiddleware } from './common/middleware/tenant-context.middleware';
 import { CsrfModule } from './common/csrf/csrf.module';
 import { CsrfGuard } from './common/csrf/csrf.guard';
@@ -32,7 +33,7 @@ import { CorrelationIdMiddleware } from './common/logging/correlation-id.middlew
 import { HttpLoggingMiddleware } from './common/logging/http-logging.middleware';
 
 @Module({
-  imports: [EventEmitterModule.forRoot(), CacheModule, LoggingModule, HealthModule, CsrfModule, SanitizationModule, AuthModule, TenantModule, BranchModule, MenuModule, RestaurantModule, OrderModule, KdsModule, CustomerModule, BillingModule, AdminModule, AssetModule, WebhookModule, DeviceTokenModule, SubscriptionModule, AuditModule, PaymentModule, MediaModule, UserModule],
+  imports: [EventEmitterModule.forRoot(), CacheModule, LoggingModule, HealthModule, CsrfModule, SanitizationModule, AuthModule, TenantModule, BranchModule, MenuModule, RestaurantModule, OrderModule, KdsModule, CustomerModule, BillingModule, AdminModule, AssetModule, WebhookModule, DeviceTokenModule, SubscriptionModule, AuditModule, PaymentModule, MediaModule, UserModule, ElevaModule],
   providers: [
     {
       provide: APP_INTERCEPTOR,

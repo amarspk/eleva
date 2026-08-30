@@ -62,6 +62,21 @@ describe('RbacPermissionGuard Unit & ABAC Tests', () => {
     expect(ability.can('delete', 'Product')).toBe(true);
   });
 
+  it('should map agent:read permission to read on Agent subject', () => {
+    const user = {
+      id: 'agent-user-1',
+      email: 'agent@zayjar.com',
+      tenantId: 't1',
+      roles: ['RESTAURANT_OWNER'],
+      permissions: ['agent:read'],
+    };
+
+    const ability = factory.createForUser(user);
+
+    expect(ability.can('read', 'Agent')).toBe(true);
+    expect(ability.can('update', 'Agent')).toBe(false);
+  });
+
   // ==========================================
   // ABAC Tests: Cashier
   // ==========================================

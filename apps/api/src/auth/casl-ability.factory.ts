@@ -26,6 +26,7 @@ export type Subjects =
   // `/restaurants/:id` looked the restaurant id up in the BRANCHES table and
   // returned 404 for a valid brand (runtime-proven).
   | 'Restaurant'
+  | 'Agent'
   | 'all';
 
 export type AppAbility = MongoAbility<[Action, Subjects]>;

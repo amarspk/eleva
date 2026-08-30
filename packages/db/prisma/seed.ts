@@ -239,6 +239,10 @@ async function main(): Promise<void> {
     // restaurantId, but nothing exposed one (GET /api/v1/restaurants was a hard
     // 404). Mirrored by migration 20260804020000_restaurant_read_permission.
     { id: 'e639eecc-9662-4413-b0fa-7268801aca3f', action: 'read', resource: 'restaurant', description: 'View restaurant brands' },
+    // ELEVA Agent read-only endpoints permission. Mirrors the existing
+    // `read:agent` permission added to `scripts/seed-permissions.js` and
+    // used by `AgentController` via `@RequirePermission('read', 'Agent')`.
+    { id: 'f6262c6c-e4f3-f4fa-9da1-a0d2419f4247', action: 'read', resource: 'agent', description: 'View ELEVA Agent status and capabilities' },
   ];
 
   const permissions = await Promise.all(
