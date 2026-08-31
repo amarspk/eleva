@@ -429,11 +429,178 @@ Do NOT implement:
 - Autonomous unrestricted web browsing
 - Fake web search
 - Fake database infrastructure
+|- New authentication system
+|- New permission system
+|- Replacement of JWT/RBAC/CASL
+|- Replacement of M2 approval/execution
+|- Full ELEVA Dashboard
+|- Full voice system
+|- Full presentation application
+|- Domain-specific agents
+
+## 8. M5 — ELEVA Executive Office, Conversational Agent & Interaction Foundation
+
+**Milestone:** ELEVA M5 — ELEVA Executive Office, Conversational Agent & Interaction Foundation
+**Status:** Specification complete; implementation pending.
+**Depends on:** M1 (foundation/state/permissions/audit), M2 (execution foundation), M3 (intelligence, analysis, planning & advisory foundation), and M4 (research, evidence & project context foundation).
+
+M5 establishes ELEVA as an executive AI assistant with a persistent interactive office experience, rather than a simple chatbot. M5 does not change M1, M2, M3, or M4 behavior; it adds the presentation, persona, voice, conversation, memory, and controlled interaction layers on top of the existing foundation.
+
+### 8.1 ELEVA Executive Office
+
+ELEVA must provide a dedicated Executive Office experience.
+
+**Requirements:**
+- The office is a distinct, dedicated environment for interacting with ELEVA.
+- The office is separate from the Platform Owner administrative dashboard.
+- The office is the primary environment for interacting with ELEVA.
+- The office is an extensible interactive experience, not merely a static background.
+
+**Non-goals:**
+- Not a replacement for the Platform Owner administrative dashboard.
+- Not a static UI-only chatbot shell.
+
+### 8.2 ELEVA Persona / Avatar
+
+ELEVA is represented as a female AI executive assistant/avatar.
+
+**Requirements:**
+- Define the avatar/persona as an interaction layer.
+- The persona must not imply human identity.
+- The persona must not fabricate real-world personal attributes.
+
+**Non-goals:**
+- Do not implement a full avatar engine in this milestone.
+
+### 8.3 Conversational Interaction
+
+ELEVA must support natural multi-turn conversation with candid advisory behavior.
+
+**Requirements:**
+- Support natural multi-turn conversation.
+- ELEVA must be able to disagree with the user when analysis indicates a problem.
+- ELEVA must explain why it disagrees.
+- ELEVA must provide alternatives and recommendations instead of blindly agreeing.
+- ELEVA must distinguish facts, evidence, assumptions, recommendations, and unknowns.
+
+### 8.4 Contextual Conversation
+
+Integrate M3 advisory capabilities with M4 research/context capabilities.
+
+**Requirements:**
+- Conversations must preserve relevant project context.
+- ELEVA must not invent project facts.
+- Missing context must be surfaced as unknown/unverified.
+
+### 8.5 Voice Interaction Foundation
+
+Define a voice interaction architecture for hands-free conversational interaction.
+
+**Requirements:**
+- Support the concept of wake-word activation such as "ELEVA" / "Hey ELEVA".
+- The intended UX is hands-free conversational interaction rather than requiring the user to press a record button for every utterance.
+- Define listening, thinking, speaking, stopped/muted, and wake states.
+
+**Non-goals:**
+- Do not invent or build a full external voice provider/platform if none exists in the repository.
+- Voice provider integration remains an architectural boundary unless existing infrastructure supports it.
+
+### 8.6 Research → Analysis → Advice Flow
+
+ELEVA must recognize when a request requires research and produce grounded advice.
+
+**Requirements:**
+- ELEVA should be able to recognize when a request requires research.
+- Use M4 evidence/context capabilities.
+- Pass research results into M3 analysis/advisory capabilities.
+- Produce an explainable recommendation.
+- Never fabricate research, sources, metrics, or project facts.
+
+### 8.7 Presentation Foundation
+
+ELEVA must be able to transform an analysis/recommendation into a structured presentation payload.
+
+**Requirements:**
+- Presentation sections may include: problem, context, evidence, options, comparison, risks, recommendation, decision, and implementation plan.
+
+**Non-goals:**
+- Do not build a complete presentation application in M5.
+
+### 8.8 Visual Explanation Foundation
+
+Define contracts for visual explanations derived from analysis.
+
+**Requirements:**
+- Define contracts for diagrams, workflows, comparisons, charts, and other visual explanations.
+- Visual explanations must be derived from available evidence/analysis.
+- Do not fabricate visual data.
+
+### 8.9 Controlled Application Interaction
+
+ELEVA may interpret requests to modify the application, subject to existing controls.
+
+**Requirements:**
+- ELEVA may interpret requests to modify the application.
+- Such requests must flow through the existing M2 execution/authorization model.
+- ELEVA must not bypass JWT/RBAC/CASL/approval controls.
+- High-risk or consequential actions require the appropriate approval.
+
+**Non-goals:**
+- M5 must not introduce a replacement permission system.
+
+### 8.10 ELEVA Memory Foundation
+
+Define a persistent memory architecture for ELEVA without implementing a fake database.
+
+**Requirements:**
+- Memory must be separate from model training or retraining.
+- Memory categories should include, where appropriate:
+  - a. Project context
+  - b. User preferences
+  - c. Project goals
+  - d. Decisions
+  - e. Decision rationale
+  - f. Rejected alternatives
+  - g. Important conversation context
+  - h. Explicit user instructions
+  - i. Relevant verified project facts
+- Memory entries must have provenance/evidence metadata where applicable.
+
+### 8.11 M5 Non-Goals
+
+Do NOT implement:
+
+- Accounting capability
+- Security capability
+- Development capability
+- Backup capability
+- Analytics capability
+- Memory/self-improvement
+- Autonomous self-modification
+- Model training/retraining
+- Autonomous unrestricted web browsing
+- Fake web search
+- Fake database infrastructure
 - New authentication system
 - New permission system
 - Replacement of JWT/RBAC/CASL
-- Replacement of M2 approval/execution
+- Replacement of M1/M2 approval/execution
 - Full ELEVA Dashboard
 - Full voice system
 - Full presentation application
 - Domain-specific agents
+
+### 8.12 Verification Criteria
+
+M5 is considered complete when:
+
+- The Executive Office experience is present and distinct from the Platform Owner administrative dashboard.
+- Conversational interaction supports multi-turn dialogue and can disagree with explanations and alternatives.
+- Voice interaction foundation defines wake-word UX and the required states without inventing unavailable voice infrastructure.
+- Research/analysis/advice flow consumes M4 evidence and M3 advisory structures without fabricating facts.
+- Presentation payloads include the required structured sections.
+- Visual explanation contracts are defined and bound to evidence/analysis.
+- Controlled application interaction requests flow through the existing M2 authorization model.
+- Memory architecture is defined with categories and provenance metadata.
+- No fake database, new auth system, new permission system, or replacement of existing controls is introduced.
+- Static gates for touched surfaces pass: TypeScript, ESLint, Jest, build.

@@ -19,6 +19,8 @@ export class ElevaService {
   private state: AgentState = {
     status: AgentStatus.IDLE,
     activeCapability: null,
+    persona: 'ELEVA',
+    officeContext: 'Executive Office',
     updatedAt: new Date(),
   };
 
@@ -41,7 +43,7 @@ export class ElevaService {
 
   setStatus(status: AgentStatus, activeCapability: AgentCapability | null = null): AgentState {
     const previous = this.state.status;
-    this.state = { status, activeCapability, updatedAt: new Date() };
+    this.state = { status, activeCapability, persona: this.state.persona, officeContext: this.state.officeContext, updatedAt: new Date() };
     this.logger.log(`ELEVA state changed: ${status}${activeCapability ? ` capability=${activeCapability}` : ''}`);
     this.emitAudit('AGENT.SET_STATUS', 'ElevaState', undefined, { previous, status, activeCapability });
     return this.getStatus();
@@ -54,7 +56,7 @@ export class ElevaService {
       return this.getStatus();
     }
     const previous = this.state;
-    this.state = { status: AgentStatus.RUNNING, activeCapability: capability, updatedAt: new Date() };
+    this.state = { status: AgentStatus.RUNNING, activeCapability: capability, persona: this.state.persona, officeContext: this.state.officeContext, updatedAt: new Date() };
     this.logger.log(`ELEVA started capability: ${capability}`);
     this.emitAudit('AGENT.START_CAPABILITY', 'ElevaCapability', capability, { previousStatus: previous.status, status: this.state.status, capability });
     return this.getStatus();
@@ -62,7 +64,7 @@ export class ElevaService {
 
   stopCapability(): AgentState {
     const previous = this.state;
-    this.state = { status: AgentStatus.IDLE, activeCapability: null, updatedAt: new Date() };
+    this.state = { status: AgentStatus.IDLE, activeCapability: null, persona: this.state.persona, officeContext: this.state.officeContext, updatedAt: new Date() };
     this.logger.log('ELEVA stopped active capability');
     this.emitAudit('AGENT.STOP_CAPABILITY', 'ElevaCapability', previous.activeCapability ?? undefined, { previousStatus: previous.status, status: this.state.status });
     return this.getStatus();
@@ -70,7 +72,7 @@ export class ElevaService {
 
   failCapability(): AgentState {
     const previous = this.state;
-    this.state = { status: AgentStatus.ERROR, activeCapability: null, updatedAt: new Date() };
+    this.state = { status: AgentStatus.ERROR, activeCapability: null, persona: this.state.persona, officeContext: this.state.officeContext, updatedAt: new Date() };
     this.logger.error('ELEVA capability failed');
     this.emitAudit('AGENT.FAIL_CAPABILITY', 'ElevaCapability', previous.activeCapability ?? undefined, { previousStatus: previous.status, status: this.state.status });
     return this.getStatus();

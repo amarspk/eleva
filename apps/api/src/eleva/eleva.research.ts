@@ -9,6 +9,7 @@ import {
   M4AdvisoryInput,
   EvidenceLabel,
 } from './eleva.state';
+import { ElevaExternalResearchProviderService, ExternalResearchProvider } from './eleva.research.provider';
 
 export type SourceResolver = (path: string) => Promise<string | null>;
 
@@ -17,10 +18,17 @@ export class ElevaResearchService {
   private readonly logger = new Logger(ElevaResearchService.name);
   private sourceResolver: SourceResolver = async () => null;
 
-  constructor(@Optional() private readonly auditService?: AuditService) {}
+  constructor(
+    @Optional() private readonly auditService?: AuditService,
+    @Optional() private readonly externalResearchProvider?: ElevaExternalResearchProviderService,
+  ) {}
 
   setSourceResolver(resolver: SourceResolver): void {
     this.sourceResolver = resolver;
+  }
+
+  setExternalResearchProvider(provider: ExternalResearchProvider): void {
+    this.externalResearchProvider?.setProvider(provider);
   }
 
   async retrieveProjectContext(request: string): Promise<ProjectContext[]> {

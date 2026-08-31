@@ -19,6 +19,8 @@ export type AgentCapability =
 export interface AgentState {
   status: AgentStatus;
   activeCapability: AgentCapability | null;
+  persona: string;
+  officeContext?: string;
   updatedAt: Date;
 }
 
@@ -47,6 +49,14 @@ export enum EvidenceLabel {
   INFERRED = 'inferred',
   ASSUMPTION = 'assumption',
   UNVERIFIED = 'unverified',
+}
+
+export enum AdvisoryResponseLabel {
+  VERIFIED = 'VERIFIED',
+  EVIDENCE = 'EVIDENCE',
+  ASSUMPTION = 'ASSUMPTION',
+  RECOMMENDATION = 'RECOMMENDATION',
+  UNKNOWN = 'UNKNOWN',
 }
 
 export interface EvidenceReference {
@@ -214,4 +224,93 @@ export interface M4AdvisoryInput {
   evidence: EvidenceReference[];
   conclusionConfidence: 'high' | 'medium' | 'low';
   affectedByConflict: boolean;
+}
+
+export enum MemoryCategory {
+  PROJECT_CONTEXT = 'PROJECT_CONTEXT',
+  USER_PREFERENCE = 'USER_PREFERENCE',
+  PROJECT_GOAL = 'PROJECT_GOAL',
+  DECISION = 'DECISION',
+  DECISION_RATIONALE = 'DECISION_RATIONALE',
+  REJECTED_ALTERNATIVE = 'REJECTED_ALTERNATIVE',
+  IMPORTANT_CONVERSATION_CONTEXT = 'IMPORTANT_CONVERSATION_CONTEXT',
+  EXPLICIT_USER_INSTRUCTION = 'EXPLICIT_USER_INSTRUCTION',
+  VERIFIED_PROJECT_FACT = 'VERIFIED_PROJECT_FACT',
+}
+
+export enum MemoryEvidenceClassification {
+  VERIFIED = 'VERIFIED',
+  EVIDENCE = 'EVIDENCE',
+  ASSUMPTION = 'ASSUMPTION',
+  RECOMMENDATION = 'RECOMMENDATION',
+  UNKNOWN = 'UNKNOWN',
+}
+
+export interface MemoryProvenance {
+  source?: string;
+  location?: string;
+  retrievedAt?: Date;
+  evidenceClassification: MemoryEvidenceClassification;
+  confidence?: 'high' | 'medium' | 'low';
+  limitations?: string[];
+}
+
+export interface MemoryEntry {
+  id: string;
+  category: MemoryCategory;
+  key: string;
+  value: string;
+  createdAt: Date;
+  updatedAt: Date;
+  provenance: MemoryProvenance;
+  conversationId?: string;
+  tags?: string[];
+}
+
+export interface MemoryUpsertInput {
+  category: MemoryCategory;
+  key: string;
+  value: string;
+  provenance: MemoryProvenance;
+  conversationId?: string;
+  tags?: string[];
+}
+
+export interface ConversationMessage {
+  id: string;
+  role: 'user' | 'eleva';
+  content: string;
+  evidenceClassification?: MemoryEvidenceClassification;
+  reasoning?: string;
+  alternatives?: string[];
+  createdAt: Date;
+}
+
+export interface ConversationContext {
+  conversationId: string;
+  messages: ConversationMessage[];
+  memoryKeys: string[];
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface AdvisoryResponse {
+  message: string;
+  labels: {
+    facts: string[];
+    evidence: string[];
+    assumptions: string[];
+    recommendations: string[];
+    unknowns: string[];
+  };
+  alternatives?: string[];
+  decisionRequired?: string;
+  presentation?: PresentationPayload;
+  visualExplanation?: {
+    type: 'architecture_diagram' | 'workflow' | 'process_flow' | 'chart';
+    description: string;
+    inputs: string[];
+    outputs: string[];
+  };
+  m2Task?: Record<string, unknown>;
 }
