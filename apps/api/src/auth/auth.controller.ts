@@ -20,6 +20,8 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { LoginDto } from '@zayjar/types';
 import { MfaVerifyRequestDto } from './dto/mfa-verify-request.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 import { RateLimitGuard, RateLimit } from '../common/rate-limit/rate-limit.guard';
 import { CsrfService } from '../common/csrf/csrf.service';
 import { AuthenticatedRequest, AuthenticatedUser } from '../common/types/request.types';
@@ -32,6 +34,34 @@ export class AuthController {
     private readonly authService: AuthService,
     private readonly csrfService: CsrfService,
   ) {}
+
+  @Public()
+  @Post('forgot-password')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(RateLimitGuard)
+  @RateLimit('auth')
+  async forgotPassword(@Body() dto: ForgotPasswordDto): Promise<{ sent: boolean }> {
+    if (!dto.email) {
+      throw new BadRequestException('Email is required.');
+    }
+
+    await this.authService.initiatePasswordReset(dto.email);
+    return { sent: true };
+  }
+
+  @Public()
+  @Post('reset-password')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(RateLimitGuard)
+  @RateLimit('auth')
+  async resetPassword(@Body() dto: ResetPasswordDto): Promise<{ success: boolean }> {
+    if (!dto.token || !dto.newPassword) {
+      throw new BadRequestException('Token and new password are required.');
+    }
+
+    const result = await this.authService.resetPassword(dto.token, dto.newPassword);
+    return result;
+  }
 
   @Public()
   @Post('login')

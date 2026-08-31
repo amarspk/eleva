@@ -8,6 +8,7 @@ import { JWT_CONFIG } from './config/jwt.config';
 import { CaslAbilityFactory } from './casl-ability.factory';
 import { RbacPermissionGuard } from './guards/rbac-permission.guard';
 import { RateLimitModule } from '../common/rate-limit/rate-limit.module';
+import { NotificationModule } from '../notification/notification.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { RateLimitModule } from '../common/rate-limit/rate-limit.module';
       signOptions: { expiresIn: JWT_CONFIG.accessTokenExpiry },
     }),
     RateLimitModule,
+    NotificationModule,
   ],
   controllers: [AuthController],
   providers: [AuthService, JwtStrategy, CaslAbilityFactory, RbacPermissionGuard],

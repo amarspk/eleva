@@ -4,12 +4,20 @@ import {
   Logger,
   NotFoundException,
   ServiceUnavailableException,
+  Optional,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as argon2 from 'argon2';
+import * as crypto from 'crypto';
 import { JWT_CONFIG } from './config/jwt.config';
 import { CacheService } from '../common/cache/cache.service';
-import { prisma } from '@zayjar/db';
+import { EmailService } from '../notification/email/email.service';
+import { prisma, dbTenantContext } from '@zayjar/db';
+
+export class AuthServiceDependencies {
+  prisma?: typeof prisma;
+  dbTenantContext?: typeof dbTenantContext;
+}
 
 export interface UserProfile {
   id: string;
@@ -61,7 +69,17 @@ export class AuthService {
   constructor(
     private readonly jwtService: JwtService,
     private readonly cacheService: CacheService,
+    private readonly emailService: EmailService,
+    @Optional() private readonly dependencies?: AuthServiceDependencies,
   ) {}
+
+  private getPrisma(): typeof prisma {
+    return this.dependencies?.prisma || prisma;
+  }
+
+  private getDbTenantContext(): typeof dbTenantContext {
+    return this.dependencies?.dbTenantContext || dbTenantContext;
+  }
 
   /**
    * Cryptographically hashes a raw password using the Argon2id algorithm.
@@ -627,5 +645,75 @@ export class AuthService {
       permissions,
       mfaEnabled: user.mfaEnabled,
     };
+  }
+
+  /**
+   * Issues a password-reset token and sends a reset email.
+   *
+   * The token is stored in Redis/CacheService with a short TTL and does not
+   * reveal whether the supplied email exists, preserving account-enumeration
+   * resistance.
+   */
+  async initiatePasswordReset(email: string): Promise<{ sent: boolean }> {
+    const normalizedEmail = email.toLowerCase().trim();
+    const token = crypto.randomBytes(32).toString('hex');
+    const cacheKey = `password-reset:token:${token}`;
+
+    let user: UserFromDb | null = null;
+    try {
+      user = (await this.getPrisma().user.findFirst({
+        where: { email: normalizedEmail },
+        select: { id: true, firstName: true, email: true },
+      })) as unknown as UserFromDb | null;
+    } catch (err) {
+      this.logger.warn(`Password reset lookup failed for [${normalizedEmail}]: ${(err as Error).message}`);
+    }
+
+    if (user?.id) {
+      const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:3001'}/reset-password?token=${token}`;
+      await this.cacheService.set(cacheKey, JSON.stringify({ userId: user.id, email: user.email, token }), 900);
+
+      try {
+        await this.emailService.sendPasswordResetEmail(user.email, {
+          firstName: user.firstName || '',
+          email: user.email,
+          resetUrl,
+        });
+      } catch (err) {
+        this.logger.error(`Password reset email failed for [${user.email}]: ${(err as Error).message}`);
+      }
+    } else {
+      await this.cacheService.set(cacheKey, JSON.stringify({ issued: true }), 900);
+    }
+
+    return { sent: true };
+  }
+
+  /**
+   * Validates a password-reset token and updates the user's password.
+   */
+  async resetPassword(token: string, newPassword: string): Promise<{ success: boolean }> {
+    const cacheKey = `password-reset:token:${token}`;
+    const cached = await this.cacheService.get<{ userId: string; email: string; token: string } | { issued: boolean }>(
+      cacheKey,
+      async () => null as unknown as { userId: string; email: string; token: string } | { issued: boolean },
+      900,
+    );
+
+    if (!cached || (cached as { userId?: string }).userId === undefined) {
+      throw new UnauthorizedException('Invalid or expired password reset token.');
+    }
+
+    const hashedPassword = await this.hashPassword(newPassword);
+    await this.getDbTenantContext().run({ isPlatformOwner: true }, async () => {
+      await this.getPrisma().user.update({
+        where: { id: (cached as { userId: string }).userId },
+        data: { passwordHash: hashedPassword },
+      });
+    });
+
+    await this.revokeAllUserTokens((cached as { userId: string }).userId);
+
+    return { success: true };
   }
 }
