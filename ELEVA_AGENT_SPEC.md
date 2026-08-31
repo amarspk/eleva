@@ -261,3 +261,179 @@ Do NOT implement:
 - Full voice infrastructure
 - Full presentation application
 - Domain-specific agents
+
+## 7. M4 — Research, Evidence & Project Context Foundation
+
+**Milestone:** ELEVA M4 — Research, Evidence & Project Context Foundation  
+**Status:** Specification complete; implementation pending.  
+**Depends on:** M1 (foundation/state/permissions/audit), M2 (execution foundation), and M3 (intelligence, analysis, planning & advisory foundation).
+
+M4 moves ELEVA from analysis based primarily on supplied context into an evidence-grounded advisor that can safely obtain, organize, and reason over project context and research results. M4 does not modify M1, M2, or M3 behavior; it adds the retrieval, classification, and evidence-binding layer that feeds M3 advisory structures.
+
+### 7.1 Project Context Engine
+
+ELEVA must be able to retrieve relevant project context from existing repository mechanisms.
+
+**Requirements:**
+- Retrieve project files, specifications, configuration, code metadata, and documented project state through existing repository interfaces only.
+- Return structured context objects.
+- Clearly distinguish retrieved facts from assumptions.
+- Never invent missing project information.
+- If information cannot be confirmed, mark it `UNVERIFIED`.
+
+### 7.2 Context Relevance
+
+ELEVA must determine which available project context is relevant to the user's request.
+
+**Requirements:**
+- Avoid dumping unrelated project information into analysis.
+- Preserve source/location information for retrieved context where available.
+- Truncate or omit low-relevance context rather than returning it unchecked.
+
+### 7.3 Research Planning
+
+Given a question, ELEVA must determine what information needs to be researched.
+
+**Requirements:**
+- Break research into explicit research questions.
+- Identify required evidence before forming a recommendation.
+- Do not claim research was performed when it was not.
+
+### 7.4 Research Source Model
+
+Define a structured research source/reference contract containing, where available:
+
+- `source`
+- `title`
+- `location/reference`
+- `retrieved` timestamp
+- `excerpt` or `summary`
+- `evidenceClassification`
+- `confidence`
+- `limitations`
+
+### 7.5 Evidence Model
+
+Use explicit evidence classifications:
+
+- `VERIFIED` — confirmed from repository, runtime, or authoritative project artifacts.
+- `INFERRED` — logical deduction from verified facts.
+- `ASSUMPTION` — external claim or premise accepted for analysis.
+- `UNVERIFIED` — could not be confirmed from available evidence.
+
+Evidence must be traceable to a source or explicitly marked as an assumption/unverified statement.
+
+### 7.6 Research Results
+
+Define a structured research result containing:
+
+- `researchQuestion`
+- `sources`
+- `findings`
+- `verifiedFacts`
+- `inferences`
+- `assumptions`
+- `unknowns`
+- `limitations`
+
+### 7.7 Evidence-Grounded Analysis
+
+Integrate M4 research/context with M3:
+
+request understanding  
+→ context/research  
+→ evidence  
+→ analysis  
+→ options  
+→ risks  
+→ recommendation  
+→ plan  
+
+M3 must remain responsible for analysis, comparison, risk assessment, explanation, and planning.
+
+### 7.8 Contradiction Handling
+
+If sources or project facts conflict:
+
+- detect the conflict where possible
+- preserve both pieces of evidence
+- do not silently choose one
+- explain the conflict
+- mark the affected conclusion appropriately
+
+### 7.9 Freshness
+
+Where information can become outdated, preserve retrieval time/date and make freshness limitations visible.
+
+### 7.10 Research Honesty
+
+ELEVA must never fabricate:
+
+- sources
+- URLs
+- research results
+- project facts
+- metrics
+- prices
+- user behavior
+- technical capabilities
+
+If research or context retrieval is unavailable, ELEVA must explicitly state that it cannot confirm the information.
+
+### 7.11 M3 Integration
+
+M4 output must be consumable by the existing M3 advisory/analysis structures.
+
+The intended pipeline is:
+
+User request  
+→ M3 request understanding  
+→ M4 project context/research  
+→ M4 evidence  
+→ M3 analysis  
+→ M3 option comparison  
+→ M3 risk assessment  
+→ M3 recommendation  
+→ M3 planning  
+→ user decision  
+→ M2 approval/execution when applicable
+
+### 7.12 M2 Boundary
+
+M4 must never execute actions. Research/context retrieval is informational. Any consequential action continues through the existing M2 approval and execution pipeline.
+
+### 7.13 Future Web Research Boundary
+
+Define an extensible interface/boundary for external research providers so a real web research provider can be connected later. Do NOT invent fake web access. Do NOT add fake external research infrastructure. If the repository already contains a real research/web mechanism, reuse it instead of creating another one.
+
+### 7.14 Project Context Boundary
+
+Define interfaces/contracts so future ELEVA capabilities can consume project context consistently. Do not build a complete memory/self-improvement system in M4.
+
+### 7.15 Audit
+
+Significant research/context operations should remain compatible with the existing AuditService. Do not create a new audit system.
+
+### 7.16 M4 Non-Goals
+
+Do NOT implement:
+
+- Accounting capability
+- Security capability
+- Development capability
+- Backup capability
+- Analytics capability
+- Memory/self-improvement
+- Autonomous self-modification
+- Model training/retraining
+- Autonomous unrestricted web browsing
+- Fake web search
+- Fake database infrastructure
+- New authentication system
+- New permission system
+- Replacement of JWT/RBAC/CASL
+- Replacement of M2 approval/execution
+- Full ELEVA Dashboard
+- Full voice system
+- Full presentation application
+- Domain-specific agents

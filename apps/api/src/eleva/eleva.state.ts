@@ -155,3 +155,63 @@ export interface VoiceInteractionBoundary {
   inputContract: Record<string, { type: string }>;
   outputContract: Record<string, { type: string }>;
 }
+
+export interface ProjectContext {
+  location: string;
+  kind: 'file' | 'document' | 'code' | 'config' | 'specification';
+  retrievedAt: Date;
+  content: string;
+  metadata?: Record<string, unknown>;
+}
+
+export interface ContextRelevance {
+  location: string;
+  score: number;
+  reason: string;
+  content: string;
+  retrievedAt: Date;
+}
+
+export interface ResearchPlan {
+  question: string;
+  researchQuestions: string[];
+  requiredEvidence: string[];
+  needsExternalResearch: boolean;
+  caveat?: string;
+}
+
+export interface ResearchSource {
+  source: string;
+  title?: string;
+  locationOrReference?: string;
+  retrieved: Date;
+  excerptOrSummary: string;
+  evidenceClassification: EvidenceLabel;
+  confidence: 'high' | 'medium' | 'low';
+  limitations?: string[];
+}
+
+export interface ResearchResult {
+  researchQuestion: string;
+  sources: ResearchSource[];
+  findings: string[];
+  verifiedFacts: string[];
+  inferences: string[];
+  assumptions: string[];
+  unknowns: string[];
+  limitations: string[];
+  conflicts?: Array<{
+    first: ResearchSource;
+    second: ResearchSource;
+    explanation: string;
+  }>;
+  retrievedAt: Date;
+  stale?: boolean;
+}
+
+export interface M4AdvisoryInput {
+  research: ResearchResult[];
+  evidence: EvidenceReference[];
+  conclusionConfidence: 'high' | 'medium' | 'low';
+  affectedByConflict: boolean;
+}
