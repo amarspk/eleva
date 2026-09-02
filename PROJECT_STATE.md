@@ -696,6 +696,7 @@ They are intentionally NOT created now. Until then, this PROJECT_STATE.md remain
 ---
 
 # 29. Last Completed Work
+- M6 — ELEVA Agent Safety & Operational Controls — VERIFIED: approval lifecycle integration, verified/executed outcome contract, risk guardrails, Approval Center controls, operational status controls, and M6 tests/gates completed. No M6.1/Slice 11+/M7/M8/M9.
 
 > Session of **2026-08-04** (Asia/Dubai). Commit `dee3527` on `main`.
 > Every defect below was **reproduced at runtime before any code was changed**

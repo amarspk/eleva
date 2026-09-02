@@ -604,3 +604,104 @@ M5 is considered complete when:
 - Memory architecture is defined with categories and provenance metadata.
 - No fake database, new auth system, new permission system, or replacement of existing controls is introduced.
 - Static gates for touched surfaces pass: TypeScript, ESLint, Jest, build.
+
+## 9. M6 — Agent Safety, Operational Control & Verified Execution
+
+**Milestone:** ELEVA M6 — Agent Safety, Operational Control & Verified Execution
+**Status:** Implementation complete; verification in progress.
+**Depends on:** M1 (foundation/state/permissions/audit), M2 (execution foundation), M3 (intelligence/analysis/planning), M4 (research/evidence), and M5 (executive office/interaction).
+
+M6 hardens the ELEVA agent runtime with first-class outcome contracts, approval lifecycle surfaces, operational control endpoints, and security risk-policy guardrails. M6 does not change the conversational, advisory, research, memory, or voice foundations defined in M1–M5; it adds enforcement, observability, and control layers on top of them.
+
+### 9.1 Verified / Executed Outcome Contract
+
+ELEVA must distinguish between execution completion and post-execution verification.
+
+**Requirements:**
+- `AgentTaskResult` must carry both `status` and `outcome` fields, with outcomes including `EXECUTED` and `VERIFICATION_FAILURE`.
+- High-risk and sensitive tools require successful post-execution verification before the result is treated as trusted.
+- Unverified results for high-risk/sensitive tools must be rejected with a distinct `VERIFICATION_FAILURE` outcome.
+- Audit logs must record the verification outcome alongside execution details.
+- The execution pipeline must never mutate a failed verification into a successful outcome.
+
+**Non-goals:**
+- Do not implement autonomous retries or self-healing execution without explicit user approval.
+- Do not bypass approval requirements for high-risk tools even when verification passes.
+
+### 9.2 Approval Center Completeness
+
+ELEVA must provide first-class surfaces for pending approvals, approval inspection, and execution lifecycle tracking.
+
+**Requirements:**
+- `ElevaService` must expose `listPendingApprovals()`, returning only approved-but-not-yet-executed actions.
+- Individual approval inspection must include `actionId`, `approved`, `capability`, `approvedAt`, `revokedAt`, and `executedAt`.
+- Approval records must be immutable after creation; revocation and execution must create new record snapshots.
+- `markExecuted(actionId)` must transition an approval to an executed state and emit an audit event.
+- `assertApproved`, `assertActionVerified`, and `assertNotExecuted` must provide pre-condition guards for the execution pipeline.
+
+**Non-goals:**
+- Do not implement distributed approval consensus or multi-party signing in this milestone.
+- Do not persist approvals to the database; in-memory lifecycle tracking is sufficient for this milestone.
+
+### 9.3 Security Risk-Policy Guardrails
+
+ELEVA must enforce security policies beyond coarse tool-level RBAC.
+
+**Requirements:**
+- Tool risk levels (`LOW`, `SENSITIVE`, `HIGH`) must be first-class fields on `AgentToolDefinition`.
+- `HIGH` and `SENSITIVE` tools must require explicit approval before execution.
+- `HIGH` and `SENSITIVE` tools must require successful post-execution verification; missing or failing verification must produce `VERIFICATION_FAILURE`.
+- The execution service must reject execution of high-risk tools without both approval and verification.
+- All risk-policy violations must be auditable via the existing `AuditService`.
+
+**Non-goals:**
+- Do not implement dynamic risk scoring or ML-based risk assessment.
+- Do not introduce a new permission system; reuse the existing CASL/RBAC layer for authorization.
+
+### 9.4 Executive Office Operational Control Surfaces
+
+ELEVA must expose operational health, deployment, and backup status through first-class endpoints, not only read-only status.
+
+**Requirements:**
+- `ElevaOperationalService` must provide `getHealth()`, `getDeployment()`, `getBackup()`, and `getOperationalStatus()`.
+- Operational providers must be swappable via `setHealthProvider`, `setDeploymentProvider`, and `setBackupProvider`.
+- Default providers must return `unknown` with explicit `unavailable: true` details; never fabricate operational data.
+- `ElevaOperationalController` must expose `GET /eleva-office/operational/health`, `/deployment`, `/backup`, and `/status`.
+- All operational endpoints must require `read:agent` permission via the existing RBAC guards.
+
+**Non-goals:**
+- Do not implement actual deployment or backup actions in this milestone; read-only status only.
+- Do not invent fake health/deployment/backup data when providers are unconfigured.
+
+### 9.5 Existing M1–M5 Behavior Preservation
+
+M6 must not alter the behavior of M1–M5 surfaces.
+
+**Requirements:**
+- Agent state transitions (`IDLE`, `RUNNING`, `ERROR`) must remain byte-identical.
+- Capability registry, memory operations, voice state machine, and advisory response formats must be unchanged.
+- Existing approval `recordApproval` / `revokeApproval` / `isApproved` semantics must be preserved.
+- Existing M5 Executive Office routes (`/eleva-office/*`) must continue to function without modification.
+
+### 9.6 M6 Non-Goals
+
+Do NOT implement:
+
+- M6.1 or later slices
+- M7, M8, or M9 capabilities
+- New authentication, permission, or authorization systems
+- Persistent approval storage or database schema changes
+- Autonomous execution without user approval
+- Fake infrastructure or fabricated operational data
+
+### 9.7 Verification Criteria
+
+M6 is considered complete when:
+
+- High-risk/sensitive tools without verification produce `VERIFICATION_FAILURE` and are audited.
+- `listPendingApprovals` returns only approved, non-revoked, non-executed actions.
+- `markExecuted` transitions approvals to executed state and emits audit events.
+- Operational endpoints return `unknown` with `unavailable: true` when providers are unconfigured.
+- All existing ELEVA tests pass; no M1–M5 tests are broken or removed.
+- Static gates pass: TypeScript, ESLint, Jest, build.
+- `ELEVA_AGENT_SPEC.md` and `PROJECT_STATE.md` are updated to record M6 completion.

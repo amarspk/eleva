@@ -4,6 +4,7 @@ import { RbacPermissionGuard } from '../auth/guards/rbac-permission.guard';
 import { AppAbility, Action, Subjects } from '../auth/casl-ability.factory';
 import { AuthenticatedRequest } from '../common/types/request.types';
 import { AuditService } from '../audit/audit.service';
+import { ElevaService } from './eleva.service';
 
 const SAFE_TOOL_NAME = 'agent.safe_demo_tool';
 
@@ -52,6 +53,7 @@ export class AgentExecutionService {
     private readonly toolRegistry: AgentToolRegistryService,
     private readonly rbacPermissionGuard: RbacPermissionGuard,
     private readonly caslAbilityFactory: { createForUser: (user: AuthenticatedRequest['user']) => AppAbility },
+    private readonly elevaService: ElevaService,
     @Optional() private readonly auditService?: AuditService,
   ) {}
 
@@ -181,6 +183,28 @@ export class AgentExecutionService {
         await this.audit(taskId, result);
         return result;
       }
+    }
+
+    const verificationRequired = tool.risk === 'HIGH' || tool.risk === 'SENSITIVE';
+    const verified = !verificationRequired || (verification?.passed === true);
+    if (verificationRequired && !verified) {
+      const result: AgentTaskResult = {
+        taskId,
+        status: AgentTaskStatus.FAILED,
+        outcome: AgentTaskOutcome.VERIFICATION_FAILURE,
+        action: request.action,
+        toolName: tool.name,
+        requiredPermission,
+        risk: tool.risk,
+        approvalRequired: tool.requiresApproval,
+        approvalGranted: tool.requiresApproval ? true : undefined,
+        result: executionResult,
+        verificationError: 'Verification failed',
+        verification,
+      };
+
+      await this.audit(taskId, result);
+      return result;
     }
 
     const result: AgentTaskResult = {

@@ -31,10 +31,13 @@ const buildService = (ability: AppAbility, auditLog = jest.fn()) => {
     registry,
     {} as any,
     { createForUser: () => ability } as any,
+    {} as any,
     { log: auditLog } as any,
   );
   return { registry, service };
 };
+
+const buildAuditService = (auditLog = jest.fn()) => ({ log: auditLog } as any);
 
 describe('AgentExecutionService', () => {
   const baseRequest = (overrides: Partial<AgentTaskRequest> = {}): AgentTaskRequest => ({
@@ -76,6 +79,7 @@ describe('AgentExecutionService', () => {
       registry,
       {} as any,
       { createForUser: () => buildAbility({ highRiskAuthorized: false }) } as any,
+      {} as any,
       undefined,
     );
 
@@ -160,6 +164,7 @@ describe('AgentExecutionService', () => {
       registry,
       {} as any,
       { createForUser: () => buildAbility({ highRiskAuthorized: true }) } as any,
+      {} as any,
       undefined,
     );
     jest.spyOn(serviceWithDenial as any, 'evaluateApproval').mockResolvedValue(false);

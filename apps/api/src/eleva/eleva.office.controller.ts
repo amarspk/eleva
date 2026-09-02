@@ -8,7 +8,7 @@ import { ElevaService } from './eleva.service';
 import { ElevaMemoryService } from './eleva.memory';
 import { ElevaVoiceService } from './eleva.voice.service';
 import { ElevaExternalResearchProviderService } from './eleva.research.provider';
-import { MemoryCategory, AdvisoryResponse, MemoryEvidenceClassification } from './eleva.state';
+import { MemoryCategory, AdvisoryResponse, MemoryEvidenceClassification, AgentCapability, AgentApprovalResponse } from './eleva.state';
 import { VoiceInteractionStateMachineEvent } from './eleva.voice';
 
 export interface ConversationStartResponse {
@@ -41,6 +41,19 @@ export interface VoiceStateResponse {
 export interface AdvisoryRequest {
   message: string;
   forceResearch?: boolean;
+}
+
+export interface ApproveRequest {
+  actionId: string;
+  capability: AgentCapability;
+}
+
+export interface RevokeRequest {
+  actionId: string;
+}
+
+export interface ExecuteRequest {
+  actionId: string;
 }
 
 @Controller('eleva-office')
@@ -198,5 +211,36 @@ export class ElevaOfficeController {
   @RequirePermission('read', 'agent')
   getResearchBoundary(): Record<string, unknown> {
     return this.researchProvider.getBoundary();
+  }
+
+  @Get('approvals')
+  @UseGuards(JwtAuthGuard, RbacPermissionGuard)
+  @RequirePermission('read', 'agent')
+  getApprovals(): AgentApprovalResponse[] {
+    return this.elevaservice.listPendingApprovals();
+  }
+
+  @Post('approvals/approve')
+  @UseGuards(JwtAuthGuard, RbacPermissionGuard)
+  @RequirePermission('read', 'agent')
+  approve(@Body() body: ApproveRequest): AgentApprovalResponse {
+    this.elevaservice.recordApproval(body.actionId, body.capability);
+    return this.elevaservice.getApproval(body.actionId);
+  }
+
+  @Post('approvals/revoke')
+  @UseGuards(JwtAuthGuard, RbacPermissionGuard)
+  @RequirePermission('read', 'agent')
+  revoke(@Body() body: RevokeRequest): { actionId: string; revoked: boolean } {
+    const revoked = this.elevaservice.revokeApproval(body.actionId);
+    return { actionId: body.actionId, revoked };
+  }
+
+  @Post('approvals/execute')
+  @UseGuards(JwtAuthGuard, RbacPermissionGuard)
+  @RequirePermission('read', 'agent')
+  executeApproval(@Body() body: ExecuteRequest): { actionId: string; executed: boolean } {
+    const marked = this.elevaservice.markExecuted(body.actionId);
+    return { actionId: body.actionId, executed: marked };
   }
 }

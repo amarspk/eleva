@@ -1,12 +1,19 @@
 import { Injectable, Logger, Optional } from '@nestjs/common';
-import { AgentStatus, AgentCapability, AgentState, AgentCapabilityDefinition, AgentPermission } from './eleva.state';
+import {
+  AgentStatus,
+  AgentCapability,
+  AgentState,
+  AgentCapabilityDefinition,
+  AgentPermission,
+  AgentApprovalResponse,
+} from './eleva.state';
 import { AuditService } from '../audit/audit.service';
 
 @Injectable()
 export class ElevaService {
   private readonly logger = new Logger(ElevaService.name);
   private readonly capabilities = new Map<AgentCapability, AgentCapabilityDefinition>();
-  private readonly approvals = new Map<string, { approved: boolean; revokedAt?: Date }>();
+  private readonly approvals = new Map<string, { approved: boolean; revokedAt?: Date; capability?: AgentCapability; context?: Record<string, unknown>; requestedAt?: Date; approvedAt?: Date; executedAt?: Date }>();
   private readonly permissions: AgentPermission[] = [
     { action: 'read', resource: 'project', description: 'Read project state and documentation' },
     { action: 'analyze', resource: 'system', description: 'Analyze system health and issues' },
@@ -91,21 +98,21 @@ export class ElevaService {
   }
 
   recordApproval(actionId: string, capability: AgentCapability): boolean {
-    this.approvals.set(actionId, { approved: true });
+    this.approvals.set(actionId, { approved: true, capability, requestedAt: new Date(), approvedAt: new Date() });
     this.logger.log(`ELEVA approval recorded: ${actionId} capability=${capability}`);
-    this.emitAudit('AGENT.RECORD_APPROVAL', 'ElevaApproval', actionId, { capability });
+    this.emitAudit('AGENT.RECORD_APPROVAL', 'ElevaApproval', actionId, { capability, approved: true });
     return true;
   }
 
   revokeApproval(actionId: string): boolean {
-    const approval = this.approvals.get(actionId);
-    if (!approval) {
+    const existing = this.approvals.get(actionId);
+    if (!existing) {
       return false;
     }
-    approval.approved = false;
-    approval.revokedAt = new Date();
+    const record = { ...existing, approved: false, revokedAt: new Date() };
+    this.approvals.set(actionId, record);
     this.logger.log(`ELEVA approval revoked: ${actionId}`);
-    this.emitAudit('AGENT.REVOKE_APPROVAL', 'ElevaApproval', actionId, { capability: this.state.activeCapability });
+    this.emitAudit('AGENT.REVOKE_APPROVAL', 'ElevaApproval', actionId, { capability: existing.capability, approved: false });
     return true;
   }
 
@@ -114,12 +121,67 @@ export class ElevaService {
     return approval?.approved === true && !approval.revokedAt;
   }
 
+  listPendingApprovals(): AgentApprovalResponse[] {
+    return Array.from(this.approvals.entries())
+      .filter(([, record]) => record.approved && !record.revokedAt && !record.executedAt)
+      .map(([actionId, record]) => this.mapApproval(actionId, record));
+  }
+
+  assertApproved(actionId: string): void {
+    if (!this.isApproved(actionId)) {
+      throw new Error(`Action [${actionId}] is not approved. Execute through the M2 approval pipeline before continuing.`);
+    }
+  }
+
+  assertActionVerified(verified: boolean, actionId: string): void {
+    if (!verified) {
+      throw new Error(`Action [${actionId}] verification failed. Unverified results must not be treated as verified.`);
+    }
+  }
+
+  assertNotExecuted(actionId: string): void {
+    const approval = this.approvals.get(actionId);
+    if (approval?.approved) {
+      throw new Error(`Action [${actionId}] has already been approved as executed. Do not claim execution twice.`);
+    }
+  }
+
+  markExecuted(actionId: string): boolean {
+    const existing = this.approvals.get(actionId);
+    if (!existing) {
+      return false;
+    }
+    const record = { ...existing, executedAt: new Date() };
+    this.approvals.set(actionId, record);
+    this.emitAudit('AGENT.MARK_EXECUTED', 'ElevaApproval', actionId, { capability: existing.capability, approvedAt: existing.approvedAt?.toISOString(), executedAt: record.executedAt.toISOString() });
+    return true;
+  }
+
+  getApproval(actionId: string): AgentApprovalResponse {
+    const record = this.approvals.get(actionId);
+    if (!record) {
+      return { actionId, approved: false };
+    }
+    return this.mapApproval(actionId, record);
+  }
+
   getPermissions(): AgentPermission[] {
     return [...this.permissions];
   }
 
   hasPermission(action: string, resource: string): boolean {
-    return this.permissions.some(p => p.action === action && p.resource === resource);
+    return this.permissions.some((p) => p.action === action && p.resource === resource);
+  }
+
+  private mapApproval(actionId: string, record: { approved: boolean; revokedAt?: Date; capability?: AgentCapability; approvedAt?: Date; executedAt?: Date }): AgentApprovalResponse {
+    return {
+      actionId,
+      approved: record.approved,
+      capability: record.capability,
+      approvedAt: record.approvedAt?.toISOString(),
+      revokedAt: record.revokedAt?.toISOString(),
+      executedAt: record.executedAt?.toISOString(),
+    };
   }
 
   private emitAudit(action: string, entityName: string, entityId?: string | null, values?: Record<string, unknown> | null): void {

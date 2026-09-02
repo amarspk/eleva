@@ -36,6 +36,15 @@ export interface AgentPermission {
   description: string;
 }
 
+export interface AgentApprovalResponse {
+  actionId: string;
+  approved: boolean;
+  capability?: string;
+  approvedAt?: string;
+  revokedAt?: string;
+  executedAt?: string;
+}
+
 export enum AgentRequestIntent {
   QUESTION = 'QUESTION',
   ANALYSIS = 'ANALYSIS',
