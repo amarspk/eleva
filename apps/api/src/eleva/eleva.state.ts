@@ -323,3 +323,147 @@ export interface AdvisoryResponse {
   };
   m2Task?: Record<string, unknown>;
 }
+
+// ==========================================
+// M7 Proactive Intelligence types
+// ==========================================
+
+export enum SignalStatus {
+  RECEIVED = 'RECEIVED',
+  VALID = 'VALID',
+  INVALID = 'INVALID',
+  REJECTED = 'REJECTED',
+}
+
+export enum EventCategoryM7 {
+  SYSTEM = 'SYSTEM',
+  SECURITY = 'SECURITY',
+  OPERATIONS = 'OPERATIONS',
+  BUSINESS = 'BUSINESS',
+  USER = 'USER',
+  DIAGNOSTIC = 'DIAGNOSTIC',
+}
+
+export enum SituationState {
+  DETECTED = 'DETECTED',
+  INVESTIGATING = 'INVESTIGATING',
+  ACTIVE = 'ACTIVE',
+  RESOLVED = 'RESOLVED',
+}
+
+export enum Severity {
+  LOW = 'LOW',
+  MEDIUM = 'MEDIUM',
+  HIGH = 'HIGH',
+  CRITICAL = 'CRITICAL',
+}
+
+export interface Signal {
+  id: string;
+  source: string;
+  type: string;
+  receivedAt: Date;
+  status: SignalStatus;
+  raw: Record<string, unknown>;
+  evidence?: Record<string, unknown>;
+  rejectionReason?: string;
+}
+
+export interface Event {
+  id: string;
+  signalId: string;
+  source: string;
+  category: EventCategoryM7;
+  type: string;
+  receivedAt: Date;
+  data: Record<string, unknown>;
+  correlationKey?: string;
+}
+
+export interface Correlation {
+  eventIds: string[];
+  reason: string;
+  criteria: Record<string, unknown>;
+}
+
+export interface AnomalyRule {
+  id: string;
+  name: string;
+  description: string;
+  evaluate: (events: Event[]) => { triggered: boolean; reason?: string; evidence?: Record<string, unknown> } | null;
+}
+
+export interface RecommendationM7 {
+  id: string;
+  situationId: string;
+  summary: string;
+  proposedAction: string;
+  reason: string;
+  risk: RiskEntry;
+  approvalRequired: boolean;
+  status: 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'EXECUTED';
+  createdAt: Date;
+}
+
+export interface AlertM7 {
+  id: string;
+  situationId: string;
+  severity: Severity;
+  reason: string;
+  evidence: Record<string, unknown>;
+  notifiedAt?: Date;
+  acknowledgedAt?: Date;
+}
+
+export interface Situation {
+  id: string;
+  state: SituationState;
+  severity: Severity;
+  eventIds: string[];
+  correlationReason?: string;
+  detectedAt: Date;
+  lastUpdatedAt: Date;
+  knownImpact?: string;
+  analysis?: string;
+  recommendations: RecommendationM7[];
+  alerts: AlertM7[];
+  evidence: Record<string, unknown>[];
+  resolution?: string;
+}
+
+export interface ScheduledCheckResult {
+  id: string;
+  provider: string;
+  checkedAt: Date;
+  available: boolean;
+  result?: Record<string, unknown>;
+  error?: string;
+}
+
+export interface SituationMemoryRecord {
+  situationId: string;
+  memoryKey: string;
+  value: string;
+  provenance: MemoryProvenance;
+  updatedAt: Date;
+}
+
+export interface M7IntelligenceContext {
+  signals: Signal[];
+  events: Event[];
+  situations: Situation[];
+  anomalies: { ruleId: string; reason?: string; evidence?: Record<string, unknown> }[];
+}
+
+export interface CreateSignalRequest {
+  source: string;
+  type: string;
+  raw: Record<string, unknown>;
+  evidence?: Record<string, unknown>;
+}
+
+export interface CreateSituationResponse {
+  situation: Situation;
+  recommendation?: RecommendationM7;
+  alert?: AlertM7;
+}

@@ -37,8 +37,6 @@ const buildService = (ability: AppAbility, auditLog = jest.fn()) => {
   return { registry, service };
 };
 
-const buildAuditService = (auditLog = jest.fn()) => ({ log: auditLog } as any);
-
 describe('AgentExecutionService', () => {
   const baseRequest = (overrides: Partial<AgentTaskRequest> = {}): AgentTaskRequest => ({
     action: 'demo',
