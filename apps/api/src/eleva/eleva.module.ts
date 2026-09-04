@@ -12,13 +12,15 @@ import { ElevaOperationalService } from './eleva.operations';
 import { ElevaOperationalController } from './operational.controller';
 import { ElevaIntelligenceService } from './eleva.intelligence';
 import { ElevaIntelligenceController } from './intelligence.controller';
+import { ElevaBusinessIntelligenceService } from './eleva.business.intelligence';
+import { ElevaBusinessIntelligenceController } from './eleva.business.intelligence.controller';
 import { AuditModule } from '../audit/audit.module';
 import { RbacPermissionGuard } from '../auth/guards/rbac-permission.guard';
 import { CaslAbilityFactory } from '../auth/casl-ability.factory';
 
 @Module({
   imports: [AuditModule],
-  controllers: [AgentController, ElevaOfficeController, ElevaOperationalController, ElevaIntelligenceController],
+  controllers: [AgentController, ElevaOfficeController, ElevaOperationalController, ElevaIntelligenceController, ElevaBusinessIntelligenceController],
   providers: [
     ElevaService,
     AgentToolRegistryService,
@@ -30,6 +32,7 @@ import { CaslAbilityFactory } from '../auth/casl-ability.factory';
     ElevaVoiceService,
     ElevaOperationalService,
     ElevaIntelligenceService,
+    ElevaBusinessIntelligenceService,
     RbacPermissionGuard,
     CaslAbilityFactory,
   ],
@@ -44,6 +47,7 @@ import { CaslAbilityFactory } from '../auth/casl-ability.factory';
     ElevaVoiceService,
     ElevaOperationalService,
     ElevaIntelligenceService,
+    ElevaBusinessIntelligenceService,
   ],
 })
 export class ElevaModule {}

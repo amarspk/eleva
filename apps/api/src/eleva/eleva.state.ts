@@ -325,6 +325,112 @@ export interface AdvisoryResponse {
 }
 
 // ==========================================
+// M8 Business Intelligence & Operations
+// ==========================================
+
+export enum MetricStatus {
+  AVAILABLE = 'AVAILABLE',
+  UNAVAILABLE = 'UNAVAILABLE',
+  UNVERIFIED = 'UNVERIFIED',
+}
+
+export interface MetricDefinition {
+  metricId: string;
+  name: string;
+  description: string;
+  category: 'sales' | 'orders' | 'operations' | 'errors' | 'performance' | 'system';
+  source: string;
+  calculation: string;
+  segmentation: string[];
+  timeRange: { from: Date; to: Date };
+  evidenceStatus: MetricStatus;
+  evidence?: { source: string; detail?: string }[];
+  limitations?: string[];
+}
+
+export interface MetricResult {
+  metricId: string;
+  value: number | Record<string, unknown> | null;
+  unit?: string;
+  status: MetricStatus;
+  message?: string;
+  evidenceStatus: MetricStatus;
+  comparedToPrevious?: {
+    value: number | Record<string, unknown> | null;
+    change: Record<string, unknown> | null;
+  };
+  segments?: Array<{ segment: string; value: number | Record<string, unknown> | null; status: MetricStatus; evidenceStatus: MetricStatus; evidence: { source: string; detail?: string }[]; limitations: string[]; computedAt: Date }>;
+  evidence: { source: string; detail?: string }[];
+  limitations: string[];
+  computedAt: Date;
+}
+
+export interface ExecutiveInsight {
+  insightId: string;
+  metricId?: string;
+  dataSource: string;
+  observation: string;
+  timeRange: { from: Date; to: Date };
+  evidence: { source: string; detail: string; classification: EvidenceLabel }[];
+  analysis: string;
+  impact: string;
+  confidence: 'high' | 'medium' | 'low';
+  classification: 'verified_fact' | 'inference' | 'unknown';
+  limitations: string[];
+  recommendation?: string;
+  m7SituationId?: string;
+  m6Plan?: Record<string, unknown>;
+  createdAt: Date;
+}
+
+export interface DecisionSupportRequest {
+  requestId: string;
+  question: string;
+  currentState: string;
+  evidence: { source: string; detail: string; classification: EvidenceLabel }[];
+  options: {
+    name: string;
+    benefits: string[];
+    costsEffort: string;
+    risks: { classification: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'; area: string; triggerOrEvidence: string; mitigation: string }[];
+    operationalImpact: string;
+  }[];
+  recommendedOption?: string;
+  rationale?: string;
+  risks: { classification: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'; area: string; triggerOrEvidence: string; mitigation: string }[];
+  operationalImpact: string;
+  technicalImpact: string;
+  createdAt: Date;
+}
+
+export interface OperationalPlan {
+  planId: string;
+  insightId?: string;
+  recommendationId?: string;
+  situationId?: string;
+  objective: string;
+  affectedComponents: string[];
+  tasks: { name: string; description: string; dependencies?: string[] }[];
+  dependencies: string[];
+  verificationRequirements: string[];
+  abortOrRollbackCriteria: string[];
+  m6ApprovalRequired: boolean;
+  m6ActionId?: string;
+  approvalStatus?: 'pending' | 'approved' | 'denied' | 'executed' | 'verified' | 'failed';
+  createdAt: Date;
+}
+
+export interface BusinessIntelligenceContext {
+  metrics: MetricResult[];
+  insights: ExecutiveInsight[];
+  decisions: DecisionSupportRequest[];
+  plans: OperationalPlan[];
+  pendingApprovals: { actionId: string; planId: string; objective: string }[];
+  m7Situations: { situationId: string; state: string; severity: string; recommendationCount: number }[];
+  generatedAt: Date;
+}
+
+// ==========================================
 // M7 Proactive Intelligence types
 // ==========================================
 
