@@ -1,7 +1,7 @@
 import { Injectable, Logger, ForbiddenException, NotFoundException, Optional } from '@nestjs/common';
 import { AgentTaskRequest, AgentToolDefinition, AgentTaskResult, AgentTaskStatus, AgentTaskOutcome, AgentToolRisk } from './agent.task';
 import { RbacPermissionGuard } from '../auth/guards/rbac-permission.guard';
-import { AppAbility, Action, Subjects } from '../auth/casl-ability.factory';
+import { AppAbility, Action, Subjects, CaslAbilityFactory } from '../auth/casl-ability.factory';
 import { AuthenticatedRequest } from '../common/types/request.types';
 import { AuditService } from '../audit/audit.service';
 import { ElevaService } from './eleva.service';
@@ -52,7 +52,7 @@ export class AgentExecutionService {
   constructor(
     private readonly toolRegistry: AgentToolRegistryService,
     private readonly rbacPermissionGuard: RbacPermissionGuard,
-    private readonly caslAbilityFactory: { createForUser: (user: AuthenticatedRequest['user']) => AppAbility },
+    private readonly caslAbilityFactory: CaslAbilityFactory,
     private readonly elevaService: ElevaService,
     @Optional() private readonly auditService?: AuditService,
   ) {}
