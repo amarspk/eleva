@@ -15,7 +15,6 @@ export class ApiError extends Error {
   constructor(status: number, message: string, body: unknown) {
     super(message);
     this.name = 'ApiError';
-    this.status = status;
     this.body = body;
   }
 
@@ -48,11 +47,11 @@ function extractMessage(body: unknown, status: number): string {
 }
 
 export function resolveApiBase(): string {
-  const configured = process.env.NEXT_PUBLIC_API_URL;
-  if (configured) {
-    return configured.replace(/\/$/, '');
+  const configured = process.env.NEXT_PUBLIC_API_URL?.trim();
+  if (!configured) {
+    return '';
   }
-  return '';
+  return configured.replace(/\/$/, '').replace(/\/api\/v1$/, '');
 }
 
 export interface RequestOptions {
