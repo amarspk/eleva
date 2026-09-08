@@ -33,7 +33,7 @@ export class TenantContextMiddleware implements NestMiddleware {
         // request flow for valid authenticated users is unchanged; only the
         // unverified-claims hole is closed here.
         const verified = jwt.verify(token, JWT_CONFIG.accessTokenSecret) as unknown as { roles?: unknown };
-        if (Array.isArray(verified.roles) && (verified.roles as unknown[]).includes('PLATFORM_OWNER')) {
+        if (Array.isArray(verified.roles) && (verified.roles as unknown[]).some((role) => typeof role === 'string' && role.toUpperCase() === 'PLATFORM_OWNER')) {
           isPlatformOwner = true;
         }
       } catch (err) {
