@@ -23,14 +23,16 @@ export function LoginForm(): React.ReactNode {
 
   const handleSubmit = async (event: React.FormEvent): Promise<void> => {
     event.preventDefault();
-    if (!email || !password || !tenantId) {
-      setError('Email, password, and Tenant ID are required.');
+    if (!email || !password) {
+      setError('Email and password are required.');
       return;
     }
     setSubmitting(true);
     setError(null);
     if (tenantId) {
       window.localStorage.setItem('eleva_tenantId', tenantId);
+    } else {
+      window.localStorage.removeItem('eleva_tenantId');
     }
 
     try {
@@ -92,13 +94,13 @@ export function LoginForm(): React.ReactNode {
                 />
               </div>
               <div>
-                <label htmlFor="tenantId" className="block text-sm font-medium text-gold-200">Tenant ID</label>
+                <label htmlFor="tenantId" className="block text-sm font-medium text-gold-200">Tenant ID <span className="text-luxury-muted">(optional for Platform Owner)</span></label>
                 <input
                   id="tenantId"
                   type="text"
-                  required
                   value={tenantId}
                   onChange={(e) => setTenantId(e.target.value)}
+                  placeholder="Leave blank for Platform Owner"
                   className="mt-1 w-full rounded-lg border border-luxury-border bg-luxury-elevated px-3 py-2 text-sm text-gold-100 placeholder:text-luxury-muted focus:border-gold-400 focus:outline-none font-mono text-xs"
                 />
               </div>
