@@ -89,7 +89,12 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
     }
   }
 
-  const response = await fetchImpl(`${resolveApiBase()}${path}`, {
+  const base = resolveApiBase();
+  const url = /^https?:\/\//i.test(path)
+    ? path
+    : `${base}${path.startsWith('/') ? path : `/${path}`}`;
+
+  const response = await fetchImpl(url, {
     method,
     headers,
     credentials: 'include',
