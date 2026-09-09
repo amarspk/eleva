@@ -90,9 +90,19 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
   }
 
   const base = resolveApiBase();
-  const url = /^https?:\/\//i.test(path)
-    ? path
-    : `${base}${path.startsWith('/') ? path : `/${path}`}`;
+  let requestPath = path;
+
+  if (/^https?:\/\//i.test(path)) {
+    const parsed = new URL(path);
+    parsed.pathname = parsed.pathname.replace(/^\/api\/v1(?=\/|$)/, '') || '/';
+    requestPath = parsed.toString();
+  } else {
+    requestPath = path.replace(/^\/?api\/v1(?=\/|$)/, '');
+  }
+
+  const url = /^https?:\/\//i.test(requestPath)
+    ? requestPath
+    : `${base}${requestPath.startsWith('/') ? requestPath : `/${requestPath}`}`;
 
   const response = await fetchImpl(url, {
     method,
